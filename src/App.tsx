@@ -24,10 +24,6 @@ function App() {
   const [currentTime, setCurrentTime] = useState(getInitialTime())
   const activeCardRef = useRef<HTMLDivElement | null>(null);
 
-  // Swipe Gesture Handling
-  const touchStartX = useRef<number | null>(null);
-  const touchEndX = useRef<number | null>(null);
-  const minSwipeDistance = 70;
 
   // Load Itinerary
   useEffect(() => {
@@ -71,56 +67,6 @@ function App() {
     }
   }, [loading, selectedDayIndex]);
 
-  // Filtering Logic
-  const currentDay = itinerary?.days[selectedDayIndex];
-  const filteredActivities = currentDay?.activities.filter(activity => {
-    const term = searchTerm.toLowerCase();
-    return (
-      activity.title.toLowerCase().includes(term) ||
-      activity.location.toLowerCase().includes(term) ||
-      activity.notes.toLowerCase().includes(term) ||
-      activity.category.toLowerCase().includes(term)
-    );
-  }) || [];
-
-  // Check if selected day is today
-  const isToday = currentDay ? (() => {
-    // Extract date parts: "Wed, 5/28/26" -> extract 5/28/26
-    const dateMatch = currentDay.date.match(/(\d{1,2})\/(\d{1,2})\/(\d{2})/);
-    if (!dateMatch) return false;
-    
-    const [, month, dayOfMonth, year] = dateMatch;
-    const currentMonth = String(currentTime.getMonth() + 1);
-    const currentDayOfMonth = String(currentTime.getDate());
-    const currentYear = String(currentTime.getFullYear()).slice(-2);
-    
-    return month === currentMonth && dayOfMonth === currentDayOfMonth && year === currentYear;
-  })() : false;
-
-  if (loading) {
-    return (
-      <div className="loader-container">
-        <div className="shimmer-card"></div>
-        <div className="shimmer-card" style={{ opacity: 0.6 }}></div>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="container" style={{ paddingTop: '80px', textAlign: 'center' }}>
-        <div className="glass" style={{ padding: '32px', borderRadius: '24px' }}>
-          <h2 style={{ color: 'var(--primary)', marginBottom: '12px' }}>Connection Error</h2>
-          <p style={{ marginBottom: '24px', opacity: 0.8 }}>{error}</p>
-          <button className="btn btn-primary" onClick={() => window.location.reload()}>
-            Retry Connection
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-
   const scrollRef = useRef<HTMLDivElement>(null);
   const isScrollingRef = useRef(false);
 
@@ -148,6 +94,29 @@ function App() {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="loader-container">
+        <div className="shimmer-card"></div>
+        <div className="shimmer-card" style={{ opacity: 0.6 }}></div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="container" style={{ paddingTop: '80px', textAlign: 'center' }}>
+        <div className="glass" style={{ padding: '32px', borderRadius: '24px' }}>
+          <h2 style={{ color: 'var(--primary)', marginBottom: '12px' }}>Connection Error</h2>
+          <p style={{ marginBottom: '24px', opacity: 0.8 }}>{error}</p>
+          <button className="btn btn-primary" onClick={() => window.location.reload()}>
+            Retry Connection
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="app-wrapper">
       <Hero image={heroImg} />
@@ -170,7 +139,7 @@ function App() {
         onScroll={handleScroll}
         className="swipe-container-outer"
       >
-        {itinerary?.days.map((day, idx) => {
+        {itinerary?.days.map((day) => {
           const dayFilteredActivities = day.activities.filter(activity => {
             const term = searchTerm.toLowerCase();
             return (
@@ -198,7 +167,7 @@ function App() {
                   date={day.date} 
                   activities={dayFilteredActivities} 
                   currentTime={currentTime}
-                  activeCardRef={idx === selectedDayIndex ? activeCardRef : null}
+                  activeCardRef={activeCardRef}
                   timeToMinutes={timeToMinutes}
                   isToday={dayIsToday}
                 />
