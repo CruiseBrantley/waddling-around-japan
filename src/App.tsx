@@ -78,6 +78,20 @@ function App() {
     );
   }) || [];
 
+  // Check if selected day is today
+  const isToday = currentDay ? (() => {
+    // Extract date parts: "Wed, 5/28/26" -> extract 5/28/26
+    const dateMatch = currentDay.date.match(/(\d{1,2})\/(\d{1,2})\/(\d{2})/);
+    if (!dateMatch) return false;
+    
+    const [, month, dayOfMonth, year] = dateMatch;
+    const currentMonth = String(currentTime.getMonth() + 1);
+    const currentDayOfMonth = String(currentTime.getDate());
+    const currentYear = String(currentTime.getFullYear()).slice(-2);
+    
+    return month === currentMonth && dayOfMonth === currentDayOfMonth && year === currentYear;
+  })() : false;
+
   if (loading) {
     return (
       <div className="loader-container">
@@ -126,6 +140,7 @@ function App() {
             currentTime={currentTime}
             activeCardRef={activeCardRef}
             timeToMinutes={timeToMinutes}
+            isToday={isToday}
           />
         ) : (
           <div className="container" style={{ textAlign: 'center', paddingTop: '40px', opacity: 0.5 }}>

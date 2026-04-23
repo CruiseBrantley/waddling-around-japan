@@ -18,7 +18,6 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
       ref={isLive ? (activeCardRef as any) : null}
     >
       <div className="activity-meta">
-        <span className="activity-time">{activity.time}</span>
         <span className={`category-tag type-${activity.type}`}>
           {activity.category}
         </span>

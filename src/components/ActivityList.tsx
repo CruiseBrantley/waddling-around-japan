@@ -8,6 +8,7 @@ interface ActivityListProps {
   currentTime: Date;
   activeCardRef: React.RefObject<HTMLDivElement | null>;
   timeToMinutes: (timeStr: string) => number;
+  isToday: boolean;
 }
 
 export const ActivityList: React.FC<ActivityListProps> = ({ 
@@ -15,7 +16,8 @@ export const ActivityList: React.FC<ActivityListProps> = ({
   activities, 
   currentTime, 
   activeCardRef,
-  timeToMinutes
+  timeToMinutes,
+  isToday
 }) => {
   const currentMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();
 
@@ -28,16 +30,20 @@ export const ActivityList: React.FC<ActivityListProps> = ({
 
       <div className="timeline">
         {activities.map((activity, index) => {
-          // Check if it's the current activity
+          // Check if it's the current activity (only if viewing today)
           const activityMinutes = timeToMinutes(activity.time);
           const nextActivity = activities[index + 1];
           const nextMinutes = nextActivity ? timeToMinutes(nextActivity.time) : 1440; // End of day
 
-          const isLive = currentMinutes >= activityMinutes && currentMinutes < nextMinutes;
+          const isLive = isToday && currentMinutes >= activityMinutes && currentMinutes < nextMinutes;
 
           return (
             <div className="timeline-item" key={activity.id}>
-              <div className={`timeline-dot type-${activity.type} ${isLive ? 'pulse-red' : ''}`}></div>
+              <div className="timeline-left">
+                <span className="activity-time">{activity.time}</span>
+                <div className={`timeline-dot type-${activity.type} ${isLive ? 'pulse-red' : ''}`}></div>
+                <div className="timeline-connector"></div>
+              </div>
               <ActivityCard 
                 activity={activity} 
                 isLive={isLive} 
