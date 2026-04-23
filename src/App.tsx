@@ -70,26 +70,56 @@ function App() {
     return () => clearInterval(timer);
   }, []);
 
+  const isProgrammaticScroll = useRef(false);
+  const [isLiveCardInView, setIsLiveCardInView] = useState(true);
+
+  // Monitor if the Live card is in view
+  useEffect(() => {
+    if (!activeCardRef.current) {
+      setIsLiveCardInView(false);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsLiveCardInView(entry.isIntersecting);
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(activeCardRef.current);
+    return () => observer.disconnect();
+  }, [currentTime, selectedDayIndex, loading]);
 
   // Sync scroll position when selectedDayIndex changes from outside (e.g. DaySelector)
   useEffect(() => {
     if (scrollRef.current) {
       const container = scrollRef.current;
-      const targetScroll = selectedDayIndex * container.clientWidth;
-      // Only force scroll if we're not already at the target (prevents swipe fight)
+      const targetScroll = selectedDayIndex * container.offsetWidth;
+      
       if (Math.abs(container.scrollLeft - targetScroll) > 10) {
+        isProgrammaticScroll.current = true;
+        // Temporarily disable snapping for smooth transition
+        container.style.scrollSnapType = 'none';
+        
         container.scrollTo({
           left: targetScroll,
           behavior: 'smooth'
         });
+        
+        // Restore snapping after animation finishes
+        setTimeout(() => {
+          if (container) container.style.scrollSnapType = 'x mandatory';
+          isProgrammaticScroll.current = false;
+        }, 600);
       }
     }
   }, [selectedDayIndex]);
 
   const handleScroll = () => {
-    if (!scrollRef.current) return;
+    if (!scrollRef.current || isProgrammaticScroll.current) return;
     const container = scrollRef.current;
-    const index = Math.round(container.scrollLeft / container.clientWidth);
+    const index = Math.round(container.scrollLeft / container.offsetWidth);
     
     if (index !== selectedDayIndex && index >= 0 && index < (itinerary?.days.length || 0)) {
       setSelectedDayIndex(index);
@@ -133,9 +163,13 @@ function App() {
     });
 
     if (todayIdx !== undefined && todayIdx !== -1) {
-      setSelectedDayIndex(todayIdx);
-      // Trigger activity scroll
-      setScrollTrigger(prev => prev + 1);
+      if (selectedDayIndex === todayIdx) {
+        // Just trigger vertical scroll if already on today
+        setScrollTrigger(prev => prev + 1);
+      } else {
+        setSelectedDayIndex(todayIdx);
+        setScrollTrigger(prev => prev + 1);
+      }
     }
   };
 
@@ -204,7 +238,7 @@ function App() {
         })}
       </main>
 
-      {itinerary && (
+      {itinerary && !isLiveCardInView && (
         <button className="floating-now-btn glass" onClick={jumpToNow}>
           <span className="pulse-dot"></span>
           NOW
