@@ -339,3 +339,45 @@
   background: linear-gradient(135deg, var(--bg-glass), rgba(255, 59, 63, 0.05)) !important;
 }
 
+/* Search UI */
+.search-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+  margin-bottom: 24px;
+}
+
+.search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  color: var(--text-main);
+  outline: none;
+}
+
+.search-input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+.clear-search {
+  background: var(--border);
+  border: none;
+  color: var(--text-muted);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 0;
+  line-height: 1;
+}
+

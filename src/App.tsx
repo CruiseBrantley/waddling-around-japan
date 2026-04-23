@@ -8,6 +8,7 @@ function App() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedDayIndex, setSelectedDayIndex] = useState(0)
+  const [searchTerm, setSearchTerm] = useState('')
 
   // --- MOCK TODAY FOR TESTING ---
   // You can set this to e.g. "2026/05/26 14:30" to test LIVE indicators
@@ -86,6 +87,19 @@ function App() {
     return itinerary.days[selectedDayIndex]
   }, [itinerary, selectedDayIndex])
 
+  const filteredActivities = useMemo(() => {
+    if (!currentDay) return []
+    if (!searchTerm.trim()) return currentDay.activities
+
+    const term = searchTerm.toLowerCase()
+    return currentDay.activities.filter(act => 
+      act.title.toLowerCase().includes(term) ||
+      act.location.toLowerCase().includes(term) ||
+      act.category.toLowerCase().includes(term) ||
+      act.notes.toLowerCase().includes(term)
+    )
+  }, [currentDay, searchTerm])
+
   if (loading) {
     return (
       <div className="flex-center" style={{ height: '100vh', background: 'var(--bg-main)' }}>
@@ -117,10 +131,27 @@ function App() {
       <div className="hero-container">
         <img src={heroImg} alt="Hero" className="hero-image" />
         <div className="hero-overlay">
-          <div className="container">
+          <div className="container" style={{ textAlign: 'left', paddingBottom: '10px' }}>
             <h1 className="hero-title">{itinerary?.title || 'Waddling Around Japan'}</h1>
-            <p className="hero-subtitle">Travel Itinerary</p>
+            <p className="hero-subtitle">Japan Trip Itinerary • 2026</p>
           </div>
+        </div>
+      </div>
+
+      {/* Search Bar - Responsive & Premium */}
+      <div className="container" style={{ marginTop: '-20px', position: 'relative', zIndex: 110 }}>
+        <div className="search-wrapper glass">
+          <SearchIcon />
+          <input 
+            type="text" 
+            placeholder="Search activities, food, locations..." 
+            className="search-input"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          {searchTerm && (
+            <button className="clear-search" onClick={() => setSearchTerm('')}>×</button>
+          )}
         </div>
       </div>
 
@@ -158,71 +189,79 @@ function App() {
                 <span className="day-count-badge">DAY {currentDay.day}</span>
                 <h2 className="date-display">{currentDay.date}</h2>
               </div>
-              <div className="activity-count">{currentDay.activities.length} activities</div>
+              <div className="activity-count">
+                {searchTerm ? `${filteredActivities.length} found` : `${currentDay.activities.length} activities`}
+              </div>
             </div>
 
             <div className="timeline">
-              {currentDay.activities.map((activity, idx) => {
-                const nowMins = currentTime.getHours() * 60 + currentTime.getMinutes();
-                const actMins = timeToMinutes(activity.time);
-                const nextAct = currentDay.activities[idx + 1];
-                const nextActMins = nextAct ? timeToMinutes(nextAct.time) : 1440;
+              {filteredActivities.length > 0 ? (
+                filteredActivities.map((activity, idx) => {
+                  const nowMins = currentTime.getHours() * 60 + currentTime.getMinutes();
+                  const actMins = timeToMinutes(activity.time);
+                  const nextAct = currentDay.activities[idx + 1];
+                  const nextActMins = nextAct ? timeToMinutes(nextAct.time) : 1440;
 
-                const isToday = currentTime.toDateString() === new Date(itinerary?.days[selectedDayIndex].date.split(', ')[1] || '').toDateString();
-                const isLive = isToday && nowMins >= actMins && nowMins < nextActMins;
+                  const isToday = currentTime.toDateString() === new Date(itinerary?.days[selectedDayIndex].date.split(', ')[1] || '').toDateString();
+                  const isLive = isToday && nowMins >= actMins && nowMins < nextActMins;
 
-                return (
-                  <div key={activity.id} className={`timeline-item ${isLive ? 'is-live' : ''}`} data-act-index={idx}>
-                    <div className="timeline-left">
-                      <span className="activity-time">{activity.time}</span>
-                      <div className={`timeline-dot type-${activity.type} ${isLive ? 'pulse-red' : ''}`}></div>
-                      <div className="timeline-connector"></div>
-                    </div>
-
-                    <div className={`timeline-content glass ${isLive ? 'active-card' : ''}`}>
-                      <div className="card-header">
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          {isLive && <span className="live-badge">● LIVE NOW</span>}
-                          <h3 className="activity-title">{activity.title}</h3>
-                        </div>
-                        <span className={`category-tag type-${activity.type}`}>{activity.category}</span>
+                  return (
+                    <div key={activity.id} className={`timeline-item ${isLive ? 'is-live' : ''}`} data-act-index={idx}>
+                      <div className="timeline-left">
+                        <span className="activity-time">{activity.time}</span>
+                        <div className={`timeline-dot type-${activity.type} ${isLive ? 'pulse-red' : ''}`}></div>
+                        <div className="timeline-connector"></div>
                       </div>
 
-                      {activity.location && (
-                        <a
-                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.location)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="activity-location-link"
-                        >
-                          <MapIcon />
-                          <span>{activity.location}</span>
-                        </a>
-                      )}
-
-                      {activity.notes && (
-                        <div className="activity-notes">
-                          {activity.notes}
-                        </div>
-                      )}
-
-                      <div className="card-footer">
-                        {activity.cost && (
-                          <div className="activity-cost">
-                            <CostIcon />
-                            <span>{activity.cost}</span>
+                      <div className={`timeline-content glass ${isLive ? 'active-card' : ''}`}>
+                        <div className="card-header">
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            {isLive && <span className="live-badge">● LIVE NOW</span>}
+                            <h3 className="activity-title">{activity.title}</h3>
                           </div>
-                        )}
-                        {activity.link && (
-                          <a href={activity.link} target="_blank" rel="noopener noreferrer" className="activity-link">
-                            View Trip Note
+                          <span className={`category-tag type-${activity.type}`}>{activity.category}</span>
+                        </div>
+
+                        {activity.location && (
+                          <a
+                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.location)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="activity-location-link"
+                          >
+                            <MapIcon />
+                            <span>{activity.location}</span>
                           </a>
                         )}
+
+                        {activity.notes && (
+                          <div className="activity-notes">
+                            {activity.notes}
+                          </div>
+                        )}
+
+                        <div className="card-footer">
+                          {activity.cost && (
+                            <div className="activity-cost">
+                              <CostIcon />
+                              <span>{activity.cost}</span>
+                            </div>
+                          )}
+                          {activity.link && (
+                            <a href={activity.link} target="_blank" rel="noopener noreferrer" className="activity-link">
+                              View Trip Note
+                            </a>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )
-              })}
+                  )
+                })
+              ) : (
+                <div style={{ textAlign: 'center', padding: '60px', opacity: 0.6 }}>
+                  <p>No matches for "{searchTerm}" on this day.</p>
+                </div>
+              )}
             </div>
           </>
         ) : (
@@ -251,6 +290,13 @@ function timeToMinutes(timeStr: string): number {
 }
 
 // Minimal Icons
+const SearchIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.5 }}>
+    <circle cx="11" cy="11" r="8"></circle>
+    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+  </svg>
+)
+
 const MapIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
