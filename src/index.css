@@ -53,8 +53,10 @@ img {
 }
 
 html {
-  overflow-x: hidden;
+  overflow-x: clip;
   background: var(--bg-main);
+  scroll-behavior: smooth;
+  scroll-padding-top: 80px; /* Space for sticky header */
 }
 
 body {
@@ -68,8 +70,7 @@ body {
   overscroll-behavior-y: none;
   padding-top: var(--safe-area-top);
   padding-bottom: var(--safe-area-bottom);
-  overflow-x: hidden;
-  width: 100vw;
+  overflow-x: clip; /* clip doesn't break sticky headers */
 }
 
 #root {
