@@ -46,7 +46,7 @@ export async function fetchItinerary(): Promise<Itinerary> {
     throw new Error("Google Sheets API Key or Spreadsheet ID is missing in .env");
   }
 
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(RANGE)}?key=${API_KEY}&valueRenderOption=FORMULA`;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}?includeGridData=true&ranges=${encodeURIComponent(RANGE)}&key=${API_KEY}`;
 
   try {
     const response = await fetch(url);
@@ -54,8 +54,13 @@ export async function fetchItinerary(): Promise<Itinerary> {
       throw new Error(`Sheets API Error: ${response.statusText}`);
     }
 
-    const data: SheetsV4Response = await response.json();
-    const itinerary = transformV4Data(data.values);
+    const data = await response.json();
+    const sheetData = data.sheets?.[0]?.data?.[0]?.rowData;
+    if (!sheetData) {
+      throw new Error("No data found in the spreadsheet range.");
+    }
+
+    const itinerary = transformFullSheetData(sheetData);
     
     // Save to local storage for offline use
     localStorage.setItem(CACHE_KEY, JSON.stringify(itinerary));
@@ -75,47 +80,44 @@ export async function fetchItinerary(): Promise<Itinerary> {
 }
 
 /**
- * Transform V4 API response (2D array) into structured itinerary
+ * Transform Full Spreadsheet API response into structured itinerary
  */
-function transformV4Data(values: string[][]): Itinerary {
-  if (!values || values.length < 5) {
+function transformFullSheetData(rowData: any[]): Itinerary {
+  if (!rowData || rowData.length < 5) {
     return { title: "Waddling Around Japan", days: [] };
   }
 
-  // Based on inspection, headers are on row 3 (index 2)
-  // Data starts on row 5 (index 4)
-  const headerRow = values[2] || [];
-  console.log("Headers found:", headerRow);
+  // Header row is index 2
+  const headerCells = rowData[2]?.values || [];
+  const headerRow = headerCells.map((c: any) => String(c?.formattedValue || "").trim());
   const startRowIndex = 4;
   
-  // Find column indices
   const colIndex = {
-    date: headerRow.findIndex(h => h?.trim().toLowerCase() === 'date'),
-    time: headerRow.findIndex(h => h?.trim().toLowerCase() === 'time'),
-    activity: headerRow.findIndex(h => h?.trim().toLowerCase() === 'activity'),
-    location: headerRow.findIndex(h => h?.trim().toLowerCase() === 'location'),
-    link: headerRow.findIndex(h => h?.trim().toLowerCase() === 'link'),
-    cost: headerRow.findIndex(h => h?.trim().toLowerCase() === 'cost'),
-    notes: headerRow.findIndex(h => h?.trim().toLowerCase() === 'notes'),
+    date: headerRow.findIndex(h => h.toLowerCase() === 'date'),
+    time: headerRow.findIndex(h => h.toLowerCase() === 'time'),
+    activity: headerRow.findIndex(h => h.toLowerCase() === 'activity'),
+    location: headerRow.findIndex(h => h.toLowerCase() === 'location'),
+    link: headerRow.findIndex(h => h.toLowerCase() === 'link' || h.toLowerCase() === 'type' || h.toLowerCase() === 'url'), // Flexible link name
+    cost: headerRow.findIndex(h => h.toLowerCase() === 'cost'),
+    notes: headerRow.findIndex(h => h.toLowerCase() === 'notes'),
     category: headerRow.findIndex(h => {
-      const lower = h?.trim().toLowerCase();
-      return lower === 'category' || lower === 'type' || lower === 'tag';
+      const l = h.toLowerCase();
+      return l === 'category' || l === 'type' || l === 'tag';
     }),
   };
 
   const daysMap = new Map<string, ItineraryActivity[]>();
   let lastValidDate = "";
 
-  values.slice(startRowIndex).forEach((row, index) => {
-    // If row is too short to have the activity field, skip
-    if (row.length <= Math.max(colIndex.activity, colIndex.date)) return;
+  rowData.slice(startRowIndex).forEach((rowObj, index) => {
+    const cells = rowObj.values || [];
+    if (cells.length <= Math.max(colIndex.activity, colIndex.date)) return;
 
-    const activityTitle = String(row[colIndex.activity] || "").trim();
-    if (!activityTitle) return; // Skip rows without activity
+    const activityTitle = String(cells[colIndex.activity]?.formattedValue || "").trim();
+    if (!activityTitle) return;
 
-    let activityDate = String(row[colIndex.date] || "").trim();
+    let activityDate = String(cells[colIndex.date]?.formattedValue || "").trim();
     
-    // Fill in date if it's a sub-activity of the same day
     if (!activityDate && lastValidDate) {
       activityDate = lastValidDate;
     } else if (activityDate) {
@@ -125,21 +127,23 @@ function transformV4Data(values: string[][]): Itinerary {
     if (!activityDate) return;
 
     // Use category column if available, otherwise infer from title
-    const rawCategory = String(row[colIndex.category] || "").trim();
+    const rawCategory = String(cells[colIndex.category]?.formattedValue || "").trim();
     const inferredCategory = inferCategory(activityTitle, rawCategory);
 
-    const rawLink = String(row[colIndex.link] || "").trim();
-    const cleanLink = extractUrl(rawLink);
+    // Get Link: prioritized raw hyperlink property, then formatted formula text
+    const hyperLink = cells[colIndex.link]?.hyperlink;
+    const formattedLink = String(cells[colIndex.link]?.formattedValue || "").trim();
+    const cleanLink = hyperLink || extractUrl(formattedLink);
 
     const activity: ItineraryActivity = {
       id: `act-${index}`,
       date: activityDate,
-      time: String(row[colIndex.time] || "").trim(),
+      time: String(cells[colIndex.time]?.formattedValue || "").trim(),
       title: activityTitle,
-      location: String(row[colIndex.location] || "").trim(),
+      location: String(cells[colIndex.location]?.formattedValue || "").trim(),
       link: cleanLink || undefined,
-      cost: String(row[colIndex.cost] || "").trim() || undefined,
-      notes: String(row[colIndex.notes] || "").trim(),
+      cost: String(cells[colIndex.cost]?.formattedValue || "").trim() || undefined,
+      notes: String(cells[colIndex.notes]?.formattedValue || "").trim(),
       category: inferredCategory.display,
       type: inferredCategory.type
     };
