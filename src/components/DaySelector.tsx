@@ -11,37 +11,53 @@ interface DaySelectorProps {
 
 export const DaySelector: React.FC<DaySelectorProps> = ({ 
   days, 
-  selectedIndex, 
   onSelect, 
   searchTerm,
   scrollProgress 
 }) => {
   const containerRef = React.useRef<HTMLDivElement>(null);
+  const [paddingX, setPaddingX] = React.useState(0);
 
-  // Auto-scroll the day selector to keep the active day in view
+  // Calculate padding to allow items to be centered
   React.useEffect(() => {
-    if (containerRef.current) {
-      const activeBtn = containerRef.current.querySelector(`[data-index="${selectedIndex}"]`) as HTMLElement;
-      if (activeBtn) {
-        containerRef.current.scrollTo({
-          left: activeBtn.offsetLeft - (containerRef.current.clientWidth / 2) + (activeBtn.offsetWidth / 2),
-          behavior: 'smooth'
-        });
+    const updatePadding = () => {
+      if (containerRef.current) {
+        // (viewport width / 2) - (button width / 2)
+        const pad = (containerRef.current.clientWidth / 2) - 32;
+        setPaddingX(pad);
       }
+    };
+    
+    updatePadding();
+    window.addEventListener('resize', updatePadding);
+    return () => window.removeEventListener('resize', updatePadding);
+  }, []);
+
+  // Real-time synchronization of the day selector scroll with the carousel progress
+  React.useLayoutEffect(() => {
+    if (containerRef.current) {
+      // Current progress * step (64 width + 12 gap)
+      containerRef.current.scrollLeft = scrollProgress * 76;
     }
-  }, [selectedIndex]);
+  }, [scrollProgress]);
 
   return (
-    <nav className="day-selector glass">
-      <div className="day-scroll-container" ref={containerRef} style={{ position: 'relative' }}>
-        {/* The sliding highlight */}
-        <div 
-          className="day-selector-highlight" 
-          style={{ 
-            transform: `translateX(${scrollProgress * 76}px)`,
-          }}
-        />
+    <nav className="day-selector glass" style={{ position: 'relative', overflow: 'hidden' }}>
+      {/* Fixed central highlight */}
+      <div className="day-selector-center-track">
+        <div className="day-selector-highlight fixed-center" />
+      </div>
 
+      <div 
+        className="day-scroll-container" 
+        ref={containerRef} 
+        style={{ 
+          paddingLeft: `${paddingX}px`, 
+          paddingRight: `${paddingX}px`,
+          scrollSnapType: 'none', // Disable internal snapping to follow carousel perfectly
+          pointerEvents: 'auto' // Allow clicks
+        }}
+      >
         {days.map((day, idx) => {
           const dateParts = day.date.split(', ');
           const dayName = dateParts[0]?.toUpperCase() || '';
