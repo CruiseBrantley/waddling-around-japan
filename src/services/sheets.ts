@@ -96,7 +96,10 @@ function transformV4Data(values: string[][]): Itinerary {
     link: headerRow.findIndex(h => h?.trim().toLowerCase() === 'link'),
     cost: headerRow.findIndex(h => h?.trim().toLowerCase() === 'cost'),
     notes: headerRow.findIndex(h => h?.trim().toLowerCase() === 'notes'),
-    category: headerRow.findIndex(h => h?.trim().toLowerCase() === 'category'),
+    category: headerRow.findIndex(h => {
+      const lower = h?.trim().toLowerCase();
+      return lower === 'category' || lower === 'type' || lower === 'tag';
+    }),
   };
 
   const daysMap = new Map<string, ItineraryActivity[]>();
@@ -157,11 +160,11 @@ function transformV4Data(values: string[][]): Itinerary {
 
 function normalizeCategoryToType(category: string): ItineraryActivity["type"] {
   const lower = category.toLowerCase();
-  if (lower.includes('food') || lower.includes('eat') || lower.includes('drink')) return 'food';
-  if (lower.includes('transport') || lower.includes('travel') || lower.includes('flight')) return 'transport';
-  if (lower.includes('hotel') || lower.includes('lodging') || lower.includes('stay')) return 'accommodation';
-  if (lower.includes('shop')) return 'shopping';
-  if (lower.includes('sight') || lower.includes('attraction') || lower.includes('shrine')) return 'sightseeing';
+  if (lower.includes('food') || lower.includes('eat') || lower.includes('drink') || lower.includes('dinner') || lower.includes('lunch') || lower.includes('snack') || lower.includes('ramen')) return 'food';
+  if (lower.includes('transport') || lower.includes('travel') || lower.includes('flight') || lower.includes('train') || lower.includes('bus') || lower.includes('shinkansen') || lower.includes('walk')) return 'transport';
+  if (lower.includes('hotel') || lower.includes('lodging') || lower.includes('stay') || lower.includes('airbnb') || lower.includes('accommodation')) return 'accommodation';
+  if (lower.includes('shop') || lower.includes('mall') || lower.includes('store') || lower.includes('market')) return 'shopping';
+  if (lower.includes('sight') || lower.includes('attraction') || lower.includes('shrine') || lower.includes('park') || lower.includes('castle') || lower.includes('museum') || lower.includes('temple')) return 'sightseeing';
   return 'other';
 }
 
