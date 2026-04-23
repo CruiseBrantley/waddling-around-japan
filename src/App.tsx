@@ -59,15 +59,6 @@ function App() {
     return () => clearInterval(timer);
   }, []);
 
-  // Initial Auto-scroll to active card (Only on first load)
-  useEffect(() => {
-    if (activeCardRef.current && !loading && !hasInitialScrolled.current) {
-      setTimeout(() => {
-        activeCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        hasInitialScrolled.current = true;
-      }, 1200); // Wait for data and carousel to settle
-    }
-  }, [loading]);
 
   // Sync scroll position when selectedDayIndex changes from outside (e.g. DaySelector)
   useEffect(() => {
@@ -116,6 +107,37 @@ function App() {
       </div>
     )
   }
+
+  const [scrollTrigger, setScrollTrigger] = useState(0);
+
+  // Jump to today and current activity
+  const jumpToNow = () => {
+    const now = getInitialTime();
+    const todayIdx = itinerary?.days.findIndex(d => {
+      const dateMatch = d.date.match(/(\d{1,2})\/(\d{1,2})\/(\d{2})/);
+      if (!dateMatch) return false;
+      const [, month, dayOfMonth, year] = dateMatch;
+      return month === String(now.getMonth() + 1) && 
+             dayOfMonth === String(now.getDate()) && 
+             year === String(now.getFullYear()).slice(-2);
+    });
+
+    if (todayIdx !== undefined && todayIdx !== -1) {
+      setSelectedDayIndex(todayIdx);
+      // Trigger activity scroll
+      setScrollTrigger(prev => prev + 1);
+    }
+  };
+
+  // Initial Auto-scroll to active card
+  useEffect(() => {
+    if (activeCardRef.current && !loading) {
+      setTimeout(() => {
+        activeCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        hasInitialScrolled.current = true;
+      }, 800); 
+    }
+  }, [loading, scrollTrigger]);
 
   return (
     <div className="app-wrapper">
@@ -180,6 +202,13 @@ function App() {
           )
         })}
       </main>
+
+      {itinerary && (
+        <button className="floating-now-btn glass" onClick={jumpToNow}>
+          <span className="pulse-dot"></span>
+          NOW
+        </button>
+      )}
     </div>
   )
 }
