@@ -18,7 +18,7 @@ function App() {
         setItinerary(data)
         
         // --- AUTO-SELECT TODAY'S DATE ---
-        // For testing, you can change MOCK_TODAY to any date string in the sheet, e.g., "5/26/2026"
+        // For testing, you can change MOCK_TODAY to any date string, e.g., "2026/05/26"
         const MOCK_TODAY: string | null = null; 
         const today = MOCK_TODAY ? new Date(MOCK_TODAY) : new Date();
         
