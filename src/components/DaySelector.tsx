@@ -66,7 +66,7 @@ export const DaySelector: React.FC<DaySelectorProps> = ({
   }, [scrollProgress]);
 
   return (
-    <nav className="day-selector glass" style={{ position: 'relative', overflow: 'hidden' }}>
+    <nav className="day-selector glass" style={{ overflow: 'hidden' }}>
       <div className="day-selector-center-track">
         <div className="day-selector-highlight fixed-center" />
       </div>
@@ -76,12 +76,12 @@ export const DaySelector: React.FC<DaySelectorProps> = ({
         ref={containerRef} 
         onTouchStart={() => { isUserScrolling.current = true; }}
         onTouchEnd={() => { 
-          // Delay resetting the flag to allow the debounced scroll to finish
-          setTimeout(() => { isUserScrolling.current = false; }, 200); 
+          // Longer lockout to allow the bottom carousel to settle
+          setTimeout(() => { isUserScrolling.current = false; }, 1000); 
         }}
         onMouseDown={() => { isUserScrolling.current = true; }}
         onMouseUp={() => { 
-          setTimeout(() => { isUserScrolling.current = false; }, 200); 
+          setTimeout(() => { isUserScrolling.current = false; }, 1000); 
         }}
         style={{ 
           paddingLeft: `${paddingX}px`, 
