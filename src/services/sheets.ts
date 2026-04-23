@@ -46,7 +46,7 @@ export async function fetchItinerary(): Promise<Itinerary> {
     throw new Error("Google Sheets API Key or Spreadsheet ID is missing in .env");
   }
 
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(RANGE)}?key=${API_KEY}`;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(RANGE)}?key=${API_KEY}&valueRenderOption=FORMULA`;
 
   try {
     const response = await fetch(url);
@@ -85,6 +85,7 @@ function transformV4Data(values: string[][]): Itinerary {
   // Based on inspection, headers are on row 3 (index 2)
   // Data starts on row 5 (index 4)
   const headerRow = values[2] || [];
+  console.log("Headers found:", headerRow);
   const startRowIndex = 4;
   
   // Find column indices
@@ -123,17 +124,24 @@ function transformV4Data(values: string[][]): Itinerary {
 
     if (!activityDate) return;
 
+    // Use category column if available, otherwise infer from title
+    const rawCategory = row[colIndex.category]?.trim() || "";
+    const inferredCategory = inferCategory(activityTitle, rawCategory);
+
+    const rawLink = row[colIndex.link]?.trim() || "";
+    const cleanLink = extractUrl(rawLink);
+
     const activity: ItineraryActivity = {
       id: `act-${index}`,
       date: activityDate,
       time: row[colIndex.time]?.trim() || "",
       title: activityTitle,
       location: row[colIndex.location]?.trim() || "",
-      link: row[colIndex.link]?.trim() || undefined,
+      link: cleanLink || undefined,
       cost: row[colIndex.cost]?.trim() || undefined,
       notes: row[colIndex.notes]?.trim() || "",
-      category: row[colIndex.category]?.trim() || "Other",
-      type: normalizeCategoryToType(row[colIndex.category]?.trim() || "")
+      category: inferredCategory.display,
+      type: inferredCategory.type
     };
 
     if (!daysMap.has(activityDate)) {
@@ -158,14 +166,58 @@ function transformV4Data(values: string[][]): Itinerary {
   };
 }
 
-function normalizeCategoryToType(category: string): ItineraryActivity["type"] {
-  const lower = category.toLowerCase();
-  if (lower.includes('food') || lower.includes('eat') || lower.includes('drink') || lower.includes('dinner') || lower.includes('lunch') || lower.includes('snack') || lower.includes('ramen')) return 'food';
-  if (lower.includes('transport') || lower.includes('travel') || lower.includes('flight') || lower.includes('train') || lower.includes('bus') || lower.includes('shinkansen') || lower.includes('walk')) return 'transport';
-  if (lower.includes('hotel') || lower.includes('lodging') || lower.includes('stay') || lower.includes('airbnb') || lower.includes('accommodation')) return 'accommodation';
-  if (lower.includes('shop') || lower.includes('mall') || lower.includes('store') || lower.includes('market')) return 'shopping';
-  if (lower.includes('sight') || lower.includes('attraction') || lower.includes('shrine') || lower.includes('park') || lower.includes('castle') || lower.includes('museum') || lower.includes('temple')) return 'sightseeing';
-  return 'other';
+/**
+ * Intelligent category inference based on title and explicit category
+ */
+function inferCategory(title: string, category: string): { display: string, type: ItineraryActivity["type"] } {
+  const combined = `${category} ${title}`.toLowerCase();
+  
+  if (combined.includes('food') || combined.includes('eat') || combined.includes('drink') || combined.includes('dinner') || combined.includes('lunch') || combined.includes('snack') || combined.includes('ramen') || combined.includes('breakfast') || combined.includes('restaurant')) {
+    return { display: category || "Dining", type: "food" };
+  }
+  if (combined.includes('transport') || combined.includes('travel') || combined.includes('flight') || combined.includes('train') || combined.includes('bus') || combined.includes('shinkansen') || combined.includes('narita') || combined.includes('haneda') || combined.includes('limousine') || combined.includes('airport')) {
+    return { display: category || "Transport", type: "transport" };
+  }
+  if (combined.includes('hotel') || combined.includes('lodging') || combined.includes('stay') || combined.includes('airbnb') || combined.includes('accommodation') || combined.includes('check in') || combined.includes('check-in')) {
+    return { display: category || "Stay", type: "accommodation" };
+  }
+  if (combined.includes('shop') || combined.includes('mall') || combined.includes('store') || combined.includes('market') || combined.includes('don quijote') || combined.includes('pokemon')) {
+    return { display: category || "Shopping", type: "shopping" };
+  }
+  if (combined.includes('sight') || combined.includes('attraction') || combined.includes('shrine') || combined.includes('park') || combined.includes('castle') || combined.includes('museum') || combined.includes('temple') || combined.includes('pagoda') || combined.includes('tower') || combined.includes('garden')) {
+    return { display: category || "Sightseeing", type: "sightseeing" };
+  }
+  
+  return { display: category || "Other", type: "other" };
+}
+
+/**
+ * Extracts a URL from a Google Sheets cell value. 
+ * Handles plain URLs and "=HYPERLINK("url", "label")" formulas.
+ */
+function extractUrl(value: string): string | null {
+  if (!value) return null;
+
+  // Handle Google Sheets HYPERLINK formula
+  if (value.startsWith('=HYPERLINK')) {
+    const match = value.match(/=HYPERLINK\("(.*?)",/i);
+    if (match && match[1]) {
+      value = match[1];
+    }
+  }
+
+  // Remove whitespace
+  value = value.trim();
+
+  // If it's a valid URL, ensure it has a protocol
+  if (value.includes('.') && !value.includes(' ')) {
+    if (!value.startsWith('http')) {
+      return `https://${value}`;
+    }
+    return value;
+  }
+
+  return null;
 }
 
 
