@@ -1,12 +1,12 @@
 import React from 'react';
-import { ItineraryActivity } from '../services/sheets';
+import type { ItineraryActivity } from '../services/sheets';
 import { ActivityCard } from './ActivityCard';
 
 interface ActivityListProps {
   date: string;
   activities: ItineraryActivity[];
   currentTime: Date;
-  activeCardRef: React.RefObject<HTMLDivElement>;
+  activeCardRef: React.RefObject<HTMLDivElement | null>;
   timeToMinutes: (timeStr: string) => number;
 }
 

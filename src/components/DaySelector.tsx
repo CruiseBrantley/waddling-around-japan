@@ -1,5 +1,5 @@
 import React from 'react';
-import { ItineraryDay } from '../services/sheets';
+import type { ItineraryDay } from '../services/sheets';
 
 interface DaySelectorProps {
   days: ItineraryDay[];

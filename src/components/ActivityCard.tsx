@@ -4,7 +4,7 @@ import { ItineraryActivity } from '../services/sheets';
 interface ActivityCardProps {
   activity: ItineraryActivity;
   isLive: boolean;
-  activeCardRef: React.RefObject<HTMLDivElement> | null;
+  activeCardRef: React.RefObject<HTMLDivElement | null>;
 }
 
 export const ActivityCard: React.FC<ActivityCardProps> = ({ activity, isLive, activeCardRef }) => {

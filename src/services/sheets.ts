@@ -28,10 +28,6 @@ export interface Itinerary {
   days: ItineraryDay[];
 }
 
-interface SheetsV4Response {
-  values: string[][];
-}
-
 const API_KEY = import.meta.env.VITE_GOOGLE_SHEETS_API_KEY;
 const SPREADSHEET_ID = import.meta.env.VITE_GOOGLE_SHEET_ID;
 const RANGE = import.meta.env.VITE_GOOGLE_SHEET_NAME || 'Itinerary';
@@ -93,14 +89,14 @@ function transformFullSheetData(rowData: any[]): Itinerary {
   const startRowIndex = 4;
   
   const colIndex = {
-    date: headerRow.findIndex(h => h.toLowerCase() === 'date'),
-    time: headerRow.findIndex(h => h.toLowerCase() === 'time'),
-    activity: headerRow.findIndex(h => h.toLowerCase() === 'activity'),
-    location: headerRow.findIndex(h => h.toLowerCase() === 'location'),
-    link: headerRow.findIndex(h => h.toLowerCase() === 'link' || h.toLowerCase() === 'type' || h.toLowerCase() === 'url'), // Flexible link name
-    cost: headerRow.findIndex(h => h.toLowerCase() === 'cost'),
-    notes: headerRow.findIndex(h => h.toLowerCase() === 'notes'),
-    category: headerRow.findIndex(h => {
+    date: headerRow.findIndex((h: string) => h.toLowerCase() === 'date'),
+    time: headerRow.findIndex((h: string) => h.toLowerCase() === 'time'),
+    activity: headerRow.findIndex((h: string) => h.toLowerCase() === 'activity'),
+    location: headerRow.findIndex((h: string) => h.toLowerCase() === 'location'),
+    link: headerRow.findIndex((h: string) => h.toLowerCase() === 'link' || h.toLowerCase() === 'type' || h.toLowerCase() === 'url'), // Flexible link name
+    cost: headerRow.findIndex((h: string) => h.toLowerCase() === 'cost'),
+    notes: headerRow.findIndex((h: string) => h.toLowerCase() === 'notes'),
+    category: headerRow.findIndex((h: string) => {
       const l = h.toLowerCase();
       return l === 'category' || l === 'type' || l === 'tag';
     }),

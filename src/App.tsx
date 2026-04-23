@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { fetchItinerary, Itinerary } from './services/sheets'
+import { fetchItinerary, type Itinerary } from './services/sheets'
 import heroImg from './assets/hero.png'
 import './App.css'
 
@@ -22,7 +22,7 @@ function App() {
   const getInitialTime = () => MOCK_TODAY ? new Date(MOCK_TODAY) : new Date();
 
   const [currentTime, setCurrentTime] = useState(getInitialTime())
-  const activeCardRef = useRef<HTMLDivElement>(null);
+  const activeCardRef = useRef<HTMLDivElement | null>(null);
 
   // Load Itinerary
   useEffect(() => {
