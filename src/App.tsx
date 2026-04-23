@@ -91,6 +91,31 @@ function App() {
     return () => observer.disconnect();
   }, [currentTime, selectedDayIndex, loading]);
 
+  // Debounced scroll handler to update index only after snapping settles
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+
+    let scrollTimeout: number;
+    const onScroll = () => {
+      if (isProgrammaticScroll.current) return;
+      
+      window.clearTimeout(scrollTimeout);
+      scrollTimeout = window.setTimeout(() => {
+        const index = Math.round(container.scrollLeft / container.offsetWidth);
+        if (index !== selectedDayIndex && index >= 0 && index < (itinerary?.days.length || 0)) {
+          setSelectedDayIndex(index);
+        }
+      }, 100); // Wait for snapping to settle
+    };
+
+    container.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      container.removeEventListener('scroll', onScroll);
+      window.clearTimeout(scrollTimeout);
+    };
+  }, [selectedDayIndex, itinerary, loading]);
+
   // Sync scroll position when selectedDayIndex changes from outside (e.g. DaySelector)
   useEffect(() => {
     if (scrollRef.current) {
@@ -99,7 +124,6 @@ function App() {
       
       if (Math.abs(container.scrollLeft - targetScroll) > 10) {
         isProgrammaticScroll.current = true;
-        // Temporarily disable snapping for smooth transition
         container.style.scrollSnapType = 'none';
         
         container.scrollTo({
@@ -107,7 +131,6 @@ function App() {
           behavior: 'smooth'
         });
         
-        // Restore snapping after animation finishes
         setTimeout(() => {
           if (container) container.style.scrollSnapType = 'x mandatory';
           isProgrammaticScroll.current = false;
@@ -115,16 +138,6 @@ function App() {
       }
     }
   }, [selectedDayIndex]);
-
-  const handleScroll = () => {
-    if (!scrollRef.current || isProgrammaticScroll.current) return;
-    const container = scrollRef.current;
-    const index = Math.round(container.scrollLeft / container.offsetWidth);
-    
-    if (index !== selectedDayIndex && index >= 0 && index < (itinerary?.days.length || 0)) {
-      setSelectedDayIndex(index);
-    }
-  };
 
   if (loading) {
     return (
@@ -193,7 +206,6 @@ function App() {
 
       <main 
         ref={scrollRef}
-        onScroll={handleScroll}
         className="swipe-container-outer"
       >
         {itinerary?.days.map((day) => {
