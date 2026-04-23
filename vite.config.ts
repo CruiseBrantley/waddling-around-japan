@@ -8,29 +8,29 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'assets/hero.png'],
+      includeAssets: ['icon.png', 'assets/hero.png'],
       manifest: {
-        name: 'Japan Waddle Itinerary',
-        short_name: 'Japan Trip',
-        description: 'A mobile-first itinerary app for our Japan trip',
+        name: 'Waddling Around Japan',
+        short_name: 'Japan Waddle',
+        description: 'A premium mobile-first itinerary app for our Japan trip',
         theme_color: '#FF3B3F',
-        background_color: '#F8F9FA',
+        background_color: '#0F1014',
         display: 'standalone',
         icons: [
           {
-            src: 'favicon.svg',
+            src: 'icon.png',
             sizes: '192x192',
-            type: 'image/svg+xml'
+            type: 'image/png'
           },
           {
-            src: 'favicon.svg',
+            src: 'icon.png',
             sizes: '512x512',
-            type: 'image/svg+xml'
+            type: 'image/png'
           },
           {
-            src: 'favicon.svg',
+            src: 'icon.png',
             sizes: '512x512',
-            type: 'image/svg+xml',
+            type: 'image/png',
             purpose: 'any maskable'
           }
         ]

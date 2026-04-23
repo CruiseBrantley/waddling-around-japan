@@ -18,7 +18,7 @@ function App() {
   const [searchTerm, setSearchTerm] = useState('');
   
   // --- MOCK TODAY FOR TESTING ---
-  const MOCK_TODAY: string | null = null; 
+  const MOCK_TODAY: string | null = "2026-05-28T14:30:00"; // Set to a specific date/time for testing
   const getInitialTime = () => MOCK_TODAY ? new Date(MOCK_TODAY) : new Date();
 
   const [currentTime, setCurrentTime] = useState(getInitialTime())
