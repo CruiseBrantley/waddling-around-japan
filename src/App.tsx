@@ -130,16 +130,15 @@ function App() {
       {/* Hero */}
       <div className="hero-container">
         <img src={heroImg} alt="Hero" className="hero-image" />
-        <div className="hero-overlay">
-          <div className="container" style={{ textAlign: 'left', paddingBottom: '10px' }}>
-            <h1 className="hero-title">{itinerary?.title || 'Waddling Around Japan'}</h1>
-            <p className="hero-subtitle">Japan Trip Itinerary • 2026</p>
-          </div>
-        </div>
       </div>
 
-      {/* Search Bar - Responsive & Premium */}
-      <div className="container" style={{ marginTop: '-20px', position: 'relative', zIndex: 110 }}>
+      {/* Brand Header & Search */}
+      <div className="container" style={{ marginTop: '24px', marginBottom: '24px' }}>
+        <div style={{ marginBottom: '16px' }}>
+          <span className="brand-badge">2026 TRIP</span>
+          <h1 className="brand-title">{itinerary?.title || 'Waddling Around Japan'}</h1>
+        </div>
+        
         <div className="search-wrapper glass">
           <SearchIcon />
           <input 
@@ -165,6 +164,12 @@ function App() {
             const dayMonth = dateParts[1]?.split('/') || [];
             const dayShort = dayMonth[1] || '';
 
+            const hasMatch = searchTerm.trim() && day.activities.some(act => 
+              act.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              act.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              act.notes.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+
             return (
               <button
                 key={day.day}
@@ -174,6 +179,7 @@ function App() {
               >
                 <span className="day-label">{dayName}</span>
                 <span className="day-num">{dayShort}</span>
+                {hasMatch && <div className="match-indicator"></div>}
               </button>
             )
           })}

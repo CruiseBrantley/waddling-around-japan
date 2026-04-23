@@ -76,6 +76,42 @@
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   padding: 0;
+  position: relative; /* For indicator */
+}
+
+/* Brand Styles */
+.brand-badge {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--primary);
+  background: var(--primary-glow);
+  padding: 4px 10px;
+  border-radius: 20px;
+  letter-spacing: 1px;
+}
+
+.brand-title {
+  font-size: 32px;
+  margin-top: 8px;
+  color: var(--text-main);
+}
+
+/* Search Indicators */
+.match-indicator {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 12px;
+  height: 12px;
+  background: #FF3B3F;
+  border: 2.5px solid var(--bg-main);
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(255, 59, 63, 0.4);
+}
+
+.day-btn.active .match-indicator {
+  border-color: var(--primary);
+  background: white;
 }
 
 .day-btn.active {
