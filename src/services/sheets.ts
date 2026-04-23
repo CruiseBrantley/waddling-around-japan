@@ -36,6 +36,8 @@ const API_KEY = import.meta.env.VITE_GOOGLE_SHEETS_API_KEY;
 const SPREADSHEET_ID = import.meta.env.VITE_GOOGLE_SHEET_ID;
 const RANGE = import.meta.env.VITE_GOOGLE_SHEET_NAME || 'Itinerary';
 
+const CACHE_KEY = 'itinerary_cache';
+
 /**
  * Fetch itinerary data from Google Sheets V4 API
  */
@@ -44,21 +46,30 @@ export async function fetchItinerary(): Promise<Itinerary> {
     throw new Error("Google Sheets API Key or Spreadsheet ID is missing in .env");
   }
 
-  // Handle emoji in range name by using the encoded value if necessary
-  // But for the fetch, we'll use the env variable as is.
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(RANGE)}?key=${API_KEY}`;
 
   try {
     const response = await fetch(url);
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`Sheets API Error: ${errorData.error?.message || response.statusText}`);
+      throw new Error(`Sheets API Error: ${response.statusText}`);
     }
 
     const data: SheetsV4Response = await response.json();
-    return transformV4Data(data.values);
+    const itinerary = transformV4Data(data.values);
+    
+    // Save to local storage for offline use
+    localStorage.setItem(CACHE_KEY, JSON.stringify(itinerary));
+    
+    return itinerary;
   } catch (error) {
-    console.error("Error fetching itinerary:", error);
+    console.warn("App: Fetch failed, checking local cache...", error);
+    
+    const cachedData = localStorage.getItem(CACHE_KEY);
+    if (cachedData) {
+      console.log("App: Using cached itinerary data from LocalStorage.");
+      return JSON.parse(cachedData);
+    }
+    
     throw error;
   }
 }
