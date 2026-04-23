@@ -24,7 +24,7 @@ function App() {
   const [currentTime, setCurrentTime] = useState(getInitialTime())
   const activeCardRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-
+  const hasInitialScrolled = useRef(false);
 
   // Load Itinerary
   useEffect(() => {
@@ -59,14 +59,15 @@ function App() {
     return () => clearInterval(timer);
   }, []);
 
-  // Auto-scroll to active card
+  // Initial Auto-scroll to active card (Only on first load)
   useEffect(() => {
-    if (activeCardRef.current && !loading) {
+    if (activeCardRef.current && !loading && !hasInitialScrolled.current) {
       setTimeout(() => {
         activeCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 500);
+        hasInitialScrolled.current = true;
+      }, 1200); // Wait for data and carousel to settle
     }
-  }, [loading, selectedDayIndex]);
+  }, [loading]);
 
   // Sync scroll position when selectedDayIndex changes from outside (e.g. DaySelector)
   useEffect(() => {
