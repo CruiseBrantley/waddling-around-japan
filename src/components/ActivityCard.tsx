@@ -17,23 +17,27 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
       className={`activity-card glass ${isLive ? 'active-card' : ''}`}
       ref={isLive ? (activeCardRef as any) : null}
     >
-      <div className="activity-meta">
+      <div className="card-header">
+        <h3 className="activity-title">
+          {activity.title}
+          {isLive && <span className="live-badge">● LIVE NOW</span>}
+        </h3>
         <span className={`category-tag type-${activity.type}`}>
           {activity.category}
         </span>
       </div>
 
-      <h3 className="activity-title">
-        {activity.title}
-        {isLive && <span className="live-badge">● LIVE NOW</span>}
-      </h3>
-
       <div className="activity-details">
         {activity.location && (
-          <div className="detail-item">
+          <a
+            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.location)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="activity-location-link"
+          >
             <span className="detail-icon">📍</span>
-            <span className="detail-text">{activity.location}</span>
-          </div>
+            <span>{activity.location}</span>
+          </a>
         )}
         {activity.cost && (
           <div className="detail-item">

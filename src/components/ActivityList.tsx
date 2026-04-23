@@ -21,6 +21,22 @@ export const ActivityList: React.FC<ActivityListProps> = ({
 }) => {
   const currentMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();
 
+  // Find which activity should be live based on time ranges
+  const getLiveActivityId = () => {
+    for (let i = 0; i < activities.length; i++) {
+      const activityMinutes = timeToMinutes(activities[i].time);
+      const nextActivity = activities[i + 1];
+      const nextMinutes = nextActivity ? timeToMinutes(nextActivity.time) : 1440;
+      
+      if (currentMinutes >= activityMinutes && currentMinutes < nextMinutes) {
+        return activities[i].id;
+      }
+    }
+    return null;
+  };
+
+  const liveActivityId = isToday ? getLiveActivityId() : null;
+
   return (
     <div className="container" style={{ paddingBottom: '100px' }}>
       <div className="day-header">
@@ -29,13 +45,8 @@ export const ActivityList: React.FC<ActivityListProps> = ({
       </div>
 
       <div className="timeline">
-        {activities.map((activity, index) => {
-          // Check if it's the current activity (only if viewing today)
-          const activityMinutes = timeToMinutes(activity.time);
-          const nextActivity = activities[index + 1];
-          const nextMinutes = nextActivity ? timeToMinutes(nextActivity.time) : 1440; // End of day
-
-          const isLive = isToday && currentMinutes >= activityMinutes && currentMinutes < nextMinutes;
+        {activities.map((activity) => {
+          const isLive = liveActivityId === activity.id;
 
           return (
             <div className="timeline-item" key={activity.id}>
