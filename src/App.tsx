@@ -23,6 +23,7 @@ function App() {
 
   const [currentTime, setCurrentTime] = useState(getInitialTime())
   const activeCardRef = useRef<HTMLDivElement | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
 
   // Load Itinerary
@@ -67,17 +68,18 @@ function App() {
     }
   }, [loading, selectedDayIndex]);
 
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const isScrollingRef = useRef(false);
-
   // Sync scroll position when selectedDayIndex changes from outside (e.g. DaySelector)
   useEffect(() => {
-    if (scrollRef.current && !isScrollingRef.current) {
+    if (scrollRef.current) {
       const container = scrollRef.current;
-      container.scrollTo({
-        left: selectedDayIndex * container.clientWidth,
-        behavior: 'smooth'
-      });
+      const targetScroll = selectedDayIndex * container.clientWidth;
+      // Only force scroll if we're not already at the target (prevents swipe fight)
+      if (Math.abs(container.scrollLeft - targetScroll) > 10) {
+        container.scrollTo({
+          left: targetScroll,
+          behavior: 'smooth'
+        });
+      }
     }
   }, [selectedDayIndex]);
 
@@ -87,10 +89,7 @@ function App() {
     const index = Math.round(container.scrollLeft / container.clientWidth);
     
     if (index !== selectedDayIndex && index >= 0 && index < (itinerary?.days.length || 0)) {
-      isScrollingRef.current = true;
       setSelectedDayIndex(index);
-      // Reset the flag after a short delay to allow the state update to settle
-      setTimeout(() => { isScrollingRef.current = false; }, 50);
     }
   };
 
