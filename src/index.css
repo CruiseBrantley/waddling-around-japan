@@ -44,23 +44,32 @@
 * {
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
+  overflow-wrap: break-word;
 }
 
-html, body {
-  margin: 0;
-  padding: 0;
-  background: var(--bg-main);
-  color: var(--text-main);
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+html {
   overflow-x: hidden;
+  background: var(--bg-main);
 }
 
 body {
+  margin: 0;
+  padding: 0;
   font-family: var(--font-sans);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
-  overscroll-behavior-y: none; /* Prevents the white bar pull-down effect */
+  background: var(--bg-main);
+  color: var(--text-main);
+  overscroll-behavior-y: none;
   padding-top: var(--safe-area-top);
   padding-bottom: var(--safe-area-bottom);
+  overflow-x: hidden;
+  width: 100vw;
 }
 
 #root {

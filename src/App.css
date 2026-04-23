@@ -1,9 +1,11 @@
 .app-wrapper {
-  max-width: 500px;
+  width: 100%;
+  max-width: 100%;
   margin: 0 auto;
   background: var(--bg-main);
   min-height: 100vh;
   position: relative;
+  overflow: hidden; /* Prevent horizontal scroll within app */
 }
 
 /* Hero Section */
