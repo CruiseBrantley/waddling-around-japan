@@ -110,10 +110,10 @@ function transformV4Data(values: string[][]): Itinerary {
     // If row is too short to have the activity field, skip
     if (row.length <= Math.max(colIndex.activity, colIndex.date)) return;
 
-    const activityTitle = row[colIndex.activity]?.trim();
+    const activityTitle = String(row[colIndex.activity] || "").trim();
     if (!activityTitle) return; // Skip rows without activity
 
-    let activityDate = row[colIndex.date]?.trim();
+    let activityDate = String(row[colIndex.date] || "").trim();
     
     // Fill in date if it's a sub-activity of the same day
     if (!activityDate && lastValidDate) {
@@ -125,21 +125,21 @@ function transformV4Data(values: string[][]): Itinerary {
     if (!activityDate) return;
 
     // Use category column if available, otherwise infer from title
-    const rawCategory = row[colIndex.category]?.trim() || "";
+    const rawCategory = String(row[colIndex.category] || "").trim();
     const inferredCategory = inferCategory(activityTitle, rawCategory);
 
-    const rawLink = row[colIndex.link]?.trim() || "";
+    const rawLink = String(row[colIndex.link] || "").trim();
     const cleanLink = extractUrl(rawLink);
 
     const activity: ItineraryActivity = {
       id: `act-${index}`,
       date: activityDate,
-      time: row[colIndex.time]?.trim() || "",
+      time: String(row[colIndex.time] || "").trim(),
       title: activityTitle,
-      location: row[colIndex.location]?.trim() || "",
+      location: String(row[colIndex.location] || "").trim(),
       link: cleanLink || undefined,
-      cost: row[colIndex.cost]?.trim() || undefined,
-      notes: row[colIndex.notes]?.trim() || "",
+      cost: String(row[colIndex.cost] || "").trim() || undefined,
+      notes: String(row[colIndex.notes] || "").trim(),
       category: inferredCategory.display,
       type: inferredCategory.type
     };
