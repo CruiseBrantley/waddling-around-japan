@@ -12,7 +12,7 @@ function App() {
 
   // --- MOCK TODAY FOR TESTING ---
   // You can set this to e.g. "2026/05/26 14:30" to test LIVE indicators
-  const MOCK_TODAY: string | null = "2026/05/26 14:30"; 
+  const MOCK_TODAY: string | null = null; 
   const getInitialTime = () => MOCK_TODAY ? new Date(MOCK_TODAY) : new Date();
 
   const [currentTime, setCurrentTime] = useState(getInitialTime())
