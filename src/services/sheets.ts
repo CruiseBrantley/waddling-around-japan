@@ -34,6 +34,13 @@ const RANGE = import.meta.env.VITE_GOOGLE_SHEET_NAME || 'Itinerary';
 
 const CACHE_KEY = 'itinerary_cache';
 
+interface SheetRow {
+  values?: Array<{
+    formattedValue?: string;
+    hyperlink?: string;
+  }>;
+}
+
 /**
  * Fetch itinerary data from Google Sheets V4 API
  */
@@ -78,14 +85,14 @@ export async function fetchItinerary(): Promise<Itinerary> {
 /**
  * Transform Full Spreadsheet API response into structured itinerary
  */
-function transformFullSheetData(rowData: any[]): Itinerary {
+function transformFullSheetData(rowData: SheetRow[]): Itinerary {
   if (!rowData || rowData.length < 5) {
     return { title: "Waddling Around Japan", days: [] };
   }
 
   // Header row is index 2
   const headerCells = rowData[2]?.values || [];
-  const headerRow = headerCells.map((c: any) => String(c?.formattedValue || "").trim());
+  const headerRow = headerCells.map((c) => String(c?.formattedValue || "").trim());
   const startRowIndex = 4;
   
   const colIndex = {
