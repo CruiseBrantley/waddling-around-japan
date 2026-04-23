@@ -1,5 +1,5 @@
 import React from 'react';
-import { ItineraryActivity } from '../services/sheets';
+import type { ItineraryActivity } from '../services/sheets';
 
 interface ActivityCardProps {
   activity: ItineraryActivity;
@@ -7,22 +7,28 @@ interface ActivityCardProps {
   activeCardRef: React.RefObject<HTMLDivElement | null>;
 }
 
-export const ActivityCard: React.FC<ActivityCardProps> = ({ activity, isLive, activeCardRef }) => {
+export const ActivityCard: React.FC<ActivityCardProps> = ({
+  activity,
+  isLive,
+  activeCardRef,
+}) => {
   return (
-    <div 
+    <div
       className={`activity-card glass ${isLive ? 'active-card' : ''}`}
       ref={isLive ? (activeCardRef as any) : null}
     >
       <div className="activity-meta">
         <span className="activity-time">{activity.time}</span>
-        <span className={`category-tag type-${activity.type}`}>{activity.category}</span>
+        <span className={`category-tag type-${activity.type}`}>
+          {activity.category}
+        </span>
       </div>
-      
+
       <h3 className="activity-title">
         {activity.title}
         {isLive && <span className="live-badge">● LIVE NOW</span>}
       </h3>
-      
+
       <div className="activity-details">
         {activity.location && (
           <div className="detail-item">
@@ -42,7 +48,12 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({ activity, isLive, ac
           </div>
         )}
         {activity.link && (
-          <a href={activity.link} target="_blank" rel="noopener noreferrer" className="activity-link">
+          <a
+            href={activity.link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="activity-link"
+          >
             View Trip Note
           </a>
         )}
