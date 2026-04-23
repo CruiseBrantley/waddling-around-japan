@@ -496,19 +496,27 @@
   line-height: 1;
 }
 
-.swipe-container {
-  min-height: 50vh;
-  animation: slide-in 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+.swipe-container-outer {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  width: 100%;
+  max-width: 100vw;
+  /* Prevent vertical bounce during horizontal swipe */
+  overscroll-behavior-x: contain;
 }
 
-@keyframes slide-in {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.swipe-container-outer::-webkit-scrollbar {
+  display: none;
+}
+
+.swipe-slide {
+  flex: 0 0 100%;
+  width: 100%;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
 }
 

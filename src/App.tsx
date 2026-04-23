@@ -121,26 +121,30 @@ function App() {
   }
 
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchEndX.current = null;
-    touchStartX.current = e.targetTouches[0].clientX;
-  };
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const isScrollingRef = useRef(false);
 
-  const handleTouchMove = (e: React.TouchEvent) => {
-    touchEndX.current = e.targetTouches[0].clientX;
-  };
+  // Sync scroll position when selectedDayIndex changes from outside (e.g. DaySelector)
+  useEffect(() => {
+    if (scrollRef.current && !isScrollingRef.current) {
+      const container = scrollRef.current;
+      container.scrollTo({
+        left: selectedDayIndex * container.clientWidth,
+        behavior: 'smooth'
+      });
+    }
+  }, [selectedDayIndex]);
 
-  const handleTouchEnd = () => {
-    if (!touchStartX.current || !touchEndX.current) return;
+  const handleScroll = () => {
+    if (!scrollRef.current) return;
+    const container = scrollRef.current;
+    const index = Math.round(container.scrollLeft / container.clientWidth);
     
-    const distance = touchStartX.current - touchEndX.current;
-    const isLeftSwipe = distance > minSwipeDistance;
-    const isRightSwipe = distance < -minSwipeDistance;
-
-    if (isLeftSwipe && selectedDayIndex < (itinerary?.days.length || 0) - 1) {
-      setSelectedDayIndex(prev => prev + 1);
-    } else if (isRightSwipe && selectedDayIndex > 0) {
-      setSelectedDayIndex(prev => prev - 1);
+    if (index !== selectedDayIndex && index >= 0 && index < (itinerary?.days.length || 0)) {
+      isScrollingRef.current = true;
+      setSelectedDayIndex(index);
+      // Reset the flag after a short delay to allow the state update to settle
+      setTimeout(() => { isScrollingRef.current = false; }, 50);
     }
   };
 
@@ -162,25 +166,50 @@ function App() {
       />
 
       <main 
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        className="swipe-container"
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="swipe-container-outer"
       >
-        {filteredActivities.length > 0 ? (
-          <ActivityList 
-            date={currentDay?.date || ''} 
-            activities={filteredActivities} 
-            currentTime={currentTime}
-            activeCardRef={activeCardRef}
-            timeToMinutes={timeToMinutes}
-            isToday={isToday}
-          />
-        ) : (
-          <div className="container" style={{ textAlign: 'center', paddingTop: '40px', opacity: 0.5 }}>
-            <p>No matches found for your search.</p>
-          </div>
-        )}
+        {itinerary?.days.map((day, idx) => {
+          const dayFilteredActivities = day.activities.filter(activity => {
+            const term = searchTerm.toLowerCase();
+            return (
+              activity.title.toLowerCase().includes(term) ||
+              activity.location.toLowerCase().includes(term) ||
+              activity.notes.toLowerCase().includes(term) ||
+              activity.category.toLowerCase().includes(term)
+            );
+          });
+
+          // Check if it's the current day for "isToday" logic
+          const dayIsToday = (() => {
+            const dateMatch = day.date.match(/(\d{1,2})\/(\d{1,2})\/(\d{2})/);
+            if (!dateMatch) return false;
+            const [, month, dayOfMonth, year] = dateMatch;
+            return month === String(currentTime.getMonth() + 1) && 
+                   dayOfMonth === String(currentTime.getDate()) && 
+                   year === String(currentTime.getFullYear()).slice(-2);
+          })();
+
+          return (
+            <div key={day.date} className="swipe-slide">
+              {dayFilteredActivities.length > 0 ? (
+                <ActivityList 
+                  date={day.date} 
+                  activities={dayFilteredActivities} 
+                  currentTime={currentTime}
+                  activeCardRef={idx === selectedDayIndex ? activeCardRef : null}
+                  timeToMinutes={timeToMinutes}
+                  isToday={dayIsToday}
+                />
+              ) : (
+                <div className="container" style={{ textAlign: 'center', paddingTop: '80px', opacity: 0.5 }}>
+                  <p>{searchTerm ? 'No search results for this day.' : 'No activities planned.'}</p>
+                </div>
+              )}
+            </div>
+          )
+        })}
       </main>
     </div>
   )
