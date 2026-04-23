@@ -115,6 +115,34 @@ function App() {
     )
   }
 
+  // Swipe Gesture Handling
+  const touchStartX = useRef<number | null>(null);
+  const touchEndX = useRef<number | null>(null);
+  const minSwipeDistance = 70;
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchEndX.current = null;
+    touchStartX.current = e.targetTouches[0].clientX;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    touchEndX.current = e.targetTouches[0].clientX;
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStartX.current || !touchEndX.current) return;
+    
+    const distance = touchStartX.current - touchEndX.current;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+
+    if (isLeftSwipe && selectedDayIndex < (itinerary?.days.length || 0) - 1) {
+      setSelectedDayIndex(prev => prev + 1);
+    } else if (isRightSwipe && selectedDayIndex > 0) {
+      setSelectedDayIndex(prev => prev - 1);
+    }
+  };
+
   return (
     <div className="app-wrapper">
       <Hero image={heroImg} />
@@ -132,7 +160,12 @@ function App() {
         searchTerm={searchTerm}
       />
 
-      <main>
+      <main 
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        className="swipe-container"
+      >
         {filteredActivities.length > 0 ? (
           <ActivityList 
             date={currentDay?.date || ''} 
