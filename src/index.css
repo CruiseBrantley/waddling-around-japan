@@ -46,15 +46,21 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-body {
+html, body {
   margin: 0;
   padding: 0;
-  font-family: var(--font-sans);
   background: var(--bg-main);
   color: var(--text-main);
   overflow-x: hidden;
+}
+
+body {
+  font-family: var(--font-sans);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none; /* Prevents the white bar pull-down effect */
+  padding-top: var(--safe-area-top);
+  padding-bottom: var(--safe-area-bottom);
 }
 
 #root {
