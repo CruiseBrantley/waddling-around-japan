@@ -101,13 +101,11 @@ function App() {
   }, [currentTime, loading]);
 
   const [scrollProgress, setScrollProgress] = useState(0);
-  const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const isSyncingRef = useRef(false);
 
   const [retryKey, setRetryKey] = useState(0);
   const listenersAttachedRef = useRef(false);
   const activeScrollerRef = useRef<'main' | 'day' | null>(null);
-  const scrollEndTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const scrollEndTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Detect when refs are ready and attach listeners
   useEffect(() => {
