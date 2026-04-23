@@ -57,6 +57,7 @@
   padding: 8px 0;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x mandatory;
 }
 
 .day-selector-center-track {
@@ -91,6 +92,8 @@
   position: relative;
   color: var(--text-main);
   z-index: 1;
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
 }
 
 .day-selector-highlight {

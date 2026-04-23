@@ -16,13 +16,13 @@ export const DaySelector: React.FC<DaySelectorProps> = ({
   scrollProgress 
 }) => {
   const containerRef = React.useRef<HTMLDivElement>(null);
+  const isUserScrolling = React.useRef(false);
   const [paddingX, setPaddingX] = React.useState(0);
 
   // Calculate padding to allow items to be centered
   React.useEffect(() => {
     const updatePadding = () => {
       if (containerRef.current) {
-        // (viewport width / 2) - (button width / 2)
         const pad = (containerRef.current.clientWidth / 2) - 32;
         setPaddingX(pad);
       }
@@ -33,17 +33,40 @@ export const DaySelector: React.FC<DaySelectorProps> = ({
     return () => window.removeEventListener('resize', updatePadding);
   }, []);
 
-  // Real-time synchronization of the day selector scroll with the carousel progress
+  // Sync Top -> Bottom (When user scrolls the DaySelector)
+  React.useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    let scrollTimeout: number;
+    const onScroll = () => {
+      if (!isUserScrolling.current) return;
+      
+      window.clearTimeout(scrollTimeout);
+      scrollTimeout = window.setTimeout(() => {
+        const index = Math.round(container.scrollLeft / 76);
+        if (index >= 0 && index < days.length) {
+          onSelect(index);
+        }
+      }, 100);
+    };
+
+    container.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      container.removeEventListener('scroll', onScroll);
+      window.clearTimeout(scrollTimeout);
+    };
+  }, [days.length, onSelect]);
+
+  // Sync Bottom -> Top (When carousel moves)
   React.useLayoutEffect(() => {
-    if (containerRef.current) {
-      // Current progress * step (64 width + 12 gap)
+    if (containerRef.current && !isUserScrolling.current) {
       containerRef.current.scrollLeft = scrollProgress * 76;
     }
   }, [scrollProgress]);
 
   return (
     <nav className="day-selector glass" style={{ position: 'relative', overflow: 'hidden' }}>
-      {/* Fixed central highlight */}
       <div className="day-selector-center-track">
         <div className="day-selector-highlight fixed-center" />
       </div>
@@ -51,11 +74,19 @@ export const DaySelector: React.FC<DaySelectorProps> = ({
       <div 
         className="day-scroll-container" 
         ref={containerRef} 
+        onTouchStart={() => { isUserScrolling.current = true; }}
+        onTouchEnd={() => { 
+          // Delay resetting the flag to allow the debounced scroll to finish
+          setTimeout(() => { isUserScrolling.current = false; }, 200); 
+        }}
+        onMouseDown={() => { isUserScrolling.current = true; }}
+        onMouseUp={() => { 
+          setTimeout(() => { isUserScrolling.current = false; }, 200); 
+        }}
         style={{ 
           paddingLeft: `${paddingX}px`, 
           paddingRight: `${paddingX}px`,
-          scrollSnapType: 'none', // Disable internal snapping to follow carousel perfectly
-          pointerEvents: 'auto' // Allow clicks
+          pointerEvents: 'auto'
         }}
       >
         {days.map((day, idx) => {
