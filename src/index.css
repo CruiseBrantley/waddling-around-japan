@@ -2,9 +2,10 @@
 
 :root {
   /* Core Colors - Vibrant & Sophisticated */
-  --primary: #FF3B3F;
-  --primary-glow: rgba(255, 59, 63, 0.2);
-  --secondary: #2D3436;
+  /* One Piece Inspired Palette */
+  --primary: #FEDE2A; /* Straw Hat Yellow */
+  --primary-glow: rgba(254, 222, 42, 0.4);
+  --secondary: #D91621; /* Luffy Red */
   --accent: #00CEC9;
   
   /* Light Theme */
@@ -28,13 +29,13 @@
   --safe-area-bottom: env(safe-area-inset-bottom);
 }
 
-@media (prefers-color-scheme: dark) {
+  @media (prefers-color-scheme: dark) {
   :root {
-    --bg-main: #0F1014;
-    --bg-card: #1C1D24;
-    --bg-glass: rgba(28, 29, 36, 0.7);
-    --text-main: #E9ECEF;
-    --text-muted: #ADB5BD;
+    --bg-main: #001A2E; /* Japan Naval Blue */
+    --bg-card: #002642;
+    --bg-glass: rgba(0, 38, 66, 0.7);
+    --text-main: #FFFFFF;
+    --text-muted: #8ECAE6;
     --border: rgba(255, 255, 255, 0.08);
     --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
     --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.4);
