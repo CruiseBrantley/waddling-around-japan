@@ -127,70 +127,98 @@ function App() {
 
     listenersAttachedRef.current = true;
 
-    // Main carousel: Update progress and sync day selector proportionally
+    // Restore snapping and reset active scroller
+    const endScroll = () => {
+      if (scrollEndTimeoutRef.current) clearTimeout(scrollEndTimeoutRef.current);
+      scrollEndTimeoutRef.current = setTimeout(() => {
+        if (container) {
+          container.style.scrollSnapType = 'x mandatory';
+          container.style.willChange = 'auto';
+          // Update state only at the end to refresh UI highlights/active states
+          const finalProgress = container.scrollLeft / container.offsetWidth;
+          setScrollProgress(finalProgress);
+        }
+        if (daySelector) {
+          daySelector.style.scrollSnapType = 'x proximity';
+          daySelector.style.willChange = 'auto';
+        }
+        activeScrollerRef.current = null;
+      }, 150);
+    };
+
+    // Main carousel: Update DaySelector directly via DOM
     const onMainScroll = () => {
-      if (!container || !daySelector) return;
+      if (!container || !daySelector || activeScrollerRef.current !== 'main') return;
       
-      const progress = container.scrollLeft / container.offsetWidth;
-      setScrollProgress(progress);
-
-      // Linear sync to day selector only if main carousel is the active scroller
-      if (activeScrollerRef.current === 'main') {
-        daySelector.scrollLeft = progress * 76;
-      }
+      requestAnimationFrame(() => {
+        if (activeScrollerRef.current === 'main') {
+          const progress = container.scrollLeft / container.offsetWidth;
+          daySelector.scrollLeft = progress * 76;
+        }
+      });
       
-      // Keep main as active while scrolling
-      activeScrollerRef.current = 'main';
-      if (scrollEndTimeoutRef.current) clearTimeout(scrollEndTimeoutRef.current);
-      scrollEndTimeoutRef.current = setTimeout(() => {
-        activeScrollerRef.current = null;
-      }, 150);
+      endScroll();
     };
 
-    // Day selector: Sync main carousel proportionally
+    // Day selector: Update Main carousel directly via DOM
     const onDayScroll = () => {
-      if (!daySelector || !container) return;
+      if (!daySelector || !container || activeScrollerRef.current !== 'day') return;
       
-      // Linear sync to main carousel only if day selector is the active scroller
-      if (activeScrollerRef.current === 'day') {
-        const progress = daySelector.scrollLeft / 76;
-        container.scrollLeft = progress * container.offsetWidth;
-        setScrollProgress(progress);
-      }
+      requestAnimationFrame(() => {
+        if (activeScrollerRef.current === 'day') {
+          const progress = daySelector.scrollLeft / 76;
+          container.scrollLeft = progress * container.offsetWidth;
+        }
+      });
       
-      // Keep day as active while scrolling
-      activeScrollerRef.current = 'day';
-      if (scrollEndTimeoutRef.current) clearTimeout(scrollEndTimeoutRef.current);
-      scrollEndTimeoutRef.current = setTimeout(() => {
-        activeScrollerRef.current = null;
-      }, 150);
+      endScroll();
     };
 
-    // Track which element user started dragging
-    const onMainPointerDown = () => {
+    // Track which element user started dragging and disable snapping + hint GPU
+    const onMainInteractionStart = () => {
       activeScrollerRef.current = 'main';
+      if (container) {
+        container.style.scrollSnapType = 'none';
+        container.style.willChange = 'scroll-position';
+      }
+      if (daySelector) {
+        daySelector.style.scrollSnapType = 'none';
+        daySelector.style.willChange = 'scroll-position';
+      }
       if (scrollEndTimeoutRef.current) clearTimeout(scrollEndTimeoutRef.current);
     };
 
-    const onDayPointerDown = () => {
+    const onDayInteractionStart = () => {
       activeScrollerRef.current = 'day';
+      if (container) {
+        container.style.scrollSnapType = 'none';
+        container.style.willChange = 'scroll-position';
+      }
+      if (daySelector) {
+        daySelector.style.scrollSnapType = 'none';
+        daySelector.style.willChange = 'scroll-position';
+      }
       if (scrollEndTimeoutRef.current) clearTimeout(scrollEndTimeoutRef.current);
     };
 
     // Attach main carousel listeners
     container.addEventListener('scroll', onMainScroll, { passive: true });
-    container.addEventListener('pointerdown', onMainPointerDown);
+    container.addEventListener('pointerdown', onMainInteractionStart);
+    container.addEventListener('touchstart', onMainInteractionStart, { passive: true });
     
     // Attach day selector listeners
     daySelector.addEventListener('scroll', onDayScroll, { passive: true });
-    daySelector.addEventListener('pointerdown', onDayPointerDown);
+    daySelector.addEventListener('pointerdown', onDayInteractionStart);
+    daySelector.addEventListener('touchstart', onDayInteractionStart, { passive: true });
 
     return () => {
       container.removeEventListener('scroll', onMainScroll);
-      container.removeEventListener('pointerdown', onMainPointerDown);
+      container.removeEventListener('pointerdown', onMainInteractionStart);
+      container.removeEventListener('touchstart', onMainInteractionStart);
       
       daySelector.removeEventListener('scroll', onDayScroll);
-      daySelector.removeEventListener('pointerdown', onDayPointerDown);
+      daySelector.removeEventListener('pointerdown', onDayInteractionStart);
+      daySelector.removeEventListener('touchstart', onDayInteractionStart);
       
       if (scrollEndTimeoutRef.current) clearTimeout(scrollEndTimeoutRef.current);
     };
