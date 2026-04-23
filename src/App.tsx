@@ -8,6 +8,15 @@ function App() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedDayIndex, setSelectedDayIndex] = useState(0)
+  const [currentTime, setCurrentTime] = useState(new Date())
+
+  // Update time for LIVE indicators
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date())
+    }, 30000) // Every 30s
+    return () => clearInterval(timer)
+  }, [])
 
   useEffect(() => {
     async function loadData() {
@@ -16,14 +25,14 @@ function App() {
         const data = await fetchItinerary()
         console.log('App: Data fetched successfully:', data)
         setItinerary(data)
-        
+
         // --- AUTO-SELECT TODAY'S DATE ---
-        // For testing, you can change MOCK_TODAY to any date string, e.g., "2026/05/26"
         const MOCK_TODAY: string | null = null; 
         const today = MOCK_TODAY ? new Date(MOCK_TODAY) : new Date();
+        const nowMinutes = today.getHours() * 60 + today.getMinutes();
         
         const todayIndex = data.days.findIndex(day => {
-          const datePart = day.date.split(', ')[1]; // "5/24/26"
+          const datePart = day.date.split(', ')[1];
           if (!datePart) return false;
           const [m, d, y] = datePart.split('/');
           const dayDate = new Date(parseInt(y) + 2000, parseInt(m) - 1, parseInt(d));
@@ -32,11 +41,30 @@ function App() {
 
         if (todayIndex !== -1) {
           setSelectedDayIndex(todayIndex);
-          // Small delay to allow DOM to render before scrolling
+          
+          // Find current activity index within today
+          const activities = data.days[todayIndex].activities;
+          let currentActivityIdx = -1;
+          
+          for (let i = 0; i < activities.length; i++) {
+            const actMinutes = timeToMinutes(activities[i].time);
+            if (nowMinutes >= actMinutes) {
+              currentActivityIdx = i;
+            } else {
+              break; // Found the first activity that hasn't happened yet
+            }
+          }
+
+          // Delay for DOM render
           setTimeout(() => {
-            const btn = document.querySelector(`.day-btn[data-index="${todayIndex}"]`);
-            btn?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-          }, 100);
+            const dayBtn = document.querySelector(`.day-btn[data-index="${todayIndex}"]`);
+            dayBtn?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+            
+            if (currentActivityIdx !== -1) {
+              const activityCard = document.querySelector(`.timeline-item[data-act-index="${currentActivityIdx}"]`);
+              activityCard?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+          }, 200);
         }
       } catch (err) {
         console.error('App: Fetch error:', err)
@@ -129,54 +157,67 @@ function App() {
             </div>
 
             <div className="timeline">
-              {currentDay.activities.map((activity) => (
-                <div key={activity.id} className="timeline-item">
-                  <div className="timeline-left">
-                    <span className="activity-time">{activity.time}</span>
-                    <div className={`timeline-dot type-${activity.type}`}></div>
-                    <div className="timeline-connector"></div>
-                  </div>
-                  
-                  <div className="timeline-content glass">
-                    <div className="card-header">
-                      <h3 className="activity-title">{activity.title}</h3>
-                      <span className={`category-tag type-${activity.type}`}>{activity.category}</span>
+              {currentDay.activities.map((activity, idx) => {
+                const nowMins = currentTime.getHours() * 60 + currentTime.getMinutes();
+                const actMins = timeToMinutes(activity.time);
+                const nextAct = currentDay.activities[idx + 1];
+                const nextActMins = nextAct ? timeToMinutes(nextAct.time) : 1440;
+                
+                const isToday = currentTime.toDateString() === new Date(itinerary?.days[selectedDayIndex].date.split(', ')[1] || '').toDateString();
+                const isLive = isToday && nowMins >= actMins && nowMins < nextActMins;
+
+                return (
+                  <div key={activity.id} className={`timeline-item ${isLive ? 'is-live' : ''}`} data-act-index={idx}>
+                    <div className="timeline-left">
+                      <span className="activity-time">{activity.time}</span>
+                      <div className={`timeline-dot type-${activity.type} ${isLive ? 'pulse-red' : ''}`}></div>
+                      <div className="timeline-connector"></div>
                     </div>
 
-                    {activity.location && (
-                      <a 
-                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.location)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="activity-location-link"
-                      >
-                        <MapIcon />
-                        <span>{activity.location}</span>
-                      </a>
-                    )}
-
-                    {activity.notes && (
-                      <div className="activity-notes">
-                        {activity.notes}
-                      </div>
-                    )}
-
-                    <div className="card-footer">
-                      {activity.cost && (
-                        <div className="activity-cost">
-                          <CostIcon />
-                          <span>{activity.cost}</span>
+                    <div className={`timeline-content glass ${isLive ? 'active-card' : ''}`}>
+                      <div className="card-header">
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          {isLive && <span className="live-badge">● LIVE NOW</span>}
+                          <h3 className="activity-title">{activity.title}</h3>
                         </div>
-                      )}
-                      {activity.link && (
-                        <a href={activity.link} target="_blank" rel="noopener noreferrer" className="activity-link">
-                          View Trip Note
+                        <span className={`category-tag type-${activity.type}`}>{activity.category}</span>
+                      </div>
+
+                      {activity.location && (
+                        <a
+                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.location)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="activity-location-link"
+                        >
+                          <MapIcon />
+                          <span>{activity.location}</span>
                         </a>
                       )}
+
+                      {activity.notes && (
+                        <div className="activity-notes">
+                          {activity.notes}
+                        </div>
+                      )}
+
+                      <div className="card-footer">
+                        {activity.cost && (
+                          <div className="activity-cost">
+                            <CostIcon />
+                            <span>{activity.cost}</span>
+                          </div>
+                        )}
+                        {activity.link && (
+                          <a href={activity.link} target="_blank" rel="noopener noreferrer" className="activity-link">
+                            View Trip Note
+                          </a>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </>
         ) : (
@@ -187,6 +228,21 @@ function App() {
       </main>
     </div>
   )
+}
+
+/**
+ * Utility to convert "11:30 AM" or "2:00 PM" to minutes from midnight
+ */
+function timeToMinutes(timeStr: string): number {
+  try {
+    const [time, modifier] = timeStr.split(' ');
+    let [hours, minutes] = time.split(':').map(Number);
+    if (modifier === 'PM' && hours < 12) hours += 12;
+    if (modifier === 'AM' && hours === 12) hours = 0;
+    return hours * 60 + minutes;
+  } catch {
+    return 0;
+  }
 }
 
 // Minimal Icons

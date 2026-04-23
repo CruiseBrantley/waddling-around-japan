@@ -311,3 +311,31 @@
   justify-content: center;
 }
 
+.live-badge {
+  font-size: 10px;
+  font-weight: 800;
+  color: #FF3B3F;
+  background: rgba(255, 59, 63, 0.1);
+  padding: 2px 8px;
+  border-radius: 6px;
+  width: fit-content;
+  letter-spacing: 0.5px;
+}
+
+.pulse-red {
+  background: #FF3B3F !important;
+  box-shadow: 0 0 0 0 rgba(255, 59, 63, 0.7);
+  animation: pulse-red 2s infinite;
+}
+
+@keyframes pulse-red {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 59, 63, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(255, 59, 63, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 59, 63, 0); }
+}
+
+.active-card {
+  border: 1.5px solid rgba(255, 59, 63, 0.3) !important;
+  background: linear-gradient(135deg, var(--bg-glass), rgba(255, 59, 63, 0.05)) !important;
+}
+
