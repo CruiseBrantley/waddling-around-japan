@@ -16,6 +16,28 @@ function App() {
         const data = await fetchItinerary()
         console.log('App: Data fetched successfully:', data)
         setItinerary(data)
+        
+        // --- AUTO-SELECT TODAY'S DATE ---
+        // For testing, you can change MOCK_TODAY to any date string in the sheet, e.g., "5/26/2026"
+        const MOCK_TODAY: string | null = null; 
+        const today = MOCK_TODAY ? new Date(MOCK_TODAY) : new Date();
+        
+        const todayIndex = data.days.findIndex(day => {
+          const datePart = day.date.split(', ')[1]; // "5/24/26"
+          if (!datePart) return false;
+          const [m, d, y] = datePart.split('/');
+          const dayDate = new Date(parseInt(y) + 2000, parseInt(m) - 1, parseInt(d));
+          return dayDate.toDateString() === today.toDateString();
+        });
+
+        if (todayIndex !== -1) {
+          setSelectedDayIndex(todayIndex);
+          // Small delay to allow DOM to render before scrolling
+          setTimeout(() => {
+            const btn = document.querySelector(`.day-btn[data-index="${todayIndex}"]`);
+            btn?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+          }, 100);
+        }
       } catch (err) {
         console.error('App: Fetch error:', err)
         setError(err instanceof Error ? err.message : 'Failed to fetch itinerary')
@@ -82,6 +104,7 @@ function App() {
             return (
               <button
                 key={day.day}
+                data-index={idx}
                 className={`day-btn ${selectedDayIndex === idx ? 'active' : ''}`}
                 onClick={() => setSelectedDayIndex(idx)}
               >
