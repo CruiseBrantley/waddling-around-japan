@@ -14,7 +14,6 @@ function App() {
   const [itinerary, setItinerary] = useState<Itinerary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedDayIndex, setSelectedDayIndex] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   
   // --- MOCK TODAY FOR TESTING ---
@@ -24,6 +23,7 @@ function App() {
   const [currentTime, setCurrentTime] = useState(getInitialTime())
   const activeCardRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const daySelectorRef = useRef<HTMLDivElement>(null);
   const hasInitialScrolled = useRef(false);
   const [scrollTrigger, setScrollTrigger] = useState(0);
 
@@ -48,10 +48,20 @@ function App() {
         const tripStart = new Date(data.days[0].date);
         const tripEnd = new Date(data.days[data.days.length - 1].date);
         
+        // Auto-scroll to today on load
         if (now >= tripStart && now <= tripEnd) {
           const todayStr = now.toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric', year: '2-digit' });
           const todayIdx = data.days.findIndex(d => d.date.includes(todayStr.split(', ')[1]));
-          if (todayIdx !== -1) setSelectedDayIndex(todayIdx);
+          if (todayIdx !== -1 && scrollRef.current) {
+            setTimeout(() => {
+              if (scrollRef.current) {
+                scrollRef.current.scrollTo({
+                  left: todayIdx * scrollRef.current.offsetWidth,
+                  behavior: 'smooth'
+                });
+              }
+            }, 100);
+          }
         }
         
         setLoading(false);
@@ -70,7 +80,6 @@ function App() {
     return () => clearInterval(timer);
   }, []);
 
-  const isProgrammaticScroll = useRef(false);
   const [isLiveCardInView, setIsLiveCardInView] = useState(true);
 
   // Monitor if the Live card is in view
@@ -89,62 +98,103 @@ function App() {
 
     observer.observe(activeCardRef.current);
     return () => observer.disconnect();
-  }, [currentTime, selectedDayIndex, loading]);
+  }, [currentTime, loading]);
 
   const [scrollProgress, setScrollProgress] = useState(0);
+  const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isSyncingRef = useRef(false);
 
-  // Real-time scroll listener for highlight and debounced for index
+  const [retryKey, setRetryKey] = useState(0);
+  const listenersAttachedRef = useRef(false);
+  const activeScrollerRef = useRef<'main' | 'day' | null>(null);
+  const scrollEndTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Detect when refs are ready and attach listeners
   useEffect(() => {
-    const container = scrollRef.current;
-    if (!container) return;
+    // If listeners are already attached, don't do it again
+    if (listenersAttachedRef.current) return;
 
-    let scrollTimeout: number;
-    const onScroll = () => {
-      // 1. Real-time progress for the DaySelector highlight
+    const container = scrollRef.current;
+    const daySelector = daySelectorRef.current;
+    
+    // If refs aren't ready yet, retry after a short delay
+    if (!container || !daySelector) {
+      const timeout = setTimeout(() => {
+        setRetryKey(prev => prev + 1);
+      }, 50);
+      return () => clearTimeout(timeout);
+    }
+
+    listenersAttachedRef.current = true;
+
+    // Main carousel: Update progress and sync day selector proportionally
+    const onMainScroll = () => {
+      if (!container || !daySelector) return;
+      
       const progress = container.scrollLeft / container.offsetWidth;
       setScrollProgress(progress);
 
-      // 2. Debounced index update to avoid heavy re-renders of all day slides
-      if (isProgrammaticScroll.current) return;
-      
-      window.clearTimeout(scrollTimeout);
-      scrollTimeout = window.setTimeout(() => {
-        const index = Math.round(progress);
-        if (index !== selectedDayIndex && index >= 0 && index < (itinerary?.days.length || 0)) {
-          setSelectedDayIndex(index);
-        }
-      }, 100);
-    };
-
-    container.addEventListener('scroll', onScroll, { passive: true });
-    return () => {
-      container.removeEventListener('scroll', onScroll);
-      window.clearTimeout(scrollTimeout);
-    };
-  }, [selectedDayIndex, itinerary, loading]);
-
-  // Sync scroll position when selectedDayIndex changes from outside (e.g. DaySelector)
-  useEffect(() => {
-    if (scrollRef.current) {
-      const container = scrollRef.current;
-      const targetScroll = selectedDayIndex * container.offsetWidth;
-      
-      if (Math.abs(container.scrollLeft - targetScroll) > 10) {
-        isProgrammaticScroll.current = true;
-        container.style.scrollSnapType = 'none';
-        
-        container.scrollTo({
-          left: targetScroll,
-          behavior: 'smooth'
-        });
-        
-        setTimeout(() => {
-          if (container) container.style.scrollSnapType = 'x mandatory';
-          isProgrammaticScroll.current = false;
-        }, 600);
+      // Linear sync to day selector only if main carousel is the active scroller
+      if (activeScrollerRef.current === 'main') {
+        daySelector.scrollLeft = progress * 76;
       }
-    }
-  }, [selectedDayIndex]);
+      
+      // Keep main as active while scrolling
+      activeScrollerRef.current = 'main';
+      if (scrollEndTimeoutRef.current) clearTimeout(scrollEndTimeoutRef.current);
+      scrollEndTimeoutRef.current = setTimeout(() => {
+        activeScrollerRef.current = null;
+      }, 150);
+    };
+
+    // Day selector: Sync main carousel proportionally
+    const onDayScroll = () => {
+      if (!daySelector || !container) return;
+      
+      // Linear sync to main carousel only if day selector is the active scroller
+      if (activeScrollerRef.current === 'day') {
+        const progress = daySelector.scrollLeft / 76;
+        container.scrollLeft = progress * container.offsetWidth;
+        setScrollProgress(progress);
+      }
+      
+      // Keep day as active while scrolling
+      activeScrollerRef.current = 'day';
+      if (scrollEndTimeoutRef.current) clearTimeout(scrollEndTimeoutRef.current);
+      scrollEndTimeoutRef.current = setTimeout(() => {
+        activeScrollerRef.current = null;
+      }, 150);
+    };
+
+    // Track which element user started dragging
+    const onMainPointerDown = () => {
+      activeScrollerRef.current = 'main';
+      if (scrollEndTimeoutRef.current) clearTimeout(scrollEndTimeoutRef.current);
+    };
+
+    const onDayPointerDown = () => {
+      activeScrollerRef.current = 'day';
+      if (scrollEndTimeoutRef.current) clearTimeout(scrollEndTimeoutRef.current);
+    };
+
+    // Attach main carousel listeners
+    container.addEventListener('scroll', onMainScroll, { passive: true });
+    container.addEventListener('pointerdown', onMainPointerDown);
+    
+    // Attach day selector listeners
+    daySelector.addEventListener('scroll', onDayScroll, { passive: true });
+    daySelector.addEventListener('pointerdown', onDayPointerDown);
+
+    return () => {
+      container.removeEventListener('scroll', onMainScroll);
+      container.removeEventListener('pointerdown', onMainPointerDown);
+      
+      daySelector.removeEventListener('scroll', onDayScroll);
+      daySelector.removeEventListener('pointerdown', onDayPointerDown);
+      
+      if (scrollEndTimeoutRef.current) clearTimeout(scrollEndTimeoutRef.current);
+    };
+  }, [retryKey]);
 
   if (loading) {
     return (
@@ -182,14 +232,12 @@ function App() {
              year === String(now.getFullYear()).slice(-2);
     });
 
-    if (todayIdx !== undefined && todayIdx !== -1) {
-      if (selectedDayIndex === todayIdx) {
-        // Just trigger vertical scroll if already on today
-        setScrollTrigger(prev => prev + 1);
-      } else {
-        setSelectedDayIndex(todayIdx);
-        setScrollTrigger(prev => prev + 1);
-      }
+    if (todayIdx !== undefined && todayIdx !== -1 && scrollRef.current) {
+      scrollRef.current.scrollTo({
+        left: todayIdx * scrollRef.current.offsetWidth,
+        behavior: 'smooth'
+      });
+      setScrollTrigger(prev => prev + 1);
     }
   };
 
@@ -205,9 +253,8 @@ function App() {
       />
 
       <DaySelector 
+        ref={daySelectorRef}
         days={itinerary?.days || []} 
-        selectedIndex={selectedDayIndex} 
-        onSelect={setSelectedDayIndex}
         searchTerm={searchTerm}
         scrollProgress={scrollProgress}
       />

@@ -57,7 +57,7 @@
   padding: 8px 0;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
-  scroll-snap-type: x mandatory;
+  scroll-snap-type: x proximity;
 }
 
 .day-selector-center-track {
@@ -85,8 +85,7 @@
   align-items: center;
   justify-content: center;
   background: transparent;
-  border: 1px solid transparent;
-  cursor: pointer;
+  border: none;
   transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   padding: 0;
   position: relative;
