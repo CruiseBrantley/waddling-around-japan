@@ -24,6 +24,11 @@ function App() {
   const [currentTime, setCurrentTime] = useState(getInitialTime())
   const activeCardRef = useRef<HTMLDivElement | null>(null);
 
+  // Swipe Gesture Handling
+  const touchStartX = useRef<number | null>(null);
+  const touchEndX = useRef<number | null>(null);
+  const minSwipeDistance = 70;
+
   // Load Itinerary
   useEffect(() => {
     fetchItinerary()
@@ -115,10 +120,6 @@ function App() {
     )
   }
 
-  // Swipe Gesture Handling
-  const touchStartX = useRef<number | null>(null);
-  const touchEndX = useRef<number | null>(null);
-  const minSwipeDistance = 70;
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchEndX.current = null;
