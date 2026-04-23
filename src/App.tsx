@@ -91,22 +91,29 @@ function App() {
     return () => observer.disconnect();
   }, [currentTime, selectedDayIndex, loading]);
 
-  // Debounced scroll handler to update index only after snapping settles
+  const [scrollProgress, setScrollProgress] = useState(0);
+
+  // Real-time scroll listener for highlight and debounced for index
   useEffect(() => {
     const container = scrollRef.current;
     if (!container) return;
 
     let scrollTimeout: number;
     const onScroll = () => {
+      // 1. Real-time progress for the DaySelector highlight
+      const progress = container.scrollLeft / container.offsetWidth;
+      setScrollProgress(progress);
+
+      // 2. Debounced index update to avoid heavy re-renders of all day slides
       if (isProgrammaticScroll.current) return;
       
       window.clearTimeout(scrollTimeout);
       scrollTimeout = window.setTimeout(() => {
-        const index = Math.round(container.scrollLeft / container.offsetWidth);
+        const index = Math.round(progress);
         if (index !== selectedDayIndex && index >= 0 && index < (itinerary?.days.length || 0)) {
           setSelectedDayIndex(index);
         }
-      }, 100); // Wait for snapping to settle
+      }, 100);
     };
 
     container.addEventListener('scroll', onScroll, { passive: true });
@@ -202,6 +209,7 @@ function App() {
         selectedIndex={selectedDayIndex} 
         onSelect={setSelectedDayIndex}
         searchTerm={searchTerm}
+        scrollProgress={scrollProgress}
       />
 
       <main 
