@@ -12,6 +12,7 @@
   --bg-card: #FFFFFF;
   --bg-glass: rgba(255, 255, 255, 0.7);
   --text-main: #2D3436;
+  --text-heading: #1A1A1A;
   --text-muted: #636E72;
   --border: rgba(0, 0, 0, 0.05);
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
@@ -34,6 +35,7 @@
     --bg-card: #1C1D24;
     --bg-glass: rgba(28, 29, 36, 0.7);
     --text-main: #E9ECEF;
+    --text-heading: #FFFFFF;
     --text-muted: #ADB5BD;
     --border: rgba(255, 255, 255, 0.08);
     --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
