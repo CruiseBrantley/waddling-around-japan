@@ -8,15 +8,22 @@ function App() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedDayIndex, setSelectedDayIndex] = useState(0)
-  const [currentTime, setCurrentTime] = useState(new Date())
+
+  // --- MOCK TODAY FOR TESTING ---
+  // You can set this to e.g. "2026/05/26 14:30" to test LIVE indicators
+  const MOCK_TODAY: string | null = "2026/05/26 14:30"; 
+  const getInitialTime = () => MOCK_TODAY ? new Date(MOCK_TODAY) : new Date();
+
+  const [currentTime, setCurrentTime] = useState(getInitialTime())
 
   // Update time for LIVE indicators
   useEffect(() => {
+    if (MOCK_TODAY) return; // Don't auto-update if we are mocking
     const timer = setInterval(() => {
       setCurrentTime(new Date())
-    }, 30000) // Every 30s
+    }, 30000)
     return () => clearInterval(timer)
-  }, [])
+  }, [MOCK_TODAY])
 
   useEffect(() => {
     async function loadData() {
@@ -26,26 +33,24 @@ function App() {
         console.log('App: Data fetched successfully:', data)
         setItinerary(data)
 
-        // --- AUTO-SELECT TODAY'S DATE ---
-        const MOCK_TODAY: string | null = null; 
-        const today = MOCK_TODAY ? new Date(MOCK_TODAY) : new Date();
-        const nowMinutes = today.getHours() * 60 + today.getMinutes();
+        // --- AUTO-SELECT TODAY ---
+        const nowMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();
         
         const todayIndex = data.days.findIndex(day => {
           const datePart = day.date.split(', ')[1];
           if (!datePart) return false;
           const [m, d, y] = datePart.split('/');
           const dayDate = new Date(parseInt(y) + 2000, parseInt(m) - 1, parseInt(d));
-          return dayDate.toDateString() === today.toDateString();
+          return dayDate.toDateString() === currentTime.toDateString();
         });
 
         if (todayIndex !== -1) {
           setSelectedDayIndex(todayIndex);
-          
+
           // Find current activity index within today
           const activities = data.days[todayIndex].activities;
           let currentActivityIdx = -1;
-          
+
           for (let i = 0; i < activities.length; i++) {
             const actMinutes = timeToMinutes(activities[i].time);
             if (nowMinutes >= actMinutes) {
@@ -59,7 +64,7 @@ function App() {
           setTimeout(() => {
             const dayBtn = document.querySelector(`.day-btn[data-index="${todayIndex}"]`);
             dayBtn?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-            
+
             if (currentActivityIdx !== -1) {
               const activityCard = document.querySelector(`.timeline-item[data-act-index="${currentActivityIdx}"]`);
               activityCard?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -162,7 +167,7 @@ function App() {
                 const actMins = timeToMinutes(activity.time);
                 const nextAct = currentDay.activities[idx + 1];
                 const nextActMins = nextAct ? timeToMinutes(nextAct.time) : 1440;
-                
+
                 const isToday = currentTime.toDateString() === new Date(itinerary?.days[selectedDayIndex].date.split(', ')[1] || '').toDateString();
                 const isLive = isToday && nowMins >= actMins && nowMins < nextActMins;
 
