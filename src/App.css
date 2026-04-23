@@ -499,7 +499,7 @@
 .swipe-container-outer {
   display: flex;
   overflow-x: auto;
-  scroll-snap-type: x mandatory;
+  scroll-snap-type: x proximity;
   scroll-behavior: smooth;
   scrollbar-width: none;
   -ms-overflow-style: none;
