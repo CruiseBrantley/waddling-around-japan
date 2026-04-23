@@ -25,6 +25,17 @@ function App() {
   const activeCardRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const hasInitialScrolled = useRef(false);
+  const [scrollTrigger, setScrollTrigger] = useState(0);
+
+  // Initial & Triggered Auto-scroll to active card
+  useEffect(() => {
+    if (activeCardRef.current && !loading) {
+      setTimeout(() => {
+        activeCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        hasInitialScrolled.current = true;
+      }, 800); 
+    }
+  }, [loading, scrollTrigger]);
 
   // Load Itinerary
   useEffect(() => {
@@ -108,7 +119,6 @@ function App() {
     )
   }
 
-  const [scrollTrigger, setScrollTrigger] = useState(0);
 
   // Jump to today and current activity
   const jumpToNow = () => {
@@ -129,15 +139,6 @@ function App() {
     }
   };
 
-  // Initial Auto-scroll to active card
-  useEffect(() => {
-    if (activeCardRef.current && !loading) {
-      setTimeout(() => {
-        activeCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        hasInitialScrolled.current = true;
-      }, 800); 
-    }
-  }, [loading, scrollTrigger]);
 
   return (
     <div className="app-wrapper">
