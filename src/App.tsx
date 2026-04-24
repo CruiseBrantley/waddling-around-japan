@@ -25,6 +25,7 @@ function App() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const daySelectorRef = useRef<HTMLDivElement>(null);
   const hasInitialScrolled = useRef(false);
+  const [activeIndex, setActiveIndex] = useState(0);
   const [scrollTrigger, setScrollTrigger] = useState(0);
 
   // Initial & Triggered Auto-scroll to active card
@@ -100,7 +101,35 @@ function App() {
     return () => observer.disconnect();
   }, [currentTime, loading]);
 
-  const [scrollProgress, setScrollProgress] = useState(0);
+  // Update active index based on intersection
+  useEffect(() => {
+    if (loading || !itinerary) return;
+
+    const options = {
+      root: scrollRef.current,
+      threshold: 0.5
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const index = Number(entry.target.getAttribute('data-index'));
+          setActiveIndex(index);
+        }
+      });
+    }, options);
+
+    // We need to wait for the DOM to be ready
+    const timer = setTimeout(() => {
+      const slides = scrollRef.current?.querySelectorAll('.swipe-slide');
+      slides?.forEach(slide => observer.observe(slide));
+    }, 100);
+
+    return () => {
+      clearTimeout(timer);
+      observer.disconnect();
+    };
+  }, [loading, itinerary]);
 
   const [retryKey, setRetryKey] = useState(0);
   const listenersAttachedRef = useRef(false);
@@ -109,116 +138,65 @@ function App() {
 
   // Detect when refs are ready and attach listeners
   useEffect(() => {
-    // If listeners are already attached, don't do it again
     if (listenersAttachedRef.current) return;
 
     const container = scrollRef.current;
     const daySelector = daySelectorRef.current;
     
-    // If refs aren't ready yet, retry after a short delay
     if (!container || !daySelector) {
-      const timeout = setTimeout(() => {
-        setRetryKey(prev => prev + 1);
-      }, 50);
+      const timeout = setTimeout(() => setRetryKey(prev => prev + 1), 50);
       return () => clearTimeout(timeout);
     }
 
     listenersAttachedRef.current = true;
 
-    // Restore snapping and reset active scroller
-    const endScroll = () => {
+    const ITEM_WIDTH = 76; // 64px width + 12px gap
+
+    const onMainScroll = () => {
+      if (activeScrollerRef.current !== 'main') return;
+      
+      requestAnimationFrame(() => {
+        const progress = container.scrollLeft / container.clientWidth;
+        daySelector.scrollLeft = progress * ITEM_WIDTH;
+      });
+    };
+
+    const onDayScroll = () => {
+      if (activeScrollerRef.current !== 'day') return;
+      
+      requestAnimationFrame(() => {
+        const progress = daySelector.scrollLeft / ITEM_WIDTH;
+        container.scrollLeft = progress * container.clientWidth;
+      });
+    };
+
+    const onInteractionStart = (type: 'main' | 'day') => {
+      activeScrollerRef.current = type;
+      if (scrollEndTimeoutRef.current) clearTimeout(scrollEndTimeoutRef.current);
+    };
+
+    const onInteractionEnd = () => {
       if (scrollEndTimeoutRef.current) clearTimeout(scrollEndTimeoutRef.current);
       scrollEndTimeoutRef.current = setTimeout(() => {
-        if (container) {
-          container.style.scrollSnapType = 'x mandatory';
-          container.style.willChange = 'auto';
-          // Update state only at the end to refresh UI highlights/active states
-          const finalProgress = container.scrollLeft / container.offsetWidth;
-          setScrollProgress(finalProgress);
-        }
-        if (daySelector) {
-          daySelector.style.scrollSnapType = 'x proximity';
-          daySelector.style.willChange = 'auto';
-        }
         activeScrollerRef.current = null;
       }, 150);
     };
 
-    // Main carousel: Update DaySelector directly via DOM
-    const onMainScroll = () => {
-      if (!container || !daySelector || activeScrollerRef.current !== 'main') return;
-      
-      requestAnimationFrame(() => {
-        if (activeScrollerRef.current === 'main') {
-          const progress = container.scrollLeft / container.offsetWidth;
-          daySelector.scrollLeft = progress * 76;
-        }
-      });
-      
-      endScroll();
-    };
-
-    // Day selector: Update Main carousel directly via DOM
-    const onDayScroll = () => {
-      if (!daySelector || !container || activeScrollerRef.current !== 'day') return;
-      
-      requestAnimationFrame(() => {
-        if (activeScrollerRef.current === 'day') {
-          const progress = daySelector.scrollLeft / 76;
-          container.scrollLeft = progress * container.offsetWidth;
-        }
-      });
-      
-      endScroll();
-    };
-
-    // Track which element user started dragging and disable snapping + hint GPU
-    const onMainInteractionStart = () => {
-      activeScrollerRef.current = 'main';
-      if (container) {
-        container.style.scrollSnapType = 'none';
-        container.style.willChange = 'scroll-position';
-      }
-      if (daySelector) {
-        daySelector.style.scrollSnapType = 'none';
-        daySelector.style.willChange = 'scroll-position';
-      }
-      if (scrollEndTimeoutRef.current) clearTimeout(scrollEndTimeoutRef.current);
-    };
-
-    const onDayInteractionStart = () => {
-      activeScrollerRef.current = 'day';
-      if (container) {
-        container.style.scrollSnapType = 'none';
-        container.style.willChange = 'scroll-position';
-      }
-      if (daySelector) {
-        daySelector.style.scrollSnapType = 'none';
-        daySelector.style.willChange = 'scroll-position';
-      }
-      if (scrollEndTimeoutRef.current) clearTimeout(scrollEndTimeoutRef.current);
-    };
-
-    // Attach main carousel listeners
     container.addEventListener('scroll', onMainScroll, { passive: true });
-    container.addEventListener('pointerdown', onMainInteractionStart);
-    container.addEventListener('touchstart', onMainInteractionStart, { passive: true });
+    container.addEventListener('touchstart', () => onInteractionStart('main'), { passive: true });
+    container.addEventListener('pointerdown', () => onInteractionStart('main'));
+    window.addEventListener('touchend', onInteractionEnd);
+    window.addEventListener('pointerup', onInteractionEnd);
     
-    // Attach day selector listeners
     daySelector.addEventListener('scroll', onDayScroll, { passive: true });
-    daySelector.addEventListener('pointerdown', onDayInteractionStart);
-    daySelector.addEventListener('touchstart', onDayInteractionStart, { passive: true });
+    daySelector.addEventListener('touchstart', () => onInteractionStart('day'), { passive: true });
+    daySelector.addEventListener('pointerdown', () => onInteractionStart('day'));
 
     return () => {
       container.removeEventListener('scroll', onMainScroll);
-      container.removeEventListener('pointerdown', onMainInteractionStart);
-      container.removeEventListener('touchstart', onMainInteractionStart);
-      
+      window.removeEventListener('touchend', onInteractionEnd);
+      window.removeEventListener('pointerup', onInteractionEnd);
       daySelector.removeEventListener('scroll', onDayScroll);
-      daySelector.removeEventListener('pointerdown', onDayInteractionStart);
-      daySelector.removeEventListener('touchstart', onDayInteractionStart);
-      
-      if (scrollEndTimeoutRef.current) clearTimeout(scrollEndTimeoutRef.current);
     };
   }, [retryKey]);
 
@@ -267,6 +245,15 @@ function App() {
     }
   };
 
+  const scrollToDay = (index: number) => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({
+        left: index * scrollRef.current.offsetWidth,
+        behavior: 'smooth'
+      });
+    }
+  };
+
 
   return (
     <div className="app-wrapper">
@@ -282,14 +269,15 @@ function App() {
         ref={daySelectorRef}
         days={itinerary?.days || []} 
         searchTerm={searchTerm}
-        scrollProgress={scrollProgress}
+        activeIndex={activeIndex}
+        onDayClick={scrollToDay}
       />
 
       <main 
         ref={scrollRef}
         className="swipe-container-outer"
       >
-        {itinerary?.days.map((day) => {
+        {itinerary?.days.map((day, index) => {
           const dayFilteredActivities = day.activities.filter(activity => {
             const term = searchTerm.toLowerCase();
             return (
@@ -311,7 +299,7 @@ function App() {
           })();
 
           return (
-            <div key={day.date} className="swipe-slide">
+            <div key={day.date} className="swipe-slide" data-index={index}>
               {dayFilteredActivities.length > 0 ? (
                 <ActivityList 
                   date={day.date} 

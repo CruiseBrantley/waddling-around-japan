@@ -4,13 +4,15 @@ import type { ItineraryDay } from '../services/sheets';
 interface DaySelectorProps {
   days: ItineraryDay[];
   searchTerm: string;
-  scrollProgress: number;
+  activeIndex: number;
+  onDayClick: (index: number) => void;
 }
 
 const DaySelectorComponent = React.forwardRef<HTMLDivElement, DaySelectorProps>(({ 
   days, 
   searchTerm,
-  scrollProgress 
+  activeIndex,
+  onDayClick
 }, ref) => {
   const [paddingX, setPaddingX] = React.useState(0);
 
@@ -58,8 +60,9 @@ const DaySelectorComponent = React.forwardRef<HTMLDivElement, DaySelectorProps>(
             <div
               key={day.day}
               data-index={idx}
-              className={`day-btn ${Math.round(scrollProgress) === idx ? 'is-active' : ''}`}
+              className={`day-btn ${activeIndex === idx ? 'is-active' : ''}`}
               style={{ zIndex: 1 }}
+              onClick={() => onDayClick(idx)}
             >
               <span className="day-label">{dayName}</span>
               <span className="day-num">{dayShort}</span>

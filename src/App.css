@@ -57,7 +57,7 @@
   padding: 8px 0;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
-  scroll-snap-type: x proximity;
+  scroll-snap-type: x mandatory;
 }
 
 .day-selector-center-track {
@@ -523,8 +523,7 @@
 .swipe-container-outer {
   display: flex;
   overflow-x: auto;
-  scroll-snap-type: x proximity;
-  scroll-behavior: smooth;
+  scroll-snap-type: x mandatory;
   scrollbar-width: none;
   -ms-overflow-style: none;
   width: 100%;
