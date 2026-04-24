@@ -138,6 +138,42 @@ function App() {
     };
   }, [loading, itinerary]);
 
+  // Adjust vertical scroll when day changes to prevent blank screens
+  useEffect(() => {
+    if (!scrollRef.current || loading) return;
+    
+    const container = scrollRef.current;
+    const slides = container.querySelectorAll('.swipe-slide');
+    const activeSlide = slides[activeIndex] as HTMLElement;
+    
+    if (!activeSlide) return;
+
+    const updateScrollPosition = () => {
+      const slideHeight = activeSlide.offsetHeight;
+      const rect = container.getBoundingClientRect();
+      const absoluteMainTop = rect.top + window.scrollY;
+      const viewportHeight = window.innerHeight;
+      
+      const contentBottom = absoluteMainTop + slideHeight;
+      const currentViewBottom = window.scrollY + viewportHeight;
+      
+      if (currentViewBottom > contentBottom) {
+        const targetScroll = contentBottom - viewportHeight;
+        window.scrollTo({
+          top: Math.max(0, targetScroll),
+          behavior: 'smooth'
+        });
+      }
+
+      // Explicitly cap the container height to the active slide
+      container.style.height = `${slideHeight}px`;
+    };
+
+    // We still want to scroll up if needed
+    const timer = setTimeout(updateScrollPosition, 50);
+    return () => clearTimeout(timer);
+  }, [activeIndex, loading, itinerary]);
+
   const [retryKey, setRetryKey] = useState(0);
   const listenersAttachedRef = useRef(false);
 
@@ -316,7 +352,11 @@ function App() {
           })();
 
           return (
-            <div key={day.date} className="swipe-slide" data-index={index}>
+            <div 
+              key={day.date} 
+              className={`swipe-slide ${activeIndex === index ? 'active' : ''}`} 
+              data-index={index}
+            >
               {dayFilteredActivities.length > 0 ? (
                 <ActivityList 
                   date={day.date} 

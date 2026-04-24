@@ -38,7 +38,7 @@ export const ActivityList: React.FC<ActivityListProps> = ({
   const liveActivityId = isToday ? getLiveActivityId() : null;
 
   return (
-    <div className="container" style={{ paddingBottom: '100px' }}>
+    <div className="container" style={{ paddingBottom: '40px' }}>
       <div className="day-header">
         <h2 className="date-display">{date}</h2>
         <span className="activity-count">{activities.length} activities</span>
