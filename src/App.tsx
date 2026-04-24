@@ -336,8 +336,11 @@ function App() {
         })}
       </main>
 
-      {itinerary && !isLiveCardInView && (
-        <button className="floating-now-btn glass" onClick={jumpToNow}>
+      {itinerary && (
+        <button 
+          className={`floating-now-btn glass ${!isLiveCardInView ? 'visible' : ''}`} 
+          onClick={jumpToNow}
+        >
           <span className="pulse-dot"></span>
           NOW
         </button>
