@@ -20,8 +20,13 @@ const DaySelectorComponent = React.forwardRef<HTMLDivElement, DaySelectorProps>(
   React.useEffect(() => {
     const updatePadding = () => {
       if (ref && typeof ref === 'object' && 'current' in ref) {
-        const pad = (ref.current?.clientWidth || 0) / 2 - 32;
-        setPaddingX(pad);
+        // Only apply horizontal centering padding on mobile/tablet
+        if (window.innerWidth < 1024) {
+          const pad = (ref.current?.clientWidth || 0) / 2 - 32;
+          setPaddingX(pad);
+        } else {
+          setPaddingX(0);
+        }
       }
     };
     

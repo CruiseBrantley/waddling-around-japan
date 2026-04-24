@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { fetchItinerary, type Itinerary } from './services/sheets'
 import heroImg from './assets/hero.png'
+import mapImg from './assets/map_minimalist.png'
 import './App.css'
 
 // Modular Components
@@ -29,6 +30,8 @@ function App() {
   const scrollEndTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [scrollTrigger, setScrollTrigger] = useState(0);
+  const [retryKey, setRetryKey] = useState(0);
+  const listenersAttachedRef = useRef(false);
 
   // Initial & Triggered Auto-scroll to active card
   useEffect(() => {
@@ -36,7 +39,7 @@ function App() {
       setTimeout(() => {
         activeCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         hasInitialScrolled.current = true;
-      }, 50); 
+      }, 150); 
     }
   }, [loading, scrollTrigger]);
 
@@ -45,40 +48,54 @@ function App() {
     fetchItinerary()
       .then(data => {
         setItinerary(data);
-        
-        // Auto-select today if it falls within the trip dates
-        const now = getInitialTime();
-        
-        // Auto-scroll to today on load
-        const todayIdx = data.days.findIndex(d => {
-          const dateMatch = d.date.match(/(\d{1,2})\/(\d{1,2})\/(\d{2})/);
-          if (!dateMatch) return false;
-          const [, month, dayOfMonth, year] = dateMatch;
-          return month === String(now.getMonth() + 1) && 
-                 dayOfMonth === String(now.getDate()) && 
-                 year === String(now.getFullYear()).slice(-2);
-        });
-
-        if (todayIdx !== -1 && scrollRef.current) {
-          activeScrollerRef.current = 'main';
-          scrollRef.current.scrollTo({
-            left: todayIdx * scrollRef.current.offsetWidth,
-            behavior: 'auto'
-          });
-          
-          if (scrollEndTimeoutRef.current) clearTimeout(scrollEndTimeoutRef.current);
-          scrollEndTimeoutRef.current = setTimeout(() => {
-            activeScrollerRef.current = null;
-          }, 100);
-        }
-        
         setLoading(false);
       })
-      .catch(err => {
-        setError(err.message);
-        setLoading(false);
-      });
-  }, []);
+       .catch(err => {
+         setError(err.message);
+         setLoading(false);
+       });
+   }, []);
+
+   // Handle initial scroll to today's day
+   useEffect(() => {
+     if (!loading && itinerary && scrollRef.current) {
+       const now = getInitialTime();
+       const todayIdx = itinerary.days.findIndex(d => {
+         const dateMatch = d.date.match(/(\d{1,2})\/(\d{1,2})\/(\d{2})/);
+         if (!dateMatch) return false;
+         const [, month, dayOfMonth, year] = dateMatch;
+         return month === String(now.getMonth() + 1) && 
+                dayOfMonth === String(now.getDate()) && 
+                year === String(now.getFullYear()).slice(-2);
+       });
+
+       if (todayIdx !== -1) {
+         const timer = setTimeout(() => {
+           if (scrollRef.current) {
+             activeScrollerRef.current = 'main';
+             
+             if (window.innerWidth < 1024) {
+               scrollRef.current.scrollTo({
+                 left: todayIdx * scrollRef.current.offsetWidth,
+                 behavior: 'auto'
+               });
+             } else {
+               const slides = scrollRef.current.querySelectorAll('.swipe-slide');
+               slides[todayIdx]?.scrollIntoView({ behavior: 'auto', block: 'start' });
+             }
+             
+             if (scrollEndTimeoutRef.current) clearTimeout(scrollEndTimeoutRef.current);
+             scrollEndTimeoutRef.current = setTimeout(() => {
+               activeScrollerRef.current = null;
+               // Trigger the vertical card scroll after horizontal/day scroll is done
+               setScrollTrigger(prev => prev + 1);
+             }, 150);
+           }
+         }, 100);
+         return () => clearTimeout(timer);
+       }
+     }
+   }, [loading, itinerary]);
 
   // Update time for "Live Now" tracking
   useEffect(() => {
@@ -101,42 +118,62 @@ function App() {
       ([entry]) => {
         setIsLiveCardInView(entry.isIntersecting);
       },
-      { threshold: 0.1 }
+      { 
+        root: scrollRef.current,
+        threshold: 0.1 
+      }
     );
 
     observer.observe(activeCardRef.current);
     return () => observer.disconnect();
   }, [currentTime, loading]);
 
+  const intersectingRef = useRef<Set<number>>(new Set());
+
   // Update active index based on intersection
   useEffect(() => {
     if (loading || !itinerary) return;
 
+    const isDesktop = window.innerWidth >= 1024;
+    intersectingRef.current.clear();
+    
     const options = {
       root: scrollRef.current,
-      threshold: 0.5
+      // Desktop: trigger as soon as it enters the top 40% of the screen
+      // Mobile: trigger when 50% visible for snapping
+      threshold: isDesktop ? 0 : 0.5,
+      rootMargin: isDesktop ? '0% 0% -75% 0%' : '0px'
     };
 
     const observer = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
+        const index = Number(entry.target.getAttribute('data-index'));
         if (entry.isIntersecting) {
-          const index = Number(entry.target.getAttribute('data-index'));
-          setActiveIndex(index);
+          intersectingRef.current.add(index);
+        } else {
+          intersectingRef.current.delete(index);
         }
       });
+
+      const allIntersecting = Array.from(intersectingRef.current).sort((a, b) => a - b);
+      if (allIntersecting.length > 0) {
+        // The active day is the one with the highest index that is currently in the trigger zone
+        const newIndex = allIntersecting[allIntersecting.length - 1];
+        setActiveIndex(newIndex);
+      }
     }, options);
 
     // We need to wait for the DOM to be ready
     const timer = setTimeout(() => {
       const slides = scrollRef.current?.querySelectorAll('.swipe-slide');
       slides?.forEach(slide => observer.observe(slide));
-    }, 100);
+    }, 150);
 
     return () => {
       clearTimeout(timer);
       observer.disconnect();
     };
-  }, [loading, itinerary]);
+  }, [loading, itinerary, retryKey]);
 
   // Adjust vertical scroll when day changes to prevent blank screens
   useEffect(() => {
@@ -169,10 +206,16 @@ function App() {
     const timer = setTimeout(updateScrollPosition, 50);
     return () => clearTimeout(timer);
   }, [activeIndex, loading, itinerary]);
-
-
-  const [retryKey, setRetryKey] = useState(0);
-  const listenersAttachedRef = useRef(false);
+  
+  // Sidebar sync for desktop: scroll the active day into view
+  useEffect(() => {
+    if (window.innerWidth >= 1024 && daySelectorRef.current) {
+      const activeBtn = daySelectorRef.current.querySelector('.day-btn.is-active');
+      if (activeBtn) {
+        activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+  }, [activeIndex]);
 
   // Detect when refs are ready and attach listeners
   useEffect(() => {
@@ -194,8 +237,13 @@ function App() {
       if (activeScrollerRef.current === 'day') return;
       
       requestAnimationFrame(() => {
-        const progress = container.scrollLeft / container.clientWidth;
-        daySelector.scrollLeft = progress * ITEM_WIDTH;
+        if (window.innerWidth < 1024) {
+          const progress = container.scrollLeft / container.clientWidth;
+          daySelector.scrollLeft = progress * ITEM_WIDTH;
+        } else {
+          // On desktop, we could sync vertical scroll if needed, 
+          // but for now let IntersectionObserver handle activeIndex
+        }
       });
     };
 
@@ -203,8 +251,10 @@ function App() {
       if (activeScrollerRef.current === 'main') return;
       
       requestAnimationFrame(() => {
-        const progress = daySelector.scrollLeft / ITEM_WIDTH;
-        container.scrollLeft = progress * container.clientWidth;
+        if (window.innerWidth < 1024) {
+          const progress = daySelector.scrollLeft / ITEM_WIDTH;
+          container.scrollLeft = progress * container.clientWidth;
+        }
       });
     };
 
@@ -276,102 +326,149 @@ function App() {
 
     if (todayIdx !== undefined && todayIdx !== -1 && scrollRef.current) {
       activeScrollerRef.current = 'main';
-      scrollRef.current.scrollTo({
-        left: todayIdx * scrollRef.current.offsetWidth,
-        behavior: 'auto'
-      });
+      
+      if (window.innerWidth < 1024) {
+        scrollRef.current.scrollTo({
+          left: todayIdx * scrollRef.current.offsetWidth,
+          behavior: 'auto'
+        });
+      } else {
+        const slides = scrollRef.current.querySelectorAll('.swipe-slide');
+        slides[todayIdx]?.scrollIntoView({ behavior: 'auto', block: 'start' });
+      }
+
       setScrollTrigger(prev => prev + 1);
       
       if (scrollEndTimeoutRef.current) clearTimeout(scrollEndTimeoutRef.current);
       scrollEndTimeoutRef.current = setTimeout(() => {
         activeScrollerRef.current = null;
-      }, 100); // Shorter timeout for auto scroll
+      }, 100); 
     }
   };
 
   const scrollToDay = (index: number) => {
     if (scrollRef.current) {
       activeScrollerRef.current = 'main';
-      scrollRef.current.scrollTo({
-        left: index * scrollRef.current.offsetWidth,
-        behavior: 'smooth'
-      });
+      
+      if (window.innerWidth < 1024) {
+        scrollRef.current.scrollTo({
+          left: index * scrollRef.current.offsetWidth,
+          behavior: 'smooth'
+        });
+      } else {
+        const slides = scrollRef.current.querySelectorAll('.swipe-slide');
+        slides[index]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
       
       if (scrollEndTimeoutRef.current) clearTimeout(scrollEndTimeoutRef.current);
       scrollEndTimeoutRef.current = setTimeout(() => {
         activeScrollerRef.current = null;
-      }, 1000); // Longer timeout for smooth scroll
+      }, 1000); 
     }
   };
 
 
   return (
     <div className="app-wrapper">
-      <Hero image={heroImg} />
+      <div className="main-layout">
+        <aside className="sidebar">
+          <Hero image={heroImg} />
+          <SearchBar 
+            title={itinerary?.title || 'Waddling Around Japan'} 
+            searchTerm={searchTerm} 
+            setSearchTerm={setSearchTerm} 
+          />
 
-      <SearchBar 
-        title={itinerary?.title || 'Waddling Around Japan'} 
-        searchTerm={searchTerm} 
-        setSearchTerm={setSearchTerm} 
-      />
+          <DaySelector 
+            ref={daySelectorRef}
+            days={itinerary?.days || []} 
+            searchTerm={searchTerm}
+            activeIndex={activeIndex}
+            onDayClick={scrollToDay}
+          />
+        </aside>
 
-      <DaySelector 
-        ref={daySelectorRef}
-        days={itinerary?.days || []} 
-        searchTerm={searchTerm}
-        activeIndex={activeIndex}
-        onDayClick={scrollToDay}
-      />
+        <main 
+          ref={scrollRef}
+          className="swipe-container-outer"
+        >
+          {itinerary?.days.map((day, index) => {
+            const dayFilteredActivities = day.activities.filter(activity => {
+              const term = searchTerm.toLowerCase();
+              return (
+                activity.title.toLowerCase().includes(term) ||
+                activity.location.toLowerCase().includes(term) ||
+                activity.notes.toLowerCase().includes(term) ||
+                activity.category.toLowerCase().includes(term)
+              );
+            });
 
-      <main 
-        ref={scrollRef}
-        className="swipe-container-outer"
-      >
-        {itinerary?.days.map((day, index) => {
-          const dayFilteredActivities = day.activities.filter(activity => {
-            const term = searchTerm.toLowerCase();
+            // Check if it's the current day for "isToday" logic
+            const dayIsToday = (() => {
+              const dateMatch = day.date.match(/(\d{1,2})\/(\d{1,2})\/(\d{2})/);
+              if (!dateMatch) return false;
+              const [, month, dayOfMonth, year] = dateMatch;
+              return month === String(currentTime.getMonth() + 1) && 
+                     dayOfMonth === String(currentTime.getDate()) && 
+                     year === String(currentTime.getFullYear()).slice(-2);
+            })();
+
             return (
-              activity.title.toLowerCase().includes(term) ||
-              activity.location.toLowerCase().includes(term) ||
-              activity.notes.toLowerCase().includes(term) ||
-              activity.category.toLowerCase().includes(term)
-            );
-          });
+              <div 
+                key={day.date} 
+                className={`swipe-slide ${activeIndex === index ? 'active' : ''}`} 
+                data-index={index}
+              >
+                {dayFilteredActivities.length > 0 ? (
+                  <ActivityList 
+                    date={day.date} 
+                    activities={dayFilteredActivities} 
+                    currentTime={currentTime}
+                    activeCardRef={activeCardRef}
+                    timeToMinutes={timeToMinutes}
+                    isToday={dayIsToday}
+                  />
+                ) : (
+                  <div className="container" style={{ textAlign: 'center', paddingTop: '80px', opacity: 0.5 }}>
+                    <p>{searchTerm ? 'No search results for this day.' : 'No activities planned.'}</p>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </main>
 
-          // Check if it's the current day for "isToday" logic
-          const dayIsToday = (() => {
-            const dateMatch = day.date.match(/(\d{1,2})\/(\d{1,2})\/(\d{2})/);
-            if (!dateMatch) return false;
-            const [, month, dayOfMonth, year] = dateMatch;
-            return month === String(currentTime.getMonth() + 1) && 
-                   dayOfMonth === String(currentTime.getDate()) && 
-                   year === String(currentTime.getFullYear()).slice(-2);
-          })();
-
-          return (
-            <div 
-              key={day.date} 
-              className={`swipe-slide ${activeIndex === index ? 'active' : ''}`} 
-              data-index={index}
-            >
-              {dayFilteredActivities.length > 0 ? (
-                <ActivityList 
-                  date={day.date} 
-                  activities={dayFilteredActivities} 
-                  currentTime={currentTime}
-                  activeCardRef={activeCardRef}
-                  timeToMinutes={timeToMinutes}
-                  isToday={dayIsToday}
-                />
-              ) : (
-                <div className="container" style={{ textAlign: 'center', paddingTop: '80px', opacity: 0.5 }}>
-                  <p>{searchTerm ? 'No search results for this day.' : 'No activities planned.'}</p>
-                </div>
-              )}
+        <aside className="info-panel">
+          <div className="info-panel-content">
+            <div className="map-card glass">
+              <img src={mapImg} alt="Japan Map" className="map-image" />
+              <div className="map-overlay">
+                <span className="location-label">EXPLORING JAPAN</span>
+              </div>
             </div>
-          )
-        })}
-      </main>
+
+            <div className="stats-grid">
+              <div className="stat-card glass">
+                <span className="stat-value">{itinerary?.days[activeIndex]?.activities.length || 0}</span>
+                <span className="stat-label">ACTIVITIES</span>
+              </div>
+              <div className="stat-card glass">
+                <span className="stat-value">{activeIndex + 1}</span>
+                <span className="stat-label">TRIP DAY</span>
+              </div>
+            </div>
+
+            <div className="tips-card glass">
+              <h3 className="tips-title">Travel Tips</h3>
+              <ul className="tips-list">
+                <li>Check JR Pass compatibility for today's routes.</li>
+                <li>Keep your Pasmo/Suica card topped up.</li>
+                <li>Don't forget to try the local specialties!</li>
+              </ul>
+            </div>
+          </div>
+        </aside>
+      </div>
 
       {itinerary && (
         <button 

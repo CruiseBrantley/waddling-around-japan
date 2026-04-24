@@ -402,6 +402,15 @@
   margin: 0 auto;
 }
 
+.main-layout,
+.sidebar {
+  display: contents; /* Ensure sticky children stick to the app-wrapper/body on mobile */
+}
+
+.info-panel {
+  display: none; /* Hide on mobile and small desktop */
+}
+
 /* Activity Card */
 .activity-card {
   flex: 1;
@@ -613,3 +622,281 @@
   100% { transform: scale(3); opacity: 0; }
 }
 
+
+/* Desktop Layout */
+@media (min-width: 1024px) {
+  .app-wrapper {
+    background: var(--bg-main);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .sidebar .hero-container {
+    height: auto;
+    padding: 24px 24px 0;
+    background: transparent;
+    border: none;
+  }
+
+  .sidebar .hero-image {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    border-radius: 24px;
+    object-fit: cover;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .main-layout {
+    display: grid;
+    grid-template-columns: 350px 1fr; /* Default 2-column for small desktop */
+    flex: 1;
+    overflow: hidden;
+    width: 100%;
+    max-width: 1600px;
+    margin: 0 auto;
+    gap: 0;
+  }
+
+  /* 3-Column Layout for wide monitors */
+  @media (min-width: 1400px) {
+    .main-layout {
+      grid-template-columns: 350px 1fr 350px;
+    }
+
+    .info-panel {
+      display: block !important;
+    }
+  }
+
+  .sidebar {
+    height: 100%;
+    overflow-y: auto;
+    border-right: 1px solid var(--border);
+    background: var(--bg-card);
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 40px;
+  }
+
+  .info-panel {
+    display: none; /* Hidden by default on small desktop */
+    height: 100%;
+    overflow-y: auto;
+    border-left: 1px solid var(--border);
+    background: var(--bg-card);
+    padding: 24px;
+  }
+
+  .info-panel-content {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .map-card {
+    position: relative;
+    border-radius: 20px;
+    overflow: hidden;
+    aspect-ratio: 16/9;
+  }
+
+  .map-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0.6;
+    filter: saturate(1.5);
+  }
+
+  .map-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle, transparent, rgba(0,0,0,0.4));
+  }
+
+  .location-label {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    color: white;
+    background: rgba(0,0,0,0.5);
+    padding: 6px 12px;
+    border-radius: 20px;
+    backdrop-filter: blur(4px);
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .stat-card {
+    padding: 20px;
+    border-radius: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .stat-value {
+    font-size: 28px;
+    font-weight: 800;
+    font-family: var(--font-heading);
+    color: var(--primary);
+  }
+
+  .stat-label {
+    font-size: 10px;
+    font-weight: 700;
+    opacity: 0.6;
+    letter-spacing: 1px;
+    margin-top: 4px;
+  }
+
+  .tips-card {
+    padding: 24px;
+    border-radius: 24px;
+  }
+
+  .tips-title {
+    font-size: 16px;
+    margin-bottom: 16px;
+    color: var(--text-heading);
+  }
+
+  .tips-list {
+    margin: 0;
+    padding-left: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .tips-list li {
+    font-size: 13px;
+    color: var(--text-main);
+    line-height: 1.4;
+  }
+
+  /* Override SearchBar in Sidebar */
+  .sidebar .container {
+    padding: 24px;
+    margin: 0 !important;
+    max-width: 100%;
+  }
+
+  .sidebar .brand-title {
+    font-size: 24px;
+  }
+
+  /* Override DaySelector in Sidebar */
+  .day-selector {
+    position: relative;
+    top: 0;
+    box-shadow: none;
+    background: transparent;
+    border: none;
+    padding: 0 16px;
+    flex: 1;
+  }
+
+  .day-scroll-container {
+    flex-direction: column;
+    padding: 0 !important; /* Remove horizontal centering padding */
+    gap: 8px;
+    overflow-x: hidden;
+    overflow-y: visible;
+    scroll-snap-type: none;
+  }
+
+  .day-selector-center-track,
+  .day-selector-highlight {
+    display: none; /* Hide the mobile highlight ring */
+  }
+
+  .day-btn {
+    flex: 0 0 auto;
+    width: 100%;
+    height: auto;
+    flex-direction: row;
+    justify-content: flex-start;
+    padding: 12px 16px;
+    gap: 16px;
+    border-radius: 12px;
+    text-align: left;
+  }
+
+  .day-btn:hover {
+    background: var(--border);
+  }
+
+  .day-btn.is-active {
+    background: var(--primary);
+    color: white;
+    transform: none;
+    box-shadow: 0 4px 12px var(--primary-glow);
+  }
+
+  .day-label {
+    font-size: 11px;
+    width: 40px;
+  }
+
+  .day-num {
+    font-size: 18px;
+    margin: 0;
+  }
+
+  .match-indicator {
+    position: static;
+    margin-left: auto;
+  }
+
+  /* Main Itinerary Content */
+  .swipe-container-outer {
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: block;
+    scroll-snap-type: none;
+    padding: 40px;
+    background: var(--bg-main);
+  }
+
+  .swipe-slide {
+    flex: none;
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto 80px;
+    opacity: 0.3;
+    transition: opacity 0.5s ease;
+    scroll-snap-align: none;
+  }
+
+  .swipe-slide.active {
+    opacity: 1;
+  }
+
+  /* Hide scrollbars for cleaner look on desktop if preferred, but y-scroll is often useful */
+  .sidebar::-webkit-scrollbar,
+  .swipe-container-outer::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .floating-now-btn {
+    bottom: 40px;
+    right: 40px;
+  }
+}
+
+/* Animations & Polish */
+.day-btn {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
