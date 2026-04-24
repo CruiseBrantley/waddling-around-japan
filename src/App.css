@@ -542,14 +542,7 @@
   width: 100%;
   scroll-snap-align: start;
   scroll-snap-stop: always;
-  height: 100%;
-  overflow: hidden;
-  visibility: hidden;
-}
-
-.swipe-slide.active {
   height: auto;
-  overflow: visible;
   visibility: visible;
 }
 

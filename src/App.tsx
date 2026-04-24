@@ -164,9 +164,6 @@ function App() {
           behavior: 'smooth'
         });
       }
-
-      // Explicitly cap the container height to the active slide
-      container.style.height = `${slideHeight}px`;
     };
 
     // We still want to scroll up if needed
