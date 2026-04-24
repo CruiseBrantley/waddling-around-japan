@@ -101,7 +101,7 @@ function App() {
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(getInitialTime());
-    }, 30000); // 30s check
+    }, 10000); // 10s check
     return () => clearInterval(timer);
   }, []);
 
@@ -359,6 +359,10 @@ function App() {
         const slides = scrollRef.current.querySelectorAll('.swipe-slide');
         slides[index]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
+      
+      // Scroll to the top of the selected day
+      const container = document.querySelector('main.swipe-container-outer');
+      container?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       
       if (scrollEndTimeoutRef.current) clearTimeout(scrollEndTimeoutRef.current);
       scrollEndTimeoutRef.current = setTimeout(() => {
