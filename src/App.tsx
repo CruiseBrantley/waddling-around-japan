@@ -140,7 +140,7 @@ function App() {
 
   // Adjust vertical scroll when day changes to prevent blank screens
   useEffect(() => {
-    if (!scrollRef.current || loading) return;
+    if (!scrollRef.current || loading || !itinerary) return;
     
     const container = scrollRef.current;
     const slides = container.querySelectorAll('.swipe-slide');
@@ -166,10 +166,10 @@ function App() {
       }
     };
 
-    // We still want to scroll up if needed
     const timer = setTimeout(updateScrollPosition, 50);
     return () => clearTimeout(timer);
   }, [activeIndex, loading, itinerary]);
+
 
   const [retryKey, setRetryKey] = useState(0);
   const listenersAttachedRef = useRef(false);
