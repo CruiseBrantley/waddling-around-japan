@@ -107,7 +107,7 @@ function App() {
 
   const [isLiveCardInView, setIsLiveCardInView] = useState(true);
 
-  // Monitor if the Live card is in view
+  // Monitor if the Live card is in view (using viewport as root to correctly detect visibility)
   useEffect(() => {
     if (!activeCardRef.current) {
       setIsLiveCardInView(false);
@@ -119,7 +119,7 @@ function App() {
         setIsLiveCardInView(entry.isIntersecting);
       },
       { 
-        root: scrollRef.current,
+        root: null,
         threshold: 0.1 
       }
     );
@@ -313,62 +313,76 @@ function App() {
 
 
   // Jump to today and current activity
-  const jumpToNow = () => {
+const jumpToNow = () => {
     const now = getInitialTime();
+    const targetMonth = now.getMonth() + 1;
+    const targetDay = now.getDate();
+    const targetYear = String(now.getFullYear()).slice(-2);
+
     const todayIdx = itinerary?.days.findIndex(d => {
       const dateMatch = d.date.match(/(\d{1,2})\/(\d{1,2})\/(\d{2})/);
       if (!dateMatch) return false;
+      
       const [, month, dayOfMonth, year] = dateMatch;
-      return month === String(now.getMonth() + 1) && 
-             dayOfMonth === String(now.getDate()) && 
-             year === String(now.getFullYear()).slice(-2);
+      // Parse to integers to safely ignore leading zeros (e.g., "04" vs 4)
+      return parseInt(month, 10) === targetMonth && 
+             parseInt(dayOfMonth, 10) === targetDay && 
+             year === targetYear;
     });
 
     if (todayIdx !== undefined && todayIdx !== -1 && scrollRef.current) {
       activeScrollerRef.current = 'main';
       
-      if (window.innerWidth < 1024) {
-        scrollRef.current.scrollTo({
-          left: todayIdx * scrollRef.current.offsetWidth,
-          behavior: 'auto'
-        });
-      } else {
-        const slides = scrollRef.current.querySelectorAll('.swipe-slide');
-        slides[todayIdx]?.scrollIntoView({ behavior: 'auto', block: 'start' });
+      const slides = scrollRef.current.querySelectorAll('.swipe-slide');
+      const targetSlide = slides[todayIdx];
+
+      if (targetSlide) {
+        // scrollIntoView handles both X and Y axis natively
+        if (window.innerWidth < 1024) {
+          targetSlide.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' });
+        } else {
+          targetSlide.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' });
+        }
       }
 
-      setScrollTrigger(prev => prev + 1);
+      // Defer the state update so it doesn't interrupt the scroll animation
+      requestAnimationFrame(() => {
+        setScrollTrigger(prev => prev + 1);
+      });
       
       if (scrollEndTimeoutRef.current) clearTimeout(scrollEndTimeoutRef.current);
+      
+      // Increased timeout to account for the duration of smooth scrolling
       scrollEndTimeoutRef.current = setTimeout(() => {
         activeScrollerRef.current = null;
-      }, 100); 
+      }, 500); 
     }
   };
 
-  const scrollToDay = (index: number) => {
-    if (scrollRef.current) {
-      activeScrollerRef.current = 'main';
-      
+const scrollToDay = (index: number) => {
+    // Early return to keep the rest of the code clean
+    if (!scrollRef.current) return;
+
+    activeScrollerRef.current = 'main';
+    
+    const slides = scrollRef.current.querySelectorAll('.swipe-slide');
+    const targetSlide = slides[index];
+
+    if (targetSlide) {
+      // scrollIntoView natively handles BOTH horizontal (inline) and vertical (block) scrolling at the exact same time.
       if (window.innerWidth < 1024) {
-        scrollRef.current.scrollTo({
-          left: index * scrollRef.current.offsetWidth,
-          behavior: 'smooth'
-        });
+        targetSlide.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'start' });
       } else {
-        const slides = scrollRef.current.querySelectorAll('.swipe-slide');
-        slides[index]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        targetSlide.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'start' });
       }
-      
-      // Scroll to the top of the selected day
-      const container = document.querySelector('main.swipe-container-outer');
-      container?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      
-      if (scrollEndTimeoutRef.current) clearTimeout(scrollEndTimeoutRef.current);
-      scrollEndTimeoutRef.current = setTimeout(() => {
-        activeScrollerRef.current = null;
-      }, 1000); 
     }
+    
+    if (scrollEndTimeoutRef.current) clearTimeout(scrollEndTimeoutRef.current);
+    
+    // 500ms is usually the sweet spot. 1000ms leaves the scroll locked for too long.
+    scrollEndTimeoutRef.current = setTimeout(() => {
+      activeScrollerRef.current = null;
+    }, 500); 
   };
 
 

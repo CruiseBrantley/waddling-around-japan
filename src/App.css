@@ -97,7 +97,7 @@
 
 .day-selector-highlight {
   position: relative;
-  top: 8px;
+  top: 12px;
   width: 64px;
   height: 64px;
   background: var(--primary);
@@ -144,7 +144,7 @@
 
 .day-btn.is-active {
   color: white;
-  transform: translateY(-4px) scale(1.05);
+  transform: scale(1.2);
 }
 
 .day-label {
