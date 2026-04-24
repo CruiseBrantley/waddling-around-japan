@@ -25,6 +25,8 @@ function App() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const daySelectorRef = useRef<HTMLDivElement>(null);
   const hasInitialScrolled = useRef(false);
+  const activeScrollerRef = useRef<'main' | 'day' | null>(null);
+  const scrollEndTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [scrollTrigger, setScrollTrigger] = useState(0);
 
@@ -34,7 +36,7 @@ function App() {
       setTimeout(() => {
         activeCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         hasInitialScrolled.current = true;
-      }, 800); 
+      }, 50); 
     }
   }, [loading, scrollTrigger]);
 
@@ -46,23 +48,28 @@ function App() {
         
         // Auto-select today if it falls within the trip dates
         const now = getInitialTime();
-        const tripStart = new Date(data.days[0].date);
-        const tripEnd = new Date(data.days[data.days.length - 1].date);
         
         // Auto-scroll to today on load
-        if (now >= tripStart && now <= tripEnd) {
-          const todayStr = now.toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric', year: '2-digit' });
-          const todayIdx = data.days.findIndex(d => d.date.includes(todayStr.split(', ')[1]));
-          if (todayIdx !== -1 && scrollRef.current) {
-            setTimeout(() => {
-              if (scrollRef.current) {
-                scrollRef.current.scrollTo({
-                  left: todayIdx * scrollRef.current.offsetWidth,
-                  behavior: 'smooth'
-                });
-              }
-            }, 100);
-          }
+        const todayIdx = data.days.findIndex(d => {
+          const dateMatch = d.date.match(/(\d{1,2})\/(\d{1,2})\/(\d{2})/);
+          if (!dateMatch) return false;
+          const [, month, dayOfMonth, year] = dateMatch;
+          return month === String(now.getMonth() + 1) && 
+                 dayOfMonth === String(now.getDate()) && 
+                 year === String(now.getFullYear()).slice(-2);
+        });
+
+        if (todayIdx !== -1 && scrollRef.current) {
+          activeScrollerRef.current = 'main';
+          scrollRef.current.scrollTo({
+            left: todayIdx * scrollRef.current.offsetWidth,
+            behavior: 'auto'
+          });
+          
+          if (scrollEndTimeoutRef.current) clearTimeout(scrollEndTimeoutRef.current);
+          scrollEndTimeoutRef.current = setTimeout(() => {
+            activeScrollerRef.current = null;
+          }, 100);
         }
         
         setLoading(false);
@@ -133,8 +140,6 @@ function App() {
 
   const [retryKey, setRetryKey] = useState(0);
   const listenersAttachedRef = useRef(false);
-  const activeScrollerRef = useRef<'main' | 'day' | null>(null);
-  const scrollEndTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Detect when refs are ready and attach listeners
   useEffect(() => {
@@ -153,7 +158,7 @@ function App() {
     const ITEM_WIDTH = 76; // 64px width + 12px gap
 
     const onMainScroll = () => {
-      if (activeScrollerRef.current !== 'main') return;
+      if (activeScrollerRef.current === 'day') return;
       
       requestAnimationFrame(() => {
         const progress = container.scrollLeft / container.clientWidth;
@@ -162,7 +167,7 @@ function App() {
     };
 
     const onDayScroll = () => {
-      if (activeScrollerRef.current !== 'day') return;
+      if (activeScrollerRef.current === 'main') return;
       
       requestAnimationFrame(() => {
         const progress = daySelector.scrollLeft / ITEM_WIDTH;
@@ -237,20 +242,32 @@ function App() {
     });
 
     if (todayIdx !== undefined && todayIdx !== -1 && scrollRef.current) {
+      activeScrollerRef.current = 'main';
       scrollRef.current.scrollTo({
         left: todayIdx * scrollRef.current.offsetWidth,
-        behavior: 'smooth'
+        behavior: 'auto'
       });
       setScrollTrigger(prev => prev + 1);
+      
+      if (scrollEndTimeoutRef.current) clearTimeout(scrollEndTimeoutRef.current);
+      scrollEndTimeoutRef.current = setTimeout(() => {
+        activeScrollerRef.current = null;
+      }, 100); // Shorter timeout for auto scroll
     }
   };
 
   const scrollToDay = (index: number) => {
     if (scrollRef.current) {
+      activeScrollerRef.current = 'main';
       scrollRef.current.scrollTo({
         left: index * scrollRef.current.offsetWidth,
         behavior: 'smooth'
       });
+      
+      if (scrollEndTimeoutRef.current) clearTimeout(scrollEndTimeoutRef.current);
+      scrollEndTimeoutRef.current = setTimeout(() => {
+        activeScrollerRef.current = null;
+      }, 1000); // Longer timeout for smooth scroll
     }
   };
 
