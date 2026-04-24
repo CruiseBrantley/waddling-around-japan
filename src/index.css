@@ -58,7 +58,7 @@ html {
   overflow-x: clip;
   background: var(--bg-main);
   scroll-behavior: smooth;
-  scroll-padding-top: 80px; /* Space for sticky header */
+  scroll-padding-top: 96px; /* Match sticky DaySelector height (90px) + margin */
 }
 
 body {

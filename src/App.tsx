@@ -175,10 +175,15 @@ function App() {
     };
   }, [loading, itinerary, retryKey]);
 
-  // Adjust vertical scroll when day changes to prevent blank screens
   useEffect(() => {
     if (!scrollRef.current || loading || !itinerary) return;
     
+    // Only adjust vertical scroll if we are deep enough that the DaySelector is stuck at the top.
+    // If we are still viewing the Hero/Search area, we don't want to jump.
+    const daySelector = daySelectorRef.current?.closest('.day-selector') as HTMLElement;
+    const stickyPoint = daySelector ? daySelector.offsetTop : 0;
+    if (window.scrollY < stickyPoint - 5) return; 
+
     const container = scrollRef.current;
     const slides = container.querySelectorAll('.swipe-slide');
     const activeSlide = slides[activeIndex] as HTMLElement;
@@ -313,7 +318,7 @@ function App() {
 
 
   // Jump to today and current activity
-const jumpToNow = () => {
+  const jumpToNow = () => {
     const now = getInitialTime();
     const targetMonth = now.getMonth() + 1;
     const targetDay = now.getDate();
@@ -359,7 +364,7 @@ const jumpToNow = () => {
     }
   };
 
-const scrollToDay = (index: number) => {
+  const scrollToDay = (index: number) => {
     // Early return to keep the rest of the code clean
     if (!scrollRef.current) return;
 
@@ -369,9 +374,26 @@ const scrollToDay = (index: number) => {
     const targetSlide = slides[index];
 
     if (targetSlide) {
-      // scrollIntoView natively handles BOTH horizontal (inline) and vertical (block) scrolling at the exact same time.
       if (window.innerWidth < 1024) {
-        targetSlide.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'start' });
+        const daySelector = daySelectorRef.current?.closest('.day-selector') as HTMLElement;
+        const stickyPoint = daySelector ? daySelector.offsetTop : 0;
+        const shouldScrollVertically = window.scrollY >= (stickyPoint - 5);
+
+        if (shouldScrollVertically) {
+          targetSlide.scrollIntoView({ 
+            behavior: 'smooth', 
+            inline: 'start', 
+            block: 'start' 
+          });
+        } else {
+          // If at the top, ONLY scroll horizontally.
+          // Using scrollRef.current.scrollTo is safer than scrollIntoView(block: 'nearest')
+          // because it guarantees the window won't move at all.
+          scrollRef.current.scrollTo({
+            left: index * scrollRef.current.offsetWidth,
+            behavior: 'smooth'
+          });
+        }
       } else {
         targetSlide.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'start' });
       }

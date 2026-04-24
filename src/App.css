@@ -535,7 +535,6 @@
   overflow-x: auto;
   scroll-snap-type: x mandatory;
   scrollbar-width: none;
-  scroll-margin-top: 10px;
   -ms-overflow-style: none;
   width: 100%;
   max-width: 100vw;
@@ -868,6 +867,7 @@
     display: block;
     scroll-snap-type: none;
     padding: 40px;
+    scroll-padding-top: 40px;
     background: var(--bg-main);
   }
 
