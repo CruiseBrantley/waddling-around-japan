@@ -133,7 +133,7 @@ function App() {
 // Handle initial scroll to today's day
   useEffect(() => {
     // Keep a reference to the initial timer so we can clear it
-    let initialTimer;
+    let initialTimer: ReturnType<typeof setTimeout> | undefined;
 
     if (!loading && itinerary && scrollRef.current && !hasInitialDayScrolled.current) {
       const now = getInitialTime();
