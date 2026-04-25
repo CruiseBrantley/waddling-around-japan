@@ -735,22 +735,18 @@ function App() {
 
       {itinerary && isTripActive && (
         <div className="floating-actions">
-          <button 
-            className={`floating-now-btn glass ${!isLiveCardInView ? 'visible' : ''}`} 
-            onClick={jumpToNow}
-          >
-            <span className="pulse-dot"></span>
-            NOW
-          </button>
           {nextEvent && (
-            <div className="upcoming-pill glass fade-in">
+            <button 
+              className={`upcoming-pill glass fade-in ${!isLiveCardInView ? 'is-navigation-hint' : ''}`}
+              onClick={jumpToNow}
+            >
               <span className="upcoming-label">NEXT: {nextEvent.title}</span>
               <span className="upcoming-time">
                 in {nextEvent.minutes >= 60 
                   ? `${Math.floor(nextEvent.minutes / 60)}h ${nextEvent.minutes % 60}m` 
                   : `${nextEvent.minutes}m`}
               </span>
-            </div>
+            </button>
           )}
         </div>
       )}

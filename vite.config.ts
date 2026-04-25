@@ -10,9 +10,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icon.png'],
       manifest: {
-        name: 'Waddling Around Japan',
-        short_name: 'Japan Waddle',
-        description: 'A premium mobile-first itinerary app for our Japan trip',
+        name: 'Japan Itinerary',
+        short_name: 'Japan Itinerary',
+        description: 'Japan Trip Itinerary',
         theme_color: '#FF3B3F',
         background_color: '#0F1014',
         display: 'standalone',
