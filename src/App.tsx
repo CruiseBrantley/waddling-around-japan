@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { fetchItinerary, type Itinerary } from './services/sheets'
 import heroImg from './assets/hero_optimized.jpg'
-import mapImg from './assets/map_minimalist.png'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 import './App.css'
 
@@ -701,42 +700,6 @@ function App() {
           })}
         </main>
 
-        <aside className="info-panel">
-          <div className="info-panel-content">
-            <div className="map-card glass">
-              <img 
-                src={mapImg} 
-                alt="Japan Map" 
-                className="map-image" 
-                loading="lazy" 
-                decoding="async" 
-              />
-              <div className="map-overlay">
-                <span className="location-label">EXPLORING JAPAN</span>
-              </div>
-            </div>
-
-            <div className="stats-grid">
-              <div className="stat-card glass">
-                <span className="stat-value">{itinerary?.days[activeIndex]?.activities.length || 0}</span>
-                <span className="stat-label">ACTIVITIES</span>
-              </div>
-              <div className="stat-card glass">
-                <span className="stat-value">{lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                <span className="stat-label">LAST SYNC</span>
-              </div>
-            </div>
-
-            <div className="tips-card glass">
-              <h3 className="tips-title">Travel Tips</h3>
-              <ul className="tips-list">
-                <li>Check JR Pass compatibility for today's routes.</li>
-                <li>Keep your Pasmo/Suica card topped up.</li>
-                <li>Don't forget to try the local specialties!</li>
-              </ul>
-            </div>
-          </div>
-        </aside>
       </div>
 
       {needRefresh && (
@@ -761,7 +724,7 @@ function App() {
             onClick={jumpToNow}
           >
             <span className="pulse-dot"></span>
-            SYNC
+            NOW
           </button>
           {nextEvent && (
             <div className="upcoming-pill glass fade-in">
