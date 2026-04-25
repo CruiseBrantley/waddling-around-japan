@@ -70,7 +70,7 @@ body {
   background: var(--bg-main);
   color: var(--text-main);
   overscroll-behavior-y: none;
-  padding-top: var(--safe-area-top);
+  /* Removed padding-top: var(--safe-area-top) to allow immersive headers */
   padding-bottom: var(--safe-area-bottom);
   overflow-x: clip; /* clip doesn't break sticky headers */
   position: relative;
