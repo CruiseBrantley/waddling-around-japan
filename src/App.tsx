@@ -373,9 +373,6 @@ function App() {
         if (window.innerWidth < 1024) {
           const progress = container.scrollLeft / container.clientWidth;
           daySelector.scrollLeft = progress * ITEM_WIDTH;
-        } else {
-          // On desktop, we could sync vertical scroll if needed, 
-          // but for now let IntersectionObserver handle activeIndex
         }
       });
     };

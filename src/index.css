@@ -91,8 +91,8 @@ body {
   height: 60vw;
   border-radius: 50%;
   filter: blur(100px);
-  opacity: 0.25; /* Higher visibility */
-  animation: blob-float 20s infinite alternate ease-in-out;
+  opacity: 0.3; /* Slightly more visible */
+  animation: blob-float 18s infinite linear; /* Use linear for seamless rotation */
 }
 
 .blob-1 {
@@ -105,12 +105,15 @@ body {
   bottom: -10%;
   right: -10%;
   background: var(--accent);
-  animation-duration: 25s;
+  animation-duration: 28s;
+  animation-delay: -5s;
 }
 
 @keyframes blob-float {
-  from { transform: translate(0, 0) rotate(0deg) scale(1); }
-  to { transform: translate(15vw, 15vw) rotate(180deg) scale(1.3); }
+  0% { transform: translate(0, 0) scale(1) rotate(0deg); }
+  33% { transform: translate(15vw, -10vh) scale(1.2) rotate(120deg); }
+  66% { transform: translate(-10vw, 20vh) scale(0.8) rotate(240deg); }
+  100% { transform: translate(0, 0) scale(1) rotate(360deg); }
 }
 
 #root {

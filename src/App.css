@@ -53,25 +53,24 @@
 /* Day Selector */
 .day-selector {
   position: sticky;
-  top: -1px; /* Over-tuck by 1px to hide sub-pixel rounding jitter */
-  z-index: 101; /* Above blobs and above cards */
-  padding-top: calc(env(safe-area-inset-top) + 1px); /* Buttons sit below the island */
-  padding-bottom: 8px;
-  margin-bottom: 24px;
-  /* Use glass effect to let content flow 'above' the buttons visually */
+  top: -1px;
+  z-index: 101;
+  padding-top: calc(env(safe-area-inset-top) + 1px);
+  margin-bottom: 12px;
   background: var(--bg-glass);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  will-change: transform; /* Hardware acceleration to smooth out sticky jitter */
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
   box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  transform: translateZ(0);
+  will-change: transform;
 }
 
 .day-scroll-container {
   display: flex;
   gap: 12px;
   overflow-x: auto;
-  padding: 8px 0;
+  padding: 4px 0;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
   scroll-snap-type: x mandatory;
