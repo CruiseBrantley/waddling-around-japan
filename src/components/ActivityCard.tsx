@@ -20,7 +20,7 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
       <div className="card-header">
         <h3 className="activity-title">
           {activity.title}
-          {isLive && <span className="live-badge">● LIVE NOW</span>}
+          {isLive && <span className="live-badge">● ONGOING</span>}
         </h3>
         <span className={`category-tag type-${activity.type}`}>
           {activity.category}

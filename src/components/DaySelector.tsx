@@ -14,26 +14,18 @@ const DaySelectorComponent = React.forwardRef<HTMLDivElement, DaySelectorProps>(
   activeIndex,
   onDayClick
 }, ref) => {
-  const [paddingX, setPaddingX] = React.useState(0);
 
-  // Calculate padding to allow items to be centered
+  // Desktop sidebar sync: ensures the active day button is always visible in the sidebar
   React.useEffect(() => {
-    const updatePadding = () => {
-      if (ref && typeof ref === 'object' && 'current' in ref) {
-        // Only apply horizontal centering padding on mobile/tablet
-        if (window.innerWidth < 1024) {
-          const pad = (ref.current?.clientWidth || 0) / 2 - 32;
-          setPaddingX(pad);
-        } else {
-          setPaddingX(0);
+    if (ref && typeof ref === 'object' && 'current' in ref && ref.current) {
+      if (window.innerWidth >= 1024) {
+        const activeBtn = ref.current.querySelector('.day-btn.is-active');
+        if (activeBtn) {
+          activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
       }
-    };
-    
-    updatePadding();
-    window.addEventListener('resize', updatePadding);
-    return () => window.removeEventListener('resize', updatePadding);
-  }, [ref]);
+    }
+  }, [activeIndex, ref]);
 
   return (
     <nav className="day-selector glass" style={{ overflow: 'hidden' }}>
@@ -44,10 +36,6 @@ const DaySelectorComponent = React.forwardRef<HTMLDivElement, DaySelectorProps>(
       <div 
         className="day-scroll-container" 
         ref={ref}
-        style={{ 
-          paddingLeft: `${paddingX}px`, 
-          paddingRight: `${paddingX}px`
-        }}
       >
         {days.map((day, idx) => {
           const dateParts = day.date.split(', ');

@@ -7,7 +7,13 @@ interface HeroProps {
 export const Hero: React.FC<HeroProps> = ({ image }) => {
   return (
     <div className="hero-container">
-      <img src={image} alt="Hero" className="hero-image" />
+      <img 
+        src={image} 
+        alt="Hero" 
+        className="hero-image" 
+        fetchPriority="high" 
+        decoding="async" 
+      />
     </div>
   );
 };

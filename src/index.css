@@ -7,16 +7,16 @@
   --secondary: #2D3436;
   --accent: #00CEC9;
   
-  /* Light Theme */
-  --bg-main: #F8F9FA;
-  --bg-card: #FFFFFF;
-  --bg-glass: rgba(255, 255, 255, 0.7);
-  --text-main: #2D3436;
-  --text-heading: #1A1A1A;
-  --text-muted: #636E72;
-  --border: rgba(0, 0, 0, 0.05);
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
-  --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.1);
+  /* DEFAULT THEME (Dark) */
+  --bg-main: #0F1014;
+  --bg-card: #1C1D24;
+  --bg-glass: rgba(28, 29, 36, 0.7);
+  --text-main: #E9ECEF;
+  --text-heading: #FFFFFF;
+  --text-muted: #ADB5BD;
+  --border: rgba(255, 255, 255, 0.08);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.4);
 
   /* Shared Properties */
   --radius-sm: 12px;
@@ -29,17 +29,17 @@
   --safe-area-bottom: env(safe-area-inset-bottom);
 }
 
-  @media (prefers-color-scheme: dark) {
+@media (prefers-color-scheme: light) {
   :root {
-    --bg-main: #0F1014;
-    --bg-card: #1C1D24;
-    --bg-glass: rgba(28, 29, 36, 0.7);
-    --text-main: #E9ECEF;
-    --text-heading: #FFFFFF;
-    --text-muted: #ADB5BD;
-    --border: rgba(255, 255, 255, 0.08);
-    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
-    --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.4);
+    --bg-main: #F8F9FA;
+    --bg-card: #FFFFFF;
+    --bg-glass: rgba(255, 255, 255, 0.7);
+    --text-main: #2D3436;
+    --text-heading: #1A1A1A;
+    --text-muted: #636E72;
+    --border: rgba(0, 0, 0, 0.05);
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
+    --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.1);
   }
 }
 
@@ -149,19 +149,20 @@ h1, h2, h3, h4 {
   font-size: 20px;
 }
 
-.type-sightseeing { background: #E3F2FD; color: #1976D2; }
-.type-food { background: #FFF3E0; color: #F57C00; }
-.type-transport { background: #F3E5F5; color: #7B1FA2; }
-.type-accommodation { background: #E8F5E9; color: #388E3C; }
-.type-shopping { background: #FCE4EC; color: #C2185B; }
-.type-other { background: #F5F5F5; color: #616161; }
+.type-sightseeing { background: rgba(25, 118, 210, 0.2); color: #64B5F6; }
+.type-food { background: rgba(245, 124, 0, 0.2); color: #FFB74D; }
+.type-transport { background: rgba(123, 31, 162, 0.2); color: #BA68C8; }
+.type-accommodation { background: rgba(56, 142, 60, 0.2); color: #81C784; }
+.type-shopping { background: rgba(194, 24, 91, 0.2); color: #F06292; }
+.type-other { background: rgba(255, 255, 255, 0.05); color: #ADB5BD; }
 
-@media (prefers-color-scheme: dark) {
-  .type-sightseeing { background: rgba(25, 118, 210, 0.2); color: #64B5F6; }
-  .type-food { background: rgba(245, 124, 0, 0.2); color: #FFB74D; }
-  .type-transport { background: rgba(123, 31, 162, 0.2); color: #BA68C8; }
-  .type-accommodation { background: rgba(56, 142, 60, 0.2); color: #81C784; }
-  .type-shopping { background: rgba(194, 24, 91, 0.2); color: #F06292; }
+@media (prefers-color-scheme: light) {
+  .type-sightseeing { background: #E3F2FD; color: #1976D2; }
+  .type-food { background: #FFF3E0; color: #F57C00; }
+  .type-transport { background: #F3E5F5; color: #7B1FA2; }
+  .type-accommodation { background: #E8F5E9; color: #388E3C; }
+  .type-shopping { background: #FCE4EC; color: #C2185B; }
+  .type-other { background: #F5F5F5; color: #616161; }
 }
 
 /* Custom Scrollbar */

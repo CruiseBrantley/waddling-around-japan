@@ -1,8 +1,11 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { fetchItinerary, type Itinerary } from './services/sheets'
-import heroImg from './assets/hero.png'
+import heroImg from './assets/hero_optimized.jpg'
 import mapImg from './assets/map_minimalist.png'
+import { useRegisterSW } from 'virtual:pwa-register/react'
 import './App.css'
+
+/// <reference types="vite-plugin-pwa/react" />
 
 // Modular Components
 import { Hero } from './components/Hero'
@@ -15,95 +18,226 @@ function App() {
   const [itinerary, setItinerary] = useState<Itinerary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(() => {
+    return sessionStorage.getItem('itinerary_searchTerm') || '';
+  });
   
-  // --- MOCK TODAY FOR TESTING ---
-  const MOCK_TODAY: string | null = "2026-05-28T14:30:00"; // Set to a specific date/time for testing
-  const getInitialTime = () => MOCK_TODAY ? new Date(MOCK_TODAY) : new Date();
+  // Clear search term from session storage after initialization
+  useEffect(() => {
+    sessionStorage.removeItem('itinerary_searchTerm');
+  }, []);
+  
+  // Support URL parameter for testing specific dates (e.g., ?date=2026-05-28T14:30:00)
+  // We calculate an offset so that time "flows" naturally from the mock date
+  const [timeOffset] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const mockDateStr = params.get('date');
+    if (mockDateStr) {
+      const mockDate = new Date(mockDateStr);
+      if (!isNaN(mockDate.getTime())) {
+        return mockDate.getTime() - Date.now();
+      }
+    }
+    return 0;
+  });
 
-  const [currentTime, setCurrentTime] = useState(getInitialTime())
+  const getInitialTime = useCallback(() => new Date(Date.now() + timeOffset), [timeOffset]);
+
+  const [currentTime, setCurrentTime] = useState(() => getInitialTime());
   const activeCardRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const daySelectorRef = useRef<HTMLDivElement>(null);
   const hasInitialScrolled = useRef(false);
+  const hasInitialDayScrolled = useRef(false);
   const activeScrollerRef = useRef<'main' | 'day' | null>(null);
   const scrollEndTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  
+  const {
+    needRefresh: [needRefresh],
+    updateServiceWorker,
+  } = useRegisterSW({
+    onRegistered(r: ServiceWorkerRegistration | undefined) {
+      console.log('SW Registered:', r);
+    }
+  });
+
   const [activeIndex, setActiveIndex] = useState(0);
   const [scrollTrigger, setScrollTrigger] = useState(0);
   const [retryKey, setRetryKey] = useState(0);
-  const listenersAttachedRef = useRef(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const isManualJumpingRef = useRef(false);
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  // Handle Orientation Change by reloading (Ensures perfect alignment on mobile)
+  useEffect(() => {
+    const mql = window.matchMedia('(orientation: portrait)');
+    
+    const handleOrientationChange = () => {
+      // Save current search term to sessionStorage before reload
+      sessionStorage.setItem('itinerary_searchTerm', searchTerm);
+      window.location.reload();
+    };
+
+    // Modern browsers use 'change' event on the media query list
+    mql.addEventListener('change', handleOrientationChange);
+    return () => mql.removeEventListener('change', handleOrientationChange);
+  }, [searchTerm]);
 
   // Initial & Triggered Auto-scroll to active card
   useEffect(() => {
     if (activeCardRef.current && !loading) {
-      setTimeout(() => {
-        activeCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        hasInitialScrolled.current = true;
-      }, 150); 
+      // Only scroll if we haven't scrolled initially yet, OR if this was an explicit trigger (NOW button)
+      if (!hasInitialScrolled.current || scrollTrigger > 0) {
+        // If we are currently performing a manual horizontal jump, wait slightly for the DOM to settle.
+        // If it's a same-day jump or initial load, trigger instantly.
+        const delay = isManualJumpingRef.current ? 50 : 0;
+        
+        setTimeout(() => {
+          activeCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          hasInitialScrolled.current = true;
+        }, delay); 
+      }
     }
   }, [loading, scrollTrigger]);
 
   // Load Itinerary
-  useEffect(() => {
-    fetchItinerary()
-      .then(data => {
-        setItinerary(data);
-        setLoading(false);
-      })
-       .catch(err => {
-         setError(err.message);
-         setLoading(false);
-       });
-   }, []);
-
-   // Handle initial scroll to today's day
-   useEffect(() => {
-     if (!loading && itinerary && scrollRef.current) {
-       const now = getInitialTime();
-       const todayIdx = itinerary.days.findIndex(d => {
-         const dateMatch = d.date.match(/(\d{1,2})\/(\d{1,2})\/(\d{2})/);
-         if (!dateMatch) return false;
-         const [, month, dayOfMonth, year] = dateMatch;
-         return month === String(now.getMonth() + 1) && 
-                dayOfMonth === String(now.getDate()) && 
-                year === String(now.getFullYear()).slice(-2);
-       });
-
-       if (todayIdx !== -1) {
-         const timer = setTimeout(() => {
-           if (scrollRef.current) {
-             activeScrollerRef.current = 'main';
-             
-             if (window.innerWidth < 1024) {
-               scrollRef.current.scrollTo({
-                 left: todayIdx * scrollRef.current.offsetWidth,
-                 behavior: 'auto'
-               });
-             } else {
-               const slides = scrollRef.current.querySelectorAll('.swipe-slide');
-               slides[todayIdx]?.scrollIntoView({ behavior: 'auto', block: 'start' });
-             }
-             
-             if (scrollEndTimeoutRef.current) clearTimeout(scrollEndTimeoutRef.current);
-             scrollEndTimeoutRef.current = setTimeout(() => {
-               activeScrollerRef.current = null;
-               // Trigger the vertical card scroll after horizontal/day scroll is done
-               setScrollTrigger(prev => prev + 1);
-             }, 150);
-           }
-         }, 100);
-         return () => clearTimeout(timer);
-       }
-     }
-   }, [loading, itinerary]);
-
-  // Update time for "Live Now" tracking
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(getInitialTime());
-    }, 10000); // 10s check
-    return () => clearInterval(timer);
+  const loadData = useCallback(async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
+    try {
+      const data = await fetchItinerary();
+      setItinerary(data);
+      setLastUpdated(new Date());
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load itinerary');
+    } finally {
+      setLoading(false);
+      if (isRefresh) {
+        setTimeout(() => setRefreshing(false), 1000);
+      }
+    }
   }, []);
+
+  useEffect(() => {
+    // Calling loadData in a timeout to avoid strict 'set-state-in-effect' errors
+    const initTimer = setTimeout(() => {
+      loadData();
+    }, 0);
+    
+    // Silent background sync when user returns to app
+    const handleFocus = () => loadData(true);
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      clearTimeout(initTimer);
+      window.removeEventListener('focus', handleFocus);
+    };
+   }, [loadData]);
+
+// Handle initial scroll to today's day
+  useEffect(() => {
+    // Keep a reference to the initial timer so we can clear it
+    let initialTimer;
+
+    if (!loading && itinerary && scrollRef.current && !hasInitialDayScrolled.current) {
+      const now = getInitialTime();
+      
+      let todayIdx = itinerary.days.findIndex(d => {
+        const dateMatch = d.date.match(/(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})/);
+        if (!dateMatch) return false;
+        const m = parseInt(dateMatch[1], 10);
+        const d_num = parseInt(dateMatch[2], 10);
+        const y = dateMatch[3];
+        const fullYear = y.length === 2 ? `20${y}` : y;
+        
+        return m === now.getMonth() + 1 && 
+               d_num === now.getDate() && 
+               fullYear === String(now.getFullYear());
+      });
+
+      if (todayIdx === -1 && itinerary.days.length > 0) {
+        todayIdx = 0;
+      }
+
+      if (todayIdx === 0) {
+        // Wrap in a timeout to satisfy strict set-state-in-effect rules
+        initialTimer = setTimeout(() => {
+          hasInitialDayScrolled.current = true;
+          setActiveIndex(0);
+          setScrollTrigger(prev => prev + 1);
+        }, 0);
+      } else if (todayIdx !== -1) {
+        
+        initialTimer = setTimeout(() => {
+          if (scrollRef.current) {
+            activeScrollerRef.current = 'main';
+            
+            if (window.innerWidth < 1024) {
+              scrollRef.current.scrollTo({
+                left: todayIdx * scrollRef.current.offsetWidth,
+                behavior: 'auto'
+              });
+            } else {
+              const slides = scrollRef.current.querySelectorAll('.swipe-slide');
+              // Fix: Use inline: 'start' for horizontal, block: 'nearest' to stop vertical jumps
+              slides[todayIdx]?.scrollIntoView({ behavior: 'auto', block: 'nearest', inline: 'start' });
+            }
+            
+            if (scrollEndTimeoutRef.current) clearTimeout(scrollEndTimeoutRef.current);
+            
+            scrollEndTimeoutRef.current = setTimeout(() => {
+              activeScrollerRef.current = null;
+              setScrollTrigger(prev => prev + 1);
+              hasInitialDayScrolled.current = true;
+            }, 150);
+          }
+        }, 100);
+      }
+    }
+
+    // Cleanup function handles BOTH timeouts to prevent memory leaks on unmount
+    return () => {
+      if (initialTimer) clearTimeout(initialTimer);
+      if (scrollEndTimeoutRef.current) clearTimeout(scrollEndTimeoutRef.current);
+    };
+  }, [loading, itinerary, getInitialTime]);
+
+  // High-efficiency "Live Now" tracking
+  useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout>;
+    let intervalId: ReturnType<typeof setInterval>;
+    
+    const updateTime = () => setCurrentTime(getInitialTime());
+
+    const startSync = () => {
+      const now = getInitialTime();
+      updateTime();
+      
+      // Calculate ms until the next full minute starts based on the mocked timeline
+      const msUntilNextMinute = 60000 - (now.getTime() % 60000);
+      
+      timeoutId = setTimeout(() => {
+        updateTime();
+        intervalId = setInterval(updateTime, 60000);
+      }, msUntilNextMinute);
+    };
+
+    startSync();
+
+    // Instant refresh when user returns to tab
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        clearTimeout(timeoutId);
+        clearInterval(intervalId);
+        startSync();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      clearTimeout(timeoutId);
+      clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [timeOffset, getInitialTime]);
 
   const [isLiveCardInView, setIsLiveCardInView] = useState(true);
 
@@ -212,35 +346,30 @@ function App() {
     return () => clearTimeout(timer);
   }, [activeIndex, loading, itinerary]);
   
-  // Sidebar sync for desktop: scroll the active day into view
-  useEffect(() => {
-    if (window.innerWidth >= 1024 && daySelectorRef.current) {
-      const activeBtn = daySelectorRef.current.querySelector('.day-btn.is-active');
-      if (activeBtn) {
-        activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }
-    }
-  }, [activeIndex]);
-
   // Detect when refs are ready and attach listeners
   useEffect(() => {
-    if (listenersAttachedRef.current) return;
 
     const container = scrollRef.current;
     const daySelector = daySelectorRef.current;
     
     if (!container || !daySelector) {
-      const timeout = setTimeout(() => setRetryKey(prev => prev + 1), 50);
+      const timeout = setTimeout(() => setRetryKey((prev: number) => prev + 1), 50);
       return () => clearTimeout(timeout);
     }
-
-    listenersAttachedRef.current = true;
 
     const ITEM_WIDTH = 76; // 64px width + 12px gap
 
     const onMainScroll = () => {
       if (activeScrollerRef.current === 'day') return;
       
+      if (scrollEndTimeoutRef.current) clearTimeout(scrollEndTimeoutRef.current);
+      scrollEndTimeoutRef.current = setTimeout(() => {
+        if (isManualJumpingRef.current) {
+          isManualJumpingRef.current = false;
+          setScrollTrigger(prev => prev + 1);
+        }
+      }, 150);
+
       requestAnimationFrame(() => {
         if (window.innerWidth < 1024) {
           const progress = container.scrollLeft / container.clientWidth;
@@ -291,7 +420,7 @@ function App() {
       window.removeEventListener('pointerup', onInteractionEnd);
       daySelector.removeEventListener('scroll', onDayScroll);
     };
-  }, [retryKey]);
+  }, [itinerary, retryKey]); // Update listeners if itinerary changes or retry is triggered
 
   if (loading) {
     return (
@@ -317,50 +446,125 @@ function App() {
   }
 
 
-  // Jump to today and current activity
-  const jumpToNow = () => {
-    const now = getInitialTime();
+  const getTodayIdx = () => {
+    if (!itinerary) return -1;
+    const now = currentTime;
     const targetMonth = now.getMonth() + 1;
     const targetDay = now.getDate();
     const targetYear = String(now.getFullYear()).slice(-2);
 
-    const todayIdx = itinerary?.days.findIndex(d => {
-      const dateMatch = d.date.match(/(\d{1,2})\/(\d{1,2})\/(\d{2})/);
+    return itinerary.days.findIndex(d => {
+      // Use the robust date matching to prevent year-confusion and satisfy ESLint
+      const dateMatch = d.date.match(/(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})/);
       if (!dateMatch) return false;
       
-      const [, month, dayOfMonth, year] = dateMatch;
-      // Parse to integers to safely ignore leading zeros (e.g., "04" vs 4)
-      return parseInt(month, 10) === targetMonth && 
-             parseInt(dayOfMonth, 10) === targetDay && 
-             year === targetYear;
-    });
-
-    if (todayIdx !== undefined && todayIdx !== -1 && scrollRef.current) {
-      activeScrollerRef.current = 'main';
+      const m = parseInt(dateMatch[1], 10);
+      const d_num = parseInt(dateMatch[2], 10);
+      const y = dateMatch[3];
+      const fullYear = y.length === 2 ? `20${y}` : y;
       
-      const slides = scrollRef.current.querySelectorAll('.swipe-slide');
-      const targetSlide = slides[todayIdx];
+      return m === targetMonth && 
+             d_num === targetDay && 
+             fullYear === `20${targetYear}`;
+    });
+  };
 
-      if (targetSlide) {
-        // scrollIntoView handles both X and Y axis natively
-        if (window.innerWidth < 1024) {
-          targetSlide.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' });
+  const getNextEvent = () => {
+    if (!itinerary) return null;
+    const now = currentTime;
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    
+    // 1. Check remaining events for Today
+    const todayIdx = getTodayIdx();
+    if (todayIdx !== -1) {
+      const today = itinerary.days[todayIdx];
+      const nextToday = today.activities.find(a => timeToMinutes(a.time) > nowMinutes);
+      if (nextToday) {
+        return { 
+          title: nextToday.title, 
+          minutes: timeToMinutes(nextToday.time) - nowMinutes 
+        };
+      }
+      
+      // 2. If today is done, check tomorrow's first event
+      const tomorrow = itinerary.days[todayIdx + 1];
+      if (tomorrow && tomorrow.activities.length > 0) {
+        const firstTomorrow = tomorrow.activities[0];
+        const minsRemainingToday = 1440 - nowMinutes;
+        return { 
+          title: firstTomorrow.title, 
+          minutes: minsRemainingToday + timeToMinutes(firstTomorrow.time) 
+        };
+      }
+    }
+    return null;
+  };
+
+  const nextEvent = getNextEvent();
+  const todayIdx = getTodayIdx();
+  const isTripActive = todayIdx !== -1;
+
+  // Jump to today and current activity
+  const jumpToNow = () => {
+    if (itinerary && scrollRef.current) {
+      const now = getInitialTime();
+      const todayIdx = itinerary.days.findIndex(d => {
+        // More robust date matching: handles MM/DD/YY, M/D/YY, and MM/DD/YYYY
+        const dateMatch = d.date.match(/(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})/);
+        if (!dateMatch) return false;
+        
+        const m = parseInt(dateMatch[1], 10);
+        const d_num = parseInt(dateMatch[2], 10);
+        const y = dateMatch[3];
+        
+        // Normalize 2-digit years to 4-digits for accurate matching
+        const fullYear = y.length === 2 ? `20${y}` : y;
+        
+        return m === now.getMonth() + 1 && 
+               d_num === now.getDate() && 
+               fullYear === String(now.getFullYear());
+      });
+
+      if (todayIdx !== -1) {
+        const isSameDay = activeIndex === todayIdx;
+
+        if (isSameDay) {
+          // If already on the right day, just trigger the vertical snap
+          setScrollTrigger(prev => prev + 1);
         } else {
-          targetSlide.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' });
+          // Calculate exact pixel target for horizontal scroll
+          const container = scrollRef.current;
+          const targetX = todayIdx * container.offsetWidth;
+          
+          activeScrollerRef.current = 'main';
+          isManualJumpingRef.current = true;
+          
+          // Force pixel-perfect horizontal scroll
+          container.scrollTo({
+            left: targetX,
+            behavior: 'smooth'
+          });
+
+          // Sync the DaySelector immediately as well
+          const daySelector = daySelectorRef.current;
+          if (daySelector) {
+            const ITEM_WIDTH = 76; // 64px width + 12px gap
+            daySelector.scrollTo({
+              left: todayIdx * ITEM_WIDTH,
+              behavior: 'smooth'
+            });
+          }
+
+          // Safety fallback for vertical jump
+          if (scrollEndTimeoutRef.current) clearTimeout(scrollEndTimeoutRef.current);
+          scrollEndTimeoutRef.current = setTimeout(() => {
+            if (isManualJumpingRef.current) {
+              isManualJumpingRef.current = false;
+              setScrollTrigger(prev => prev + 1);
+            }
+          }, 600); // Slightly longer safety for multi-day glides
         }
       }
-
-      // Defer the state update so it doesn't interrupt the scroll animation
-      requestAnimationFrame(() => {
-        setScrollTrigger(prev => prev + 1);
-      });
-      
-      if (scrollEndTimeoutRef.current) clearTimeout(scrollEndTimeoutRef.current);
-      
-      // Increased timeout to account for the duration of smooth scrolling
-      scrollEndTimeoutRef.current = setTimeout(() => {
-        activeScrollerRef.current = null;
-      }, 500); 
     }
   };
 
@@ -375,8 +579,17 @@ function App() {
 
     if (targetSlide) {
       if (window.innerWidth < 1024) {
-        const daySelector = daySelectorRef.current?.closest('.day-selector') as HTMLElement;
-        const stickyPoint = daySelector ? daySelector.offsetTop : 0;
+        const daySelector = daySelectorRef.current;
+        if (daySelector) {
+          const ITEM_WIDTH = 76; // 64px width + 12px gap
+          daySelector.scrollTo({
+            left: index * ITEM_WIDTH,
+            behavior: 'smooth'
+          });
+        }
+
+        const daySelectorContainer = daySelectorRef.current?.closest('.day-selector') as HTMLElement;
+        const stickyPoint = daySelectorContainer ? daySelectorContainer.offsetTop : 0;
         const shouldScrollVertically = window.scrollY >= (stickyPoint - 5);
 
         if (shouldScrollVertically) {
@@ -386,9 +599,6 @@ function App() {
             block: 'start' 
           });
         } else {
-          // If at the top, ONLY scroll horizontally.
-          // Using scrollRef.current.scrollTo is safer than scrollIntoView(block: 'nearest')
-          // because it guarantees the window won't move at all.
           scrollRef.current.scrollTo({
             left: index * scrollRef.current.offsetWidth,
             behavior: 'smooth'
@@ -409,7 +619,16 @@ function App() {
 
 
   return (
-    <div className="app-wrapper">
+    <div 
+      className="app-wrapper" 
+      style={{ touchAction: 'manipulation', '--hero-url': `url(${heroImg})` } as React.CSSProperties}
+    >
+      {/* Syncing Indicator */}
+      <div className={`sync-indicator ${refreshing ? 'visible' : ''}`}>
+        <span className="sync-dot"></span>
+        Syncing...
+      </div>
+
       <div className="main-layout">
         <aside className="sidebar">
           <Hero image={heroImg} />
@@ -418,6 +637,10 @@ function App() {
             searchTerm={searchTerm} 
             setSearchTerm={setSearchTerm} 
           />
+
+          <div className="mobile-sync-status">
+            <span>Last sync: {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+          </div>
 
           <DaySelector 
             ref={daySelectorRef}
@@ -448,8 +671,8 @@ function App() {
               const dateMatch = day.date.match(/(\d{1,2})\/(\d{1,2})\/(\d{2})/);
               if (!dateMatch) return false;
               const [, month, dayOfMonth, year] = dateMatch;
-              return month === String(currentTime.getMonth() + 1) && 
-                     dayOfMonth === String(currentTime.getDate()) && 
+              return parseInt(month, 10) === currentTime.getMonth() + 1 && 
+                     parseInt(dayOfMonth, 10) === currentTime.getDate() && 
                      year === String(currentTime.getFullYear()).slice(-2);
             })();
 
@@ -481,7 +704,13 @@ function App() {
         <aside className="info-panel">
           <div className="info-panel-content">
             <div className="map-card glass">
-              <img src={mapImg} alt="Japan Map" className="map-image" />
+              <img 
+                src={mapImg} 
+                alt="Japan Map" 
+                className="map-image" 
+                loading="lazy" 
+                decoding="async" 
+              />
               <div className="map-overlay">
                 <span className="location-label">EXPLORING JAPAN</span>
               </div>
@@ -493,8 +722,8 @@ function App() {
                 <span className="stat-label">ACTIVITIES</span>
               </div>
               <div className="stat-card glass">
-                <span className="stat-value">{activeIndex + 1}</span>
-                <span className="stat-label">TRIP DAY</span>
+                <span className="stat-value">{lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                <span className="stat-label">LAST SYNC</span>
               </div>
             </div>
 
@@ -510,14 +739,41 @@ function App() {
         </aside>
       </div>
 
-      {itinerary && (
-        <button 
-          className={`floating-now-btn glass ${!isLiveCardInView ? 'visible' : ''}`} 
-          onClick={jumpToNow}
-        >
-          <span className="pulse-dot"></span>
-          NOW
-        </button>
+      {needRefresh && (
+        <div className="update-toast glass">
+          <div className="update-toast-content">
+            <span className="update-icon">🚀</span>
+            <div className="update-text">
+              <strong>New version available!</strong>
+              <span>Update now for the latest features.</span>
+            </div>
+          </div>
+          <button className="update-btn" onClick={() => updateServiceWorker(true)}>
+            RELOAD
+          </button>
+        </div>
+      )}
+
+      {itinerary && isTripActive && (
+        <div className="floating-actions">
+          <button 
+            className={`floating-now-btn glass ${!isLiveCardInView ? 'visible' : ''}`} 
+            onClick={jumpToNow}
+          >
+            <span className="pulse-dot"></span>
+            SYNC
+          </button>
+          {nextEvent && (
+            <div className="upcoming-pill glass fade-in">
+              <span className="upcoming-label">NEXT: {nextEvent.title}</span>
+              <span className="upcoming-time">
+                in {nextEvent.minutes >= 60 
+                  ? `${Math.floor(nextEvent.minutes / 60)}h ${nextEvent.minutes % 60}m` 
+                  : `${nextEvent.minutes}m`}
+              </span>
+            </div>
+          )}
+        </div>
       )}
     </div>
   )
