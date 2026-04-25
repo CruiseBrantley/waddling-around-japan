@@ -593,22 +593,27 @@ function App() {
           });
         }
 
-        const daySelectorContainer = daySelectorRef.current?.closest('.day-selector') as HTMLElement;
-        const stickyPoint = daySelectorContainer ? daySelectorContainer.offsetTop : 0;
-        const shouldScrollVertically = window.scrollY >= (stickyPoint - 5);
+        const itineraryColumn = scrollRef.current?.closest('.itinerary-column') as HTMLElement;
+        const rect = itineraryColumn?.getBoundingClientRect();
+        const stickyPoint = rect ? (rect.top + window.scrollY) : 0;
+        
+        // Adjust for the sticky navigation bar height and notch
+        const safeAreaOffset = window.innerWidth < 768 ? 96 : 0; // Approximate height of header + notch
+        const finalPoint = Math.max(0, stickyPoint - safeAreaOffset);
+
+        const shouldScrollVertically = window.scrollY >= (finalPoint - 5);
 
         if (shouldScrollVertically) {
-          targetSlide.scrollIntoView({ 
-            behavior: 'smooth', 
-            inline: 'start', 
-            block: 'start' 
-          });
-        } else {
-          scrollRef.current.scrollTo({
-            left: index * scrollRef.current.offsetWidth,
-            behavior: 'smooth'
+          window.scrollTo({ 
+            top: finalPoint, 
+            behavior: 'smooth' 
           });
         }
+        
+        scrollRef.current.scrollTo({
+          left: index * scrollRef.current.offsetWidth,
+          behavior: 'smooth'
+        });
       } else {
         targetSlide.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'start' });
       }
@@ -621,7 +626,6 @@ function App() {
       activeScrollerRef.current = null;
     }, 500); 
   };
-
 
   return (
     <div 
