@@ -428,6 +428,16 @@
   z-index: 1;
 }
 
+.itinerary-column {
+  position: relative;
+  width: 100%;
+  flex: 1; /* Stretch to fill space on mobile */
+  min-height: 100%; /* Ensure height for absolute blobs */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* Contain the blobs */
+}
+
 .info-panel {
   display: none; /* Hide on mobile and small desktop */
 }
@@ -667,6 +677,8 @@
   -ms-overflow-style: none;
   width: 100%;
   max-width: 100vw;
+  position: relative; /* Anchor for contained blobs */
+  z-index: 1;
 }
 
 .swipe-slide {
@@ -1088,7 +1100,7 @@
     scroll-snap-type: none;
     padding: 40px;
     scroll-padding-top: 40px;
-    background: var(--bg-main);
+    background: transparent;
   }
 
   .swipe-slide {

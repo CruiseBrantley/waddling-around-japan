@@ -628,10 +628,6 @@ function App() {
       className="app-wrapper" 
       style={{ touchAction: 'manipulation', '--hero-url': `url(${heroImg})` } as React.CSSProperties}
     >
-      <div className="background-blobs" aria-hidden="true">
-        <div className="blob blob-1"></div>
-        <div className="blob blob-2"></div>
-      </div>
       {/* Syncing Indicator */}
       <div className={`sync-indicator ${refreshing ? 'visible' : ''}`}>
         <span className="sync-dot"></span>
@@ -660,55 +656,61 @@ function App() {
           />
         </aside>
 
-        <main 
-          ref={scrollRef}
-          className="swipe-container-outer"
-        >
-          {itinerary?.days.map((day, index) => {
-            const dayFilteredActivities = day.activities.filter(activity => {
-              const term = searchTerm.toLowerCase();
+        <div className="itinerary-column">
+          <div className="background-blobs" aria-hidden="true">
+            <div className="blob blob-1"></div>
+            <div className="blob blob-2"></div>
+          </div>
+          <main 
+            ref={scrollRef}
+            className="swipe-container-outer"
+          >
+            {itinerary?.days.map((day, index) => {
+              const dayFilteredActivities = day.activities.filter(activity => {
+                const term = searchTerm.toLowerCase();
+                return (
+                  activity.title.toLowerCase().includes(term) ||
+                  activity.location.toLowerCase().includes(term) ||
+                  activity.notes.toLowerCase().includes(term) ||
+                  activity.category.toLowerCase().includes(term)
+                );
+              });
+
+              // Check if it's the current day for "isToday" logic
+              const dayIsToday = (() => {
+                const dateMatch = day.date.match(/(\d{1,2})\/(\d{1,2})\/(\d{2})/);
+                if (!dateMatch) return false;
+                const [, month, dayOfMonth, year] = dateMatch;
+                return parseInt(month, 10) === currentTime.getMonth() + 1 && 
+                       parseInt(dayOfMonth, 10) === currentTime.getDate() && 
+                       year === String(currentTime.getFullYear()).slice(-2);
+              })();
+
               return (
-                activity.title.toLowerCase().includes(term) ||
-                activity.location.toLowerCase().includes(term) ||
-                activity.notes.toLowerCase().includes(term) ||
-                activity.category.toLowerCase().includes(term)
-              );
-            });
-
-            // Check if it's the current day for "isToday" logic
-            const dayIsToday = (() => {
-              const dateMatch = day.date.match(/(\d{1,2})\/(\d{1,2})\/(\d{2})/);
-              if (!dateMatch) return false;
-              const [, month, dayOfMonth, year] = dateMatch;
-              return parseInt(month, 10) === currentTime.getMonth() + 1 && 
-                     parseInt(dayOfMonth, 10) === currentTime.getDate() && 
-                     year === String(currentTime.getFullYear()).slice(-2);
-            })();
-
-            return (
-              <div 
-                key={day.date} 
-                className={`swipe-slide ${activeIndex === index ? 'active' : ''}`} 
-                data-index={index}
-              >
-                {dayFilteredActivities.length > 0 ? (
-                  <ActivityList 
-                    date={day.date} 
-                    activities={dayFilteredActivities} 
-                    currentTime={currentTime}
-                    activeCardRef={activeCardRef}
-                    timeToMinutes={timeToMinutes}
-                    isToday={dayIsToday}
-                  />
-                ) : (
-                  <div className="container" style={{ textAlign: 'center', paddingTop: '80px', opacity: 0.5 }}>
-                    <p>{searchTerm ? 'No search results for this day.' : 'No activities planned.'}</p>
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </main>
+                <div 
+                  key={day.date} 
+                  className={`swipe-slide ${activeIndex === index ? 'active' : ''}`} 
+                  data-index={index}
+                >
+                  {dayFilteredActivities.length > 0 ? (
+                    <ActivityList 
+                      date={day.date} 
+                      activities={dayFilteredActivities} 
+                      currentTime={currentTime}
+                      activeCardRef={activeCardRef}
+                      timeToMinutes={timeToMinutes}
+                      isToday={dayIsToday}
+                    />
+                  ) : (
+                    <div className="container" style={{ textAlign: 'center', paddingTop: '80px', opacity: 0.5 }}>
+                      <p>{searchTerm ? 'No search results for this day.' : 'No activities planned.'}</p>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </main>
+        </div>
 
       </div>
 

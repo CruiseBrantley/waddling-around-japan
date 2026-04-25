@@ -78,21 +78,36 @@ body {
 
 /* Background Blobs for Glassmorphism to "pop" */
 .background-blobs {
-  position: fixed;
+  position: fixed; /* Always visible behind cards on mobile */
   inset: 0;
-  z-index: 0; /* Move to neutral layer */
+  z-index: 0;
   overflow: hidden;
   pointer-events: none;
 }
 
+@media (min-width: 1024px) {
+  .background-blobs {
+    position: absolute; /* Contained within column on desktop */
+  }
+}
+
 .blob {
   position: absolute;
-  width: 60vw;
-  height: 60vw;
+  width: 250px; /* Smaller for mobile */
+  height: 250px;
   border-radius: 50%;
-  filter: blur(100px);
-  opacity: 0.3; /* Slightly more visible */
-  animation: blob-float 18s infinite linear; /* Use linear for seamless rotation */
+  filter: blur(80px);
+  opacity: 0.25; /* Softer on mobile */
+  animation: blob-float 25s infinite linear;
+}
+
+@media (min-width: 1024px) {
+  .blob {
+    width: 600px; /* Larger for desktop */
+    height: 600px;
+    opacity: 0.35;
+    filter: blur(120px);
+  }
 }
 
 .blob-1 {
