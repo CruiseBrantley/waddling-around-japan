@@ -441,9 +441,15 @@
   letter-spacing: 0.5px;
   color: var(--text-main);
 }
+.mobile-top-content,
+.mobile-only {
+  display: contents; /* Allow sticky children to see the app-wrapper/body */
+}
+
 @media (min-width: 1024px) {
-  .mobile-sync-status {
-    display: none;
+  .mobile-top-content,
+  .mobile-only {
+    display: none !important;
   }
 }
 
