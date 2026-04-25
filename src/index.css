@@ -58,7 +58,7 @@ html {
   overflow-x: clip;
   background: var(--bg-main);
   scroll-behavior: smooth;
-  scroll-padding-top: 96px; /* Match sticky DaySelector height (90px) + margin */
+  scroll-padding-top: calc(96px + env(safe-area-inset-top)); /* Adjust landing spot for immersive header */
 }
 
 body {
@@ -73,12 +73,52 @@ body {
   padding-top: var(--safe-area-top);
   padding-bottom: var(--safe-area-bottom);
   overflow-x: clip; /* clip doesn't break sticky headers */
+  position: relative;
+}
+
+/* Background Blobs for Glassmorphism to "pop" */
+.background-blobs {
+  position: fixed;
+  inset: 0;
+  z-index: 0; /* Move to neutral layer */
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.blob {
+  position: absolute;
+  width: 60vw;
+  height: 60vw;
+  border-radius: 50%;
+  filter: blur(100px);
+  opacity: 0.25; /* Higher visibility */
+  animation: blob-float 20s infinite alternate ease-in-out;
+}
+
+.blob-1 {
+  top: -10%;
+  left: -10%;
+  background: var(--primary);
+}
+
+.blob-2 {
+  bottom: -10%;
+  right: -10%;
+  background: var(--accent);
+  animation-duration: 25s;
+}
+
+@keyframes blob-float {
+  from { transform: translate(0, 0) rotate(0deg) scale(1); }
+  to { transform: translate(15vw, 15vw) rotate(180deg) scale(1.3); }
 }
 
 #root {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  position: relative;
+  z-index: 0;
 }
 
 h1, h2, h3, h4 {
@@ -87,12 +127,15 @@ h1, h2, h3, h4 {
   font-weight: 700;
 }
 
-/* Glassmorphism Surface */
+/* Glassmorphism Surface - Refined for "Thickness" */
 .glass {
   background: var(--bg-glass);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--border);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 
+    var(--shadow-sm),
+    inset 0 1px 1px rgba(255, 255, 255, 0.1); /* Inner glow */
 }
 
 /* Page Transitions */

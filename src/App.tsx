@@ -423,9 +423,18 @@ function App() {
 
   if (loading) {
     return (
-      <div className="loader-container">
-        <div className="shimmer-card"></div>
-        <div className="shimmer-card" style={{ opacity: 0.6 }}></div>
+      <div className="app-wrapper">
+      <div className="background-blobs" aria-hidden="true">
+        <div className="blob blob-1"></div>
+        <div className="blob blob-2"></div>
+      </div>
+      
+      <div className="main-layout container">
+        <div className="loader-container">
+          <div className="shimmer-card"></div>
+          <div className="shimmer-card" style={{ opacity: 0.6 }}></div>
+        </div>
+      </div>
       </div>
     )
   }
@@ -622,6 +631,10 @@ function App() {
       className="app-wrapper" 
       style={{ touchAction: 'manipulation', '--hero-url': `url(${heroImg})` } as React.CSSProperties}
     >
+      <div className="background-blobs" aria-hidden="true">
+        <div className="blob blob-1"></div>
+        <div className="blob blob-2"></div>
+      </div>
       {/* Syncing Indicator */}
       <div className={`sync-indicator ${refreshing ? 'visible' : ''}`}>
         <span className="sync-dot"></span>
