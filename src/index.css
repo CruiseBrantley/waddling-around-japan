@@ -10,7 +10,7 @@
   /* DEFAULT THEME (Dark) */
   --bg-main: #0F1014;
   --bg-card: #1C1D24;
-  --bg-glass: rgba(28, 29, 36, 0.7);
+  --bg-glass: rgba(28, 29, 36, 0.55);
   --text-main: #E9ECEF;
   --text-heading: #FFFFFF;
   --text-muted: #ADB5BD;
@@ -33,7 +33,7 @@
   :root {
     --bg-main: #F8F9FA;
     --bg-card: #FFFFFF;
-    --bg-glass: rgba(255, 255, 255, 0.7);
+    --bg-glass: rgba(255, 255, 255, 0.6);
     --text-main: #2D3436;
     --text-heading: #1A1A1A;
     --text-muted: #636E72;
