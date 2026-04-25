@@ -53,17 +53,15 @@
 /* Day Selector */
 .day-selector {
   position: sticky;
-  top: -1px;
+  top: calc(env(safe-area-inset-top) - 1px); 
   z-index: 101;
-  padding-top: calc(env(safe-area-inset-top) + 1px);
+  padding: 4px 0;
   margin-bottom: 12px;
   background: var(--bg-glass);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
   box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-  transform: translateZ(0);
-  will-change: transform;
 }
 
 .day-scroll-container {
@@ -86,10 +84,11 @@
   position: absolute;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
+  right: 0;
+  bottom: 0;
   display: flex;
   justify-content: center;
+  align-items: center;
   pointer-events: none;
   z-index: 0;
 }
@@ -118,15 +117,11 @@
 }
 
 .day-selector-highlight {
-  position: relative;
-  top: 12px;
   width: 64px;
   height: 64px;
   background: var(--primary);
   border-radius: 18px;
-  z-index: 0;
   box-shadow: 0 8px 16px var(--primary-glow);
-  pointer-events: none;
 }
 
 /* Brand Styles */
