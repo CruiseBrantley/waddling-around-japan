@@ -55,7 +55,10 @@ const DaySelectorComponent = React.forwardRef<HTMLDivElement, DaySelectorProps>(
               data-index={idx}
               className={`day-btn ${activeIndex === idx ? 'is-active' : ''}`}
               style={{ zIndex: 1 }}
-              onClick={() => onDayClick(idx)}
+              onClick={(e) => {
+                e.preventDefault();
+                onDayClick(idx);
+              }}
             >
               <span className="day-label">{dayName}</span>
               <span className="day-num">{dayShort}</span>

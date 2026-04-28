@@ -1,9 +1,9 @@
 .share-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(8px);
-  z-index: 10000;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(12px) saturate(160%);
+  z-index: 100000;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -15,12 +15,15 @@
 .share-modal {
   width: 100%;
   max-width: 360px;
-  background: #0f1014;
+  background: #14151a;
   border-radius: 32px;
   padding: 24px;
   color: white;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 
+    0 0 0 1px rgba(255, 255, 255, 0.05),
+    0 20px 80px rgba(0, 0, 0, 0.9),
+    0 0 40px rgba(183, 141, 235, 0.15);
   animation: modal-slide-up 0.4s cubic-bezier(0.19, 1, 0.22, 1);
 }
 

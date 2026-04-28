@@ -11,7 +11,12 @@ interface ShareModalProps {
 
 export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, url }) => {
   useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+
     if (isOpen) {
+      window.addEventListener('keydown', handleEsc);
       document.body.style.overflow = 'hidden';
       // Prevent touch scroll for mobile Safari
       document.body.style.position = 'fixed';
@@ -22,11 +27,12 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, url }) 
       document.body.style.width = '';
     }
     return () => {
+      window.removeEventListener('keydown', handleEsc);
       document.body.style.overflow = '';
       document.body.style.position = '';
       document.body.style.width = '';
     };
-  }, [isOpen]);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -37,7 +43,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, url }) 
 
   return (
     <div className="share-modal-overlay fade-in" onClick={onClose}>
-      <div className="share-modal glass" onClick={(e) => e.stopPropagation()}>
+      <div className="share-modal" onClick={(e) => e.stopPropagation()}>
         <div className="share-modal-header">
           <h3>Share Itinerary</h3>
           <button className="close-modal" onClick={onClose}>×</button>
@@ -74,7 +80,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, url }) 
               Open Share Sheet (AirDrop)
             </button>
             
-            <button className="btn share-action-btn glass" onClick={() => {
+            <button className="btn share-action-btn" onClick={() => {
               triggerHaptic('light');
               navigator.clipboard.writeText(url);
               alert('Link copied!');

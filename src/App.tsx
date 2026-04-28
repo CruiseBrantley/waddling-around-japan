@@ -137,11 +137,14 @@ function App() {
   // --- Handlers & Helpers ---
 
   const handleDayClick = useCallback((index: number) => {
-    // 1. Trigger the horizontal jump immediately (behavior: 'auto' for instant feel)
+    const startY = window.scrollY;
+    // 1. Trigger the horizontal/vertical jump immediately
     scrollToDay(index, true); 
     
-    // 2. Perform vertical alignment
-    // Use a small timeout to ensure horizontal jump has initiated
+    const isDesktop = window.innerWidth >= 1024;
+    if (isDesktop) return; // Desktop uses independent column scrolling, no window scroll needed
+
+    // 2. Perform vertical alignment (Mobile Only)
     setTimeout(() => {
       const container = scrollRef.current;
       if (!container) return;
@@ -151,11 +154,16 @@ function App() {
       const safeAreaOffset = window.innerWidth < 768 ? 96 : 0;
       const finalPoint = Math.max(0, stickyPoint - safeAreaOffset);
 
-      // Always scroll to sticky point if we are not already there
-      if (Math.abs(window.scrollY - finalPoint) > 5) {
+      // Only scroll UP to the sticky point.
+      // If we are already above it (near the hero), don't force a scroll down.
+      if (window.scrollY > finalPoint + 5) {
         window.scrollTo({ top: finalPoint, behavior: 'smooth' });
+      } else if (startY < 10) {
+        // If we were at the very top, make sure we stay there even if the browser tried to jump us
+        // Use 'auto' (instant) to override browser jump immediately
+        window.scrollTo({ top: 0, behavior: 'auto' });
       }
-    }, 10);
+    }, 50);
   }, [scrollToDay, scrollRef]);
 
   const performSmartJump = useCallback((index: number, targetTitle?: string) => {

@@ -60,14 +60,13 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
         
         if (isDesktop) {
           const scrollTop = container.scrollTop;
-          const containerCenter = scrollTop + container.clientHeight / 2;
+          // Use the center of the viewport as the trigger point for desktop
+          // This ensures that the current day becomes 'active' as soon as it's being read in the center
+          const triggerPoint = scrollTop + (container.clientHeight / 2); 
           
           slides.forEach((slide, i) => {
             const el = slide as HTMLElement;
-            const slideCenter = el.offsetTop + el.offsetHeight / 2;
-            const distance = Math.abs(slideCenter - containerCenter);
-            if (distance < minDistance) {
-              minDistance = distance;
+            if (triggerPoint >= el.offsetTop) {
               bestIndex = i;
             }
           });
@@ -87,11 +86,12 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
         }
 
         if (bestIndex !== activeIndexRef.current) {
+          // If activeScroller is null but we are scrolling, it's likely a mouse wheel
           const type = activeScrollerRef.current === 'main' ? 'manual' : 
                        activeScrollerRef.current === 'day' ? 'daySelector' : 
-                       'void';
+                       (activeScrollerRef.current === null ? 'manual' : 'void');
           
-          if (type === 'void') return; // Ignore if it's programmatic or unknown
+          if (type === 'void') return; 
 
           setActiveIndex(bestIndex);
           onIndexChange?.(bestIndex, type);
@@ -184,17 +184,26 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
     }
     const container = scrollRef.current;
     const daySelector = daySelectorRef.current;
+    const isDesktop = window.innerWidth >= 1024;
+    
+    // Calculate targets correctly for the orientation
     const targetX = index * container.clientWidth;
+    let targetY = 0;
+    
+    if (isDesktop) {
+      const targetSlide = container.querySelectorAll('.swipe-slide')[index] as HTMLElement;
+      if (targetSlide) targetY = targetSlide.offsetTop;
+    }
     
     // 1. Commit to the target
-    targetMainScrollRef.current = targetX;
+    targetMainScrollRef.current = isDesktop ? targetY : targetX;
     activeScrollerRef.current = 'programmatic';
     
     // 2. Immediate UI update
     setActiveIndex(index);
     onIndexChange?.(index, 'programmatic');
 
-    if (window.innerWidth < 1024) {
+    if (!isDesktop) {
       container.scrollTo({
         left: targetX,
         behavior: isInstant ? 'auto' : 'smooth'
@@ -209,10 +218,11 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
     } else {
       const targetSlide = container.querySelectorAll('.swipe-slide')[index] as HTMLElement;
       if (targetSlide) {
-        targetSlide.scrollIntoView({ 
-          behavior: isInstant ? 'auto' : 'smooth', 
-          inline: 'nearest', 
-          block: 'start' 
+        // If we want it sticky at the top, we might need to account for padding
+        const scrollTarget = targetSlide.offsetTop - 20; // Small margin
+        container.scrollTo({
+          top: scrollTarget,
+          behavior: isInstant ? 'auto' : 'smooth'
         });
       }
     }

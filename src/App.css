@@ -1124,6 +1124,7 @@
     overflow-y: auto;
     overflow-x: hidden;
     display: block;
+    position: relative;
     scroll-snap-type: none;
     padding: 40px;
     scroll-padding-top: 40px;

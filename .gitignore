@@ -40,6 +40,10 @@ ui-debug.log*
 
 # Temp & Scratch
 /scratch/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
 sheet_data.json
 fetch_sheet.cjs
 fetch_test.js
