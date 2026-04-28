@@ -37,3 +37,11 @@ firebase-debug.log*
 firestore-debug.log*
 pubsub-debug.log*
 ui-debug.log*
+
+# Temp & Scratch
+/scratch/
+sheet_data.json
+fetch_sheet.cjs
+fetch_test.js
+test_date.js
+sticky_log_debug.txt
