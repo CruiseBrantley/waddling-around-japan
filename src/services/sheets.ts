@@ -157,8 +157,31 @@ function transformFullSheetData(rowData: SheetRow[]): Itinerary {
     daysMap.get(activityDate)!.push(activity);
   });
 
+  const parseForSort = (dateStr: string) => {
+    let cleanDateStr = dateStr;
+    const match = dateStr.match(/\d/);
+    if (match) cleanDateStr = dateStr.substring(match.index!);
+    if (/^\d{4}[-/]\d{2}[-/]\d{2}/.test(cleanDateStr)) {
+      const parts = cleanDateStr.split('T')[0].split(/[-/]/).map(s => parseInt(s, 10));
+      return new Date(parts[0], parts[1] - 1, parts[2]);
+    }
+    const parts = cleanDateStr.split('/');
+    if (parts.length >= 3) {
+      const m = parseInt(parts[0], 10);
+      const d = parseInt(parts[1], 10);
+      let y = parseInt(parts[2], 10);
+      if (y < 100) y += 2000;
+      if (d > 12) return new Date(y, m - 1, d);
+      if (m > 12) return new Date(y, d - 1, m);
+      return new Date(y, m - 1, d);
+    }
+    let d = new Date(dateStr);
+    if (isNaN(d.getTime())) d = new Date(dateStr.replace(/(\d+)(st|nd|rd|th)/, '$1'));
+    return d;
+  };
+
   const sortedDates = Array.from(daysMap.keys()).sort((a, b) => {
-    return new Date(a).getTime() - new Date(b).getTime();
+    return parseForSort(a).getTime() - parseForSort(b).getTime();
   });
 
   const days: ItineraryDay[] = sortedDates.map((dateStr, index) => ({

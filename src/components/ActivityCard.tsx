@@ -14,8 +14,8 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
 }) => {
   return (
   <div
-    className={`activity-card glass ${isLive ? 'active-card' : ''}`}
-    ref={isLive ? activeCardRef : null}
+    className={`activity-card glass ${isLive ? 'is-live' : ''}`}
+    ref={isLive ? activeCardRef : undefined}
   >
       <div className="card-header">
         <h3 className="activity-title">

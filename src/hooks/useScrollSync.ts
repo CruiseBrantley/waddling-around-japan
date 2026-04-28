@@ -1,0 +1,234 @@
+import { useState, useEffect, useRef, useCallback } from 'react';
+
+interface ScrollSyncProps {
+  dayCount: number;
+  onIndexChange?: (index: number, type: 'manual' | 'programmatic' | 'daySelector' | 'void') => void;
+  scrollRef?: React.RefObject<HTMLDivElement | null>;
+  daySelectorRef?: React.RefObject<HTMLDivElement | null>;
+}
+
+export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScrollRef, daySelectorRef: externalDaySelectorRef }: ScrollSyncProps) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const activeIndexRef = useRef(0);
+  
+  const internalScrollRef = useRef<HTMLDivElement>(null);
+  const internalDaySelectorRef = useRef<HTMLDivElement>(null);
+  
+  const scrollRef = externalScrollRef || internalScrollRef;
+  const daySelectorRef = externalDaySelectorRef || internalDaySelectorRef;
+
+  const activeScrollerRef = useRef<'main' | 'day' | 'programmatic' | null>(null);
+  const scrollEndTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const targetMainScrollRef = useRef<number | null>(null);
+
+  const ITEM_WIDTH = 76; // 64px width + 12px gap
+
+  // Keep ref in sync for the scroll listeners to use without re-binding
+  useEffect(() => {
+    activeIndexRef.current = activeIndex;
+  }, [activeIndex]);
+
+  useEffect(() => {
+    const container = scrollRef.current;
+    const daySelector = daySelectorRef.current;
+    if (!container || !daySelector || dayCount === 0) return;
+
+    const onMainScroll = () => {
+      if (activeScrollerRef.current === 'day' || activeScrollerRef.current === 'programmatic') return;
+      
+      const isDesktop = window.innerWidth >= 1024;
+      
+      // PROXIMITY LOCK: If we have a target, don't sync until we are close.
+      // This prevents "snap-back" where the sync logic rounds to the old index
+      // before the smooth scroll has finished arriving at the new one.
+      if (targetMainScrollRef.current !== null) {
+        const currentPos = isDesktop ? container.scrollTop : container.scrollLeft;
+        const dist = Math.abs(currentPos - targetMainScrollRef.current);
+        if (dist > 5) return;
+        
+        // We arrived! Release the lock early
+        targetMainScrollRef.current = null;
+        activeScrollerRef.current = null;
+      }
+
+      requestAnimationFrame(() => {
+        if (activeScrollerRef.current === 'day' || activeScrollerRef.current === 'programmatic') return;
+        
+        const slides = Array.from(container.querySelectorAll('.swipe-slide'));
+        let bestIndex = 0;
+        let minDistance = Infinity;
+        
+        if (isDesktop) {
+          const scrollTop = container.scrollTop;
+          const containerCenter = scrollTop + container.clientHeight / 2;
+          
+          slides.forEach((slide, i) => {
+            const el = slide as HTMLElement;
+            const slideCenter = el.offsetTop + el.offsetHeight / 2;
+            const distance = Math.abs(slideCenter - containerCenter);
+            if (distance < minDistance) {
+              minDistance = distance;
+              bestIndex = i;
+            }
+          });
+        } else {
+          const scrollLeft = container.scrollLeft;
+          const containerCenter = scrollLeft + container.clientWidth / 2;
+          
+          slides.forEach((slide, i) => {
+            const el = slide as HTMLElement;
+            const slideCenter = el.offsetLeft + el.offsetWidth / 2;
+            const distance = Math.abs(slideCenter - containerCenter);
+            if (distance < minDistance) {
+              minDistance = distance;
+              bestIndex = i;
+            }
+          });
+        }
+
+        if (bestIndex !== activeIndexRef.current) {
+          const type = activeScrollerRef.current === 'main' ? 'manual' : 
+                       activeScrollerRef.current === 'day' ? 'daySelector' : 
+                       'void';
+          
+          if (type === 'void') return; // Ignore if it's programmatic or unknown
+
+          setActiveIndex(bestIndex);
+          onIndexChange?.(bestIndex, type);
+          
+          if (type === 'manual' && daySelector) {
+            // App.tsx handles the actual daySelector.scrollTo via onIndexChange
+          }
+        }
+      });
+    };
+
+    const onDayScroll = () => {
+      if (activeScrollerRef.current === 'main' || activeScrollerRef.current === 'programmatic') return;
+      
+      requestAnimationFrame(() => {
+        if (activeScrollerRef.current === 'main' || activeScrollerRef.current === 'programmatic') return;
+
+        if (window.innerWidth < 1024) {
+          const scrollLeft = daySelector.scrollLeft;
+          const progress = scrollLeft / ITEM_WIDTH;
+          const bestIndex = Math.max(0, Math.min(dayCount - 1, Math.round(progress)));
+          
+          if (bestIndex !== activeIndexRef.current) {
+            const targetX = bestIndex * container.clientWidth;
+            targetMainScrollRef.current = targetX;
+
+            setActiveIndex(bestIndex);
+            onIndexChange?.(bestIndex);
+            
+            // WHLE DRAGGING THE BAR: 
+            // Use 'auto' (instant) jumps to ensure the content stays glued to the finger.
+            // Smooth animations here create queues that lead to snap-backs.
+            container.scrollTo({
+              left: targetX,
+              behavior: 'auto'
+            });
+          }
+        }
+      });
+    };
+
+    const onInteractionStart = (type: 'main' | 'day') => {
+      // If user starts interacting, ALWAYS break the programmatic lock and clear targets
+      if (scrollEndTimeoutRef.current) clearTimeout(scrollEndTimeoutRef.current);
+      activeScrollerRef.current = type;
+      targetMainScrollRef.current = null;
+      
+      // Prevent snapping from fighting the sync during active drag
+      if (type === 'day' && container) container.style.scrollSnapType = 'none';
+      if (type === 'main' && daySelector) daySelector.style.scrollSnapType = 'none';
+    };
+
+    const onInteractionEnd = () => {
+      if (activeScrollerRef.current === 'programmatic') return;
+      
+      // Restore snapping
+      if (container) container.style.scrollSnapType = '';
+      if (daySelector) daySelector.style.scrollSnapType = '';
+
+      if (scrollEndTimeoutRef.current) clearTimeout(scrollEndTimeoutRef.current);
+      scrollEndTimeoutRef.current = setTimeout(() => {
+        activeScrollerRef.current = null;
+        targetMainScrollRef.current = null;
+      }, 200);
+    };
+
+    container.addEventListener('scroll', onMainScroll, { passive: true });
+    container.addEventListener('touchstart', () => onInteractionStart('main'), { passive: true });
+    container.addEventListener('mousedown', () => onInteractionStart('main'));
+    window.addEventListener('touchend', onInteractionEnd);
+    window.addEventListener('mouseup', onInteractionEnd);
+    
+    daySelector.addEventListener('scroll', onDayScroll, { passive: true });
+    daySelector.addEventListener('touchstart', () => onInteractionStart('day'), { passive: true });
+    daySelector.addEventListener('mousedown', () => onInteractionStart('day'));
+
+    return () => {
+      container.removeEventListener('scroll', onMainScroll);
+      window.removeEventListener('touchend', onInteractionEnd);
+      window.removeEventListener('mouseup', onInteractionEnd);
+      daySelector.removeEventListener('scroll', onDayScroll);
+    };
+  }, [dayCount, onIndexChange]); 
+
+  const scrollToDay = useCallback((index: number, isInstant = false) => {
+    if (!scrollRef.current) return;
+    
+    if (index !== activeIndexRef.current) {
+      console.log(`[ScrollSync] Scrolling to index ${index}${isInstant ? ' (instant)' : ''}`);
+    }
+    const container = scrollRef.current;
+    const daySelector = daySelectorRef.current;
+    const targetX = index * container.clientWidth;
+    
+    // 1. Commit to the target
+    targetMainScrollRef.current = targetX;
+    activeScrollerRef.current = 'programmatic';
+    
+    // 2. Immediate UI update
+    setActiveIndex(index);
+    onIndexChange?.(index, 'programmatic');
+
+    if (window.innerWidth < 1024) {
+      container.scrollTo({
+        left: targetX,
+        behavior: isInstant ? 'auto' : 'smooth'
+      });
+
+      if (daySelector) {
+        daySelector.scrollTo({
+          left: index * ITEM_WIDTH,
+          behavior: isInstant ? 'auto' : 'smooth'
+        });
+      }
+    } else {
+      const targetSlide = container.querySelectorAll('.swipe-slide')[index] as HTMLElement;
+      if (targetSlide) {
+        targetSlide.scrollIntoView({ 
+          behavior: isInstant ? 'auto' : 'smooth', 
+          inline: 'nearest', 
+          block: 'start' 
+        });
+      }
+    }
+
+    if (scrollEndTimeoutRef.current) clearTimeout(scrollEndTimeoutRef.current);
+    scrollEndTimeoutRef.current = setTimeout(() => {
+      activeScrollerRef.current = null;
+      targetMainScrollRef.current = null;
+    }, isInstant ? 50 : 10000);
+  }, [onIndexChange]);
+
+  return {
+    scrollRef,
+    daySelectorRef,
+    activeIndex,
+    setActiveIndex,
+    scrollToDay
+  };
+}

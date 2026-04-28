@@ -28,7 +28,7 @@ const DaySelectorComponent = React.forwardRef<HTMLDivElement, DaySelectorProps>(
   }, [activeIndex, ref]);
 
   return (
-    <nav className="day-selector glass" style={{ overflow: 'hidden' }}>
+    <nav className="day-selector glass">
       <div className="day-selector-center-track">
         <div className="day-selector-highlight fixed-center" />
       </div>

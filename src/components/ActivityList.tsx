@@ -5,6 +5,7 @@ import { ActivityCard } from './ActivityCard';
 interface ActivityListProps {
   date: string;
   activities: ItineraryActivity[];
+  allActivities: ItineraryActivity[];
   currentTime: Date;
   activeCardRef: React.RefObject<HTMLDivElement | null>;
   timeToMinutes: (timeStr: string) => number;
@@ -13,7 +14,8 @@ interface ActivityListProps {
 
 export const ActivityList: React.FC<ActivityListProps> = ({ 
   date, 
-  activities, 
+  activities,
+  allActivities,
   currentTime, 
   activeCardRef,
   timeToMinutes,
@@ -23,13 +25,13 @@ export const ActivityList: React.FC<ActivityListProps> = ({
 
   // Find which activity should be live based on time ranges
   const getLiveActivityId = () => {
-    for (let i = 0; i < activities.length; i++) {
-      const activityMinutes = timeToMinutes(activities[i].time);
-      const nextActivity = activities[i + 1];
+    for (let i = 0; i < allActivities.length; i++) {
+      const activityMinutes = timeToMinutes(allActivities[i].time);
+      const nextActivity = allActivities[i + 1];
       const nextMinutes = nextActivity ? timeToMinutes(nextActivity.time) : 1440;
       
       if (currentMinutes >= activityMinutes && currentMinutes < nextMinutes) {
-        return activities[i].id;
+        return allActivities[i].id;
       }
     }
     return null;
@@ -58,13 +60,14 @@ export const ActivityList: React.FC<ActivityListProps> = ({
       </div>
 
       <div className="timeline">
-        {activities.map((activity, index) => {
+        {activities.map((activity) => {
           const isLive = liveActivityId === activity.id;
           let progress = 0;
 
           if (isLive) {
             const startMins = timeToMinutes(activity.time);
-            const nextActivity = activities[index + 1];
+            const actualIndex = allActivities.findIndex(a => a.id === activity.id);
+            const nextActivity = allActivities[actualIndex + 1];
             const endMins = nextActivity ? timeToMinutes(nextActivity.time) : 1440;
             progress = Math.min(100, Math.max(0, ((currentMinutes - startMins) / (endMins - startMins)) * 100));
           }
