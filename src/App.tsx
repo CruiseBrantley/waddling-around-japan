@@ -50,6 +50,9 @@ function App() {
   // 3. PWA & UI State
   const { needRefresh: [needRefresh], updateServiceWorker } = useRegisterSW();
   const [isLiveCardInView, setIsLiveCardInView] = useState(true);
+  const [alertsDismissed, setAlertsDismissed] = useState(() => 
+    localStorage.getItem('alerts_dismissed') === 'true'
+  );
   const activeCardRef = useRef<HTMLDivElement | null>(null);
   const hasScrolledRef = useRef(false);
   const prevSearchTerm = useRef(searchTerm);
@@ -359,6 +362,18 @@ function App() {
     }
   };
 
+  const handleDismissAlerts = () => {
+    triggerHaptic('light');
+    setAlertsDismissed(true);
+    localStorage.setItem('alerts_dismissed', 'true');
+  };
+
+  const handleRestoreAlerts = () => {
+    triggerHaptic('light');
+    setAlertsDismissed(false);
+    localStorage.removeItem('alerts_dismissed');
+  };
+
   if (loading) {
     return (
       <div className="app-wrapper">
@@ -397,10 +412,16 @@ function App() {
           <SearchBar title={itinerary?.title || 'Japan Itinerary'} searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
           <div className="mobile-sync-status">
             <span>Last sync: {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+            {alertsDismissed && (!('Notification' in window) || Notification.permission !== 'granted') && (
+              <button className="settings-toggle-btn" onClick={handleRestoreAlerts} title="Show Alert Settings">
+                ⚙️
+              </button>
+            )}
           </div>
 
-          {(!('Notification' in window) || Notification.permission !== 'granted') && (
+          {!alertsDismissed && (!('Notification' in window) || Notification.permission !== 'granted') && (
             <div className="settings-card glass">
+              <button className="dismiss-card" onClick={handleDismissAlerts}>×</button>
               <div className="settings-card-content">
                 <p>Stay updated with arrival alerts on your lock screen.</p>
                 <button 

@@ -109,7 +109,7 @@ export const shareItinerary = async (title: string, text: string, url: string) =
   }
 };
 
-interface ExtendedNavigator extends Navigator {
+interface BadgeNavigator {
   setAppBadge?: (count: number) => Promise<void>;
   clearAppBadge?: () => Promise<void>;
 }
@@ -119,14 +119,14 @@ interface ExtendedNavigator extends Navigator {
  * Supported on iOS 16.4+ and most Android/Chrome.
  */
 export const setAppBadge = (count: number) => {
-  const nav = navigator as ExtendedNavigator;
+  const nav = navigator as unknown as BadgeNavigator;
   if (nav.setAppBadge) {
     nav.setAppBadge(count).catch(console.error);
   }
 };
 
 export const clearAppBadge = () => {
-  const nav = navigator as ExtendedNavigator;
+  const nav = navigator as unknown as BadgeNavigator;
   if (nav.clearAppBadge) {
     nav.clearAppBadge().catch(console.error);
   }

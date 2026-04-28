@@ -119,7 +119,7 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
             targetMainScrollRef.current = targetX;
 
             setActiveIndex(bestIndex);
-            onIndexChange?.(bestIndex);
+            onIndexChange?.(bestIndex, 'daySelector');
             
             // WHLE DRAGGING THE BAR: 
             // Use 'auto' (instant) jumps to ensure the content stays glued to the finger.

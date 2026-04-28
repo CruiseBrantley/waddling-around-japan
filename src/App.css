@@ -1310,6 +1310,40 @@
   padding: 16px;
   border-radius: 20px;
   background: rgba(255, 255, 255, 0.03);
+  position: relative;
+}
+
+.dismiss-card {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: none;
+  border: none;
+  color: white;
+  font-size: 18px;
+  opacity: 0.3;
+  cursor: pointer;
+  transition: opacity 0.3s ease;
+  line-height: 1;
+}
+
+.dismiss-card:hover {
+  opacity: 1;
+}
+
+.settings-toggle-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  opacity: 0.5;
+  transition: all 0.3s ease;
+  margin-left: 8px;
+}
+
+.settings-toggle-btn:hover {
+  opacity: 1;
+  transform: rotate(45deg);
 }
 
 .settings-card-content p {
