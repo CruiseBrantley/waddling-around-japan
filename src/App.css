@@ -199,6 +199,7 @@
 
 .search-wrapper {
   flex: 1;
+  min-width: 0; /* Allow shrinking on desktop */
   height: 48px;
   display: flex;
   align-items: center;
@@ -1063,15 +1064,18 @@
     line-height: 1.4;
   }
 
-  /* Override SearchBar in Sidebar */
-  .sidebar .container {
-    padding: 24px;
-    margin: 0 !important;
-    max-width: 100%;
+  /* Sidebar Header & Search */
+  .sidebar-header {
+    padding-top: 8px;
   }
 
-  .sidebar .brand-title {
-    font-size: 24px;
+  .sidebar .search-section {
+    padding: 20px 24px 12px;
+  }
+
+  .sidebar .sidebar-meta {
+    padding: 0 24px 20px;
+    opacity: 0.5;
   }
 
   /* Override DaySelector in Sidebar */
