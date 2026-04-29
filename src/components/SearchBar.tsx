@@ -15,18 +15,28 @@ const SearchIcon = () => (
   </svg>
 );
 
-export const SearchBar: React.FC<SearchBarProps> = ({ title, searchTerm, setSearchTerm }) => {
+export const SearchBar: React.FC<SearchBarProps> = ({ searchTerm, setSearchTerm }) => {
   const [isShareOpen, setIsShareOpen] = useState(false);
 
   return (
-    <div className="container" style={{ marginTop: '24px', marginBottom: '24px' }}>
-      <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div>
-          <span className="brand-badge">2026 TRIP</span>
-          <h1 className="brand-title">{title}</h1>
+    <div className="search-section">
+      <div className="search-row">
+        <div className="search-wrapper glass">
+          <SearchIcon />
+          <input 
+            type="text" 
+            placeholder="Search activities..." 
+            className="search-input"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          {searchTerm && (
+            <button className="clear-search" onClick={() => setSearchTerm('')}>×</button>
+          )}
         </div>
+
         <button 
-          className="share-btn glass"
+          className="share-btn-compact glass"
           onClick={() => {
             triggerHaptic('medium');
             setIsShareOpen(true);
@@ -39,20 +49,6 @@ export const SearchBar: React.FC<SearchBarProps> = ({ title, searchTerm, setSear
             <line x1="12" y1="2" x2="12" y2="15" />
           </svg>
         </button>
-      </div>
-      
-      <div className="search-wrapper glass">
-        <SearchIcon />
-        <input 
-          type="text" 
-          placeholder="Search activities, food, locations..." 
-          className="search-input"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-        {searchTerm && (
-          <button className="clear-search" onClick={() => setSearchTerm('')}>×</button>
-        )}
       </div>
 
       <ShareModal 

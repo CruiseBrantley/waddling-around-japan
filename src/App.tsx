@@ -417,14 +417,16 @@ function App() {
       <div className="main-layout">
         <aside className="sidebar">
           <Hero image={heroImg} />
-          <SearchBar title={itinerary?.title || 'Japan Itinerary'} searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
-          <div className="mobile-sync-status">
-            <span>Last sync: {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-            {alertsDismissed && (!('Notification' in window) || Notification.permission !== 'granted') && (
-              <button className="settings-toggle-btn" onClick={handleRestoreAlerts} title="Show Alert Settings">
-                ⚙️
-              </button>
-            )}
+          <div className="sidebar-header">
+            <SearchBar title={itinerary?.title || 'Japan Itinerary'} searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
+            <div className="sidebar-meta">
+              <span>Last sync: {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+              {alertsDismissed && (!('Notification' in window) || Notification.permission !== 'granted') && (
+                <button className="settings-toggle-btn" onClick={handleRestoreAlerts} title="Show Alert Settings">
+                  ⚙️
+                </button>
+              )}
+            </div>
           </div>
 
           {!alertsDismissed && (!('Notification' in window) || Notification.permission !== 'granted') && (
@@ -448,19 +450,30 @@ function App() {
         <div className="itinerary-column">
           <BackgroundAura />
           <main ref={scrollRef} className="swipe-container-outer">
-            {filteredDays.map((day, index) => (
-              <div key={day.day} className={`swipe-slide ${index === activeIndex ? 'active' : ''}`} data-index={index}>
-                <ActivityList 
-                  date={day.date}
-                  activities={day.activities}
-                  allActivities={itinerary?.days.find(d => d.date === day.date)?.activities || day.activities}
-                  currentTime={currentTime}
-                  activeCardRef={activeCardRef}
-                  timeToMinutes={timeToMinutes}
-                  isToday={isSameDay(day.date, currentTime)}
-                />
+            {filteredDays.length > 0 ? (
+              filteredDays.map((day, index) => (
+                <div key={day.day} className={`swipe-slide ${index === activeIndex ? 'active' : ''}`} data-index={index}>
+                  <ActivityList 
+                    date={day.date}
+                    activities={day.activities}
+                    allActivities={itinerary?.days.find(d => d.date === day.date)?.activities || day.activities}
+                    currentTime={currentTime}
+                    activeCardRef={activeCardRef}
+                    timeToMinutes={timeToMinutes}
+                    isToday={isSameDay(day.date, currentTime)}
+                  />
+                </div>
+              ))
+            ) : (
+              <div className="no-results-container fade-in">
+                <div className="no-results-icon">🔍</div>
+                <h3>No activities found</h3>
+                <p>We couldn't find anything matching "<strong>{searchTerm}</strong>"</p>
+                <button className="btn btn-secondary" onClick={() => setSearchTerm('')}>
+                  Clear Search
+                </button>
               </div>
-            ))}
+            )}
           </main>
         </div>
       </div>

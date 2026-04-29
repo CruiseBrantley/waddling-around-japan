@@ -29,9 +29,11 @@ const DaySelectorComponent = React.forwardRef<HTMLDivElement, DaySelectorProps>(
 
   return (
     <nav className="day-selector glass">
-      <div className="day-selector-center-track">
-        <div className="day-selector-highlight fixed-center" />
-      </div>
+      {days.length > 0 && (
+        <div className="day-selector-center-track">
+          <div className="day-selector-highlight fixed-center" />
+        </div>
+      )}
 
       <div 
         className="day-scroll-container" 
