@@ -34,21 +34,22 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
     if (!container || !daySelector || dayCount === 0) return;
 
     const onMainScroll = () => {
-      if (activeScrollerRef.current === 'day' || activeScrollerRef.current === 'programmatic') return;
-      
       const isDesktop = window.innerWidth >= 1024;
       
       // PROXIMITY LOCK: If we have a target, don't sync until we are close.
-      // This prevents "snap-back" where the sync logic rounds to the old index
-      // before the smooth scroll has finished arriving at the new one.
+      // We check this FIRST to ensure we can release the 'programmatic' lock when we arrive.
       if (targetMainScrollRef.current !== null) {
         const currentPos = isDesktop ? container.scrollTop : container.scrollLeft;
         const dist = Math.abs(currentPos - targetMainScrollRef.current);
-        if (dist > 5) return;
-        
-        // We arrived! Release the lock early
-        targetMainScrollRef.current = null;
-        activeScrollerRef.current = null;
+        if (dist <= 5) {
+          targetMainScrollRef.current = null;
+          activeScrollerRef.current = null;
+        } else {
+          // If we are still far from target and in a locked state, return
+          if (activeScrollerRef.current === 'day' || activeScrollerRef.current === 'programmatic') return;
+        }
+      } else if (activeScrollerRef.current === 'day' || activeScrollerRef.current === 'programmatic') {
+        return;
       }
 
       requestAnimationFrame(() => {
@@ -60,8 +61,6 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
         
         if (isDesktop) {
           const scrollTop = container.scrollTop;
-          // Use the center of the viewport as the trigger point for desktop
-          // This ensures that the current day becomes 'active' as soon as it's being read in the center
           const triggerPoint = scrollTop + (container.clientHeight / 2); 
           
           slides.forEach((slide, i) => {
@@ -86,19 +85,15 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
         }
 
         if (bestIndex !== activeIndexRef.current) {
-          // If activeScroller is null but we are scrolling, it's likely a mouse wheel
           const type = activeScrollerRef.current === 'main' ? 'manual' : 
                        activeScrollerRef.current === 'day' ? 'daySelector' : 
                        (activeScrollerRef.current === null ? 'manual' : 'void');
           
           if (type === 'void') return; 
 
+          activeIndexRef.current = bestIndex;
           setActiveIndex(bestIndex);
           onIndexChange?.(bestIndex, type);
-          
-          if (type === 'manual' && daySelector) {
-            // App.tsx handles the actual daySelector.scrollTo via onIndexChange
-          }
         }
       });
     };
@@ -118,12 +113,10 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
             const targetX = bestIndex * container.clientWidth;
             targetMainScrollRef.current = targetX;
 
+            activeIndexRef.current = bestIndex;
             setActiveIndex(bestIndex);
             onIndexChange?.(bestIndex, 'daySelector');
             
-            // WHLE DRAGGING THE BAR: 
-            // Use 'auto' (instant) jumps to ensure the content stays glued to the finger.
-            // Smooth animations here create queues that lead to snap-backs.
             container.scrollTo({
               left: targetX,
               behavior: 'auto'
@@ -198,6 +191,7 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
     // 1. Commit to the target
     targetMainScrollRef.current = isDesktop ? targetY : targetX;
     activeScrollerRef.current = 'programmatic';
+    activeIndexRef.current = index; 
     
     // 2. Immediate UI update
     setActiveIndex(index);

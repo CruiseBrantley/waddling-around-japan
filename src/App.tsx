@@ -84,38 +84,34 @@ function App() {
 
   // 5. Scroll Hook
   const handleIndexChange = useCallback((index: number, type: 'manual' | 'programmatic' | 'daySelector' | 'void') => {
-    // Smart Bottom Snapping: Avoid the "void" after horizontal motion settles
-    // ONLY apply this if the user manually swiped (to fix the void issue).
-    // If it's a programmatic jump or day selector click, we already handled vertical alignment.
-    if (type !== 'manual') return;
+    // 1. Smart Bottom Snapping (Only for manual swipes)
+    if (type === 'manual' && scrollRef.current && window.scrollY >= 200) {
+      const handleSettle = () => {
+        requestAnimationFrame(() => {
+          const isDesktop = window.innerWidth >= 1024;
+          if (isDesktop) return;
 
-    // Safety: don't snap if we are already looking at the hero
-    if (window.scrollY < 200) return;
+          const activeSlide = document.querySelector(`.swipe-slide[data-index="${index}"]`) as HTMLElement;
+          if (!activeSlide) return;
 
-    const handleSettle = () => {
-      requestAnimationFrame(() => {
-        const isDesktop = window.innerWidth >= 1024;
-        if (isDesktop) return;
+          const rect = activeSlide.getBoundingClientRect();
+          const contentBottom = rect.top + window.scrollY + activeSlide.offsetHeight;
+          const viewportBottom = window.scrollY + window.innerHeight;
 
-        const activeSlide = document.querySelector(`.swipe-slide[data-index="${index}"]`) as HTMLElement;
-        if (!activeSlide) return;
-
-        const rect = activeSlide.getBoundingClientRect();
-        const contentBottom = rect.top + window.scrollY + activeSlide.offsetHeight;
-        const viewportBottom = window.scrollY + window.innerHeight;
-
-        if (viewportBottom > contentBottom + 20) {
-          const targetY = Math.max(0, contentBottom - window.innerHeight + 40);
-          window.scrollTo({ top: targetY, behavior: 'smooth' });
-        }
-      });
-    };
-
-    if (scrollRef.current) {
+          if (viewportBottom > contentBottom + 20) {
+            const targetY = Math.max(0, contentBottom - window.innerHeight + 40);
+            window.scrollTo({ top: targetY, behavior: 'smooth' });
+          }
+        });
+      };
       scrollRef.current.addEventListener('scrollend', handleSettle, { once: true });
     }
 
-    if (daySelectorRef.current) {
+    // 2. Day Selector Sync
+    // IMPORTANT: Only scroll the daySelector if the index change came from the main carousel or a button.
+    // If the user is currently dragging the DaySelector itself (type === 'daySelector'), 
+    // we MUST NOT tell it to scroll programmatically, or it will jitter and fight the user's finger.
+    if (daySelectorRef.current && type !== 'daySelector') {
       daySelectorRef.current.scrollTo({
         left: index * 76,
         behavior: 'auto'
@@ -442,12 +438,22 @@ function App() {
   }, [activeEvents.next]);
 
   useEffect(() => {
-    if (activeEvents.next) {
-      setAppBadge(1);
+    // Show remaining activities today as a badge
+    const todayIdx = filteredDays.findIndex(d => isSameDay(d.date, currentTime));
+    if (todayIdx !== -1) {
+      const today = filteredDays[todayIdx];
+      const nowMin = currentTime.getHours() * 60 + currentTime.getMinutes();
+      const remainingCount = today.activities.filter(act => timeToMinutes(act.time) > nowMin).length;
+      
+      if (remainingCount > 0) {
+        setAppBadge(remainingCount);
+      } else {
+        clearAppBadge();
+      }
     } else {
       clearAppBadge();
     }
-  }, [activeEvents.next]);
+  }, [filteredDays, currentTime, isSameDay]);
 
   const handleEnableNotifications = async () => {
     triggerHaptic('medium');

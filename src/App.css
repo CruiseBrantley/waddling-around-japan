@@ -7,6 +7,8 @@
   position: relative;
   overscroll-behavior: none; /* Prevent the "webby" pull-down bounce on iOS */
   -webkit-tap-highlight-color: transparent; /* Remove blue tap highlight on mobile */
+  user-select: none; /* Make it feel like an app, not a webpage */
+  -webkit-user-select: none;
 }
 
 /* Hero Section */
@@ -152,6 +154,12 @@
   z-index: 1;
   scroll-snap-align: center;
   scroll-snap-stop: always;
+  cursor: pointer;
+}
+
+.day-btn:active {
+  transform: scale(0.9);
+  opacity: 0.7;
 }
 
 .day-selector-highlight {
@@ -484,6 +492,12 @@
   z-index: 1;
 }
 
+/* Allow selection in content areas */
+.activity-notes, .activity-title, .date-display {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
 .itinerary-column {
   position: relative;
   width: 100%;
@@ -536,6 +550,11 @@
   transform: translateY(-2px) scale(1.01);
   border-color: rgba(255, 255, 255, 0.15);
   box-shadow: var(--shadow-lg);
+}
+
+.activity-card:active {
+  transform: scale(0.98);
+  transition: transform 0.1s ease;
 }
 
 .activity-card.is-live {

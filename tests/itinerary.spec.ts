@@ -173,7 +173,8 @@ test.describe('Itinerary App Core Features', () => {
     // 3. Click the upcoming-pill to jump back to "Now" (Day 1)
     const pill = page.locator('.upcoming-pill');
     await pill.click();
-    await page.waitForTimeout(2500); 
+    // Allow more time for the smooth scroll and state transition to settle
+    await page.waitForTimeout(4000); 
 
     // 4. Verify we are back on Day 1
     const day1Btn = page.locator('.day-btn').nth(0);
@@ -277,5 +278,39 @@ test.describe('Itinerary App Core Features', () => {
     // Should scroll UP to sticky point (approx 96px to 600px depending on header size)
     expect(scrollYDeep).toBeLessThan(startY - 500);
     expect(scrollYDeep).toBeGreaterThan(50);
+  });
+
+  test('REGRESSION: DaySelector should not jitter when manually scrolled', async ({ page, isMobile }) => {
+    if (!isMobile) return;
+    await page.goto('/');
+    await page.waitForSelector('.day-btn');
+
+    const daySelector = page.locator('.day-scroll-container');
+    
+    // 1. Get initial scroll position
+    await daySelector.evaluate(el => el.scrollLeft);
+
+    // 2. Simulate a manual drag/scroll on the DaySelector
+    const targetScroll = 150; 
+    await daySelector.evaluate((el, target) => {
+      // Simulate interaction start
+      el.dispatchEvent(new Event('touchstart', { bubbles: true }));
+      el.scrollLeft = target;
+      el.dispatchEvent(new Event('scroll', { bubbles: true }));
+    }, targetScroll);
+
+    // 3. Wait a moment for any potential "jitter" (programmatic sync fighting back)
+    await page.waitForTimeout(500);
+
+    // 4. Verify scroll position stayed near our target
+    const finalScroll = await daySelector.evaluate(el => el.scrollLeft);
+    
+    expect(finalScroll).toBeGreaterThan(100);
+    expect(finalScroll).toBeLessThan(300);
+
+    // 5. Cleanup interaction
+    await daySelector.evaluate(el => {
+      el.dispatchEvent(new Event('touchend', { bubbles: true }));
+    });
   });
 });
