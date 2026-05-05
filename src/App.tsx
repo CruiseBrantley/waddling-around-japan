@@ -16,7 +16,7 @@ import { useScrollSync } from './hooks/useScrollSync'
 
 // Utils
 import { timeToMinutes } from './utils/time'
-import { setAppBadge, clearAppBadge, requestNotificationPermission, triggerHaptic } from './utils/native'
+import { setAppBadge, clearAppBadge, requestNotificationPermission, triggerHaptic, showLocalNotification } from './utils/native'
 import heroImg from './assets/hero_optimized.jpg'
 
 function App() {
@@ -25,7 +25,7 @@ function App() {
     return sessionStorage.getItem('itinerary_searchTerm') || '';
   });
 
-  const [timeOffset] = useState(() => {
+  const [timeOffset, setTimeOffset] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     const mockDateStr = params.get('date');
     if (mockDateStr) {
@@ -136,15 +136,77 @@ function App() {
 
   // --- Handlers & Helpers ---
 
+  const parseSheetDate = useCallback((dateStr: string) => {
+    let cleanDateStr = dateStr;
+    const match = dateStr.match(/\d/);
+    if (match) cleanDateStr = dateStr.substring(match.index!);
+    if (/^\d{4}[-/]\d{2}[-/]\d{2}/.test(cleanDateStr)) {
+      const parts = cleanDateStr.split('T')[0].split(/[-/]/).map(s => parseInt(s, 10));
+      return new Date(parts[0], parts[1] - 1, parts[2]);
+    }
+    const parts = cleanDateStr.split('/');
+    if (parts.length >= 3) {
+      const m = parseInt(parts[0], 10);
+      const d = parseInt(parts[1], 10);
+      let y = parseInt(parts[2], 10);
+      if (y < 100) y += 2000;
+      if (d > 12) return new Date(y, m - 1, d);
+      if (m > 12) return new Date(y, d - 1, m);
+      return new Date(y, m - 1, d);
+    }
+    let d = new Date(dateStr);
+    if (isNaN(d.getTime())) d = new Date(dateStr.replace(/(\d+)(st|nd|rd|th)/, '$1'));
+    return d;
+  }, []);
+
+  const isSameDay = useCallback((dateStr: string, targetDate: Date) => {
+    const d = parseSheetDate(dateStr);
+    if (isNaN(d.getTime())) return false;
+    return d.getMonth() === targetDate.getMonth() && d.getDate() === targetDate.getDate();
+  }, [parseSheetDate]);
+
   const handleDayClick = useCallback((index: number) => {
     const startY = window.scrollY;
     // 1. Trigger the horizontal/vertical jump immediately
     scrollToDay(index, true); 
     
+    // Enable haptics for subsequent interactions if not already enabled
+    hasScrolledRef.current = true;
+
+    // 2. Debug Sync: If we have a mock date or ?debug=1, jump the clock to this day
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('debug') || timeOffset !== 0) {
+      const targetDay = filteredDays[index];
+      if (targetDay && targetDay.activities.length > 0) {
+        const firstAct = targetDay.activities[0];
+        const dayDate = parseSheetDate(targetDay.date);
+        // Use the centralized timeToMinutes to handle AM/PM correctly
+        const totalMinutes = timeToMinutes(firstAct.time);
+        const h = Math.floor(totalMinutes / 60);
+        const m = totalMinutes % 60;
+        
+        if (!isNaN(h) && !isNaN(m) && !isNaN(dayDate.getTime())) {
+          // Set clock to 10 minutes before the first activity of that day
+          const targetTime = new Date(dayDate);
+          targetTime.setHours(h, m - 10, 0);
+          
+          const newOffset = targetTime.getTime() - Date.now();
+          if (!isNaN(newOffset)) {
+            setTimeOffset(newOffset);
+            
+            // Update URL for persistence
+            const newUrl = new URL(window.location.href);
+            newUrl.searchParams.set('date', targetTime.toISOString());
+            window.history.replaceState({}, '', newUrl);
+          }
+        }
+      }
+    }
+
     const isDesktop = window.innerWidth >= 1024;
     if (isDesktop) return; // Desktop uses independent column scrolling, no window scroll needed
 
-    // 2. Perform vertical alignment (Mobile Only)
+    // 3. Perform vertical alignment (Mobile Only)
     setTimeout(() => {
       const container = scrollRef.current;
       if (!container) return;
@@ -164,7 +226,7 @@ function App() {
         window.scrollTo({ top: 0, behavior: 'auto' });
       }
     }, 50);
-  }, [scrollToDay, scrollRef]);
+  }, [scrollToDay, scrollRef, filteredDays, timeOffset, parseSheetDate]);
 
   const performSmartJump = useCallback((index: number, targetTitle?: string) => {
     if (index === -1) return;
@@ -219,35 +281,6 @@ function App() {
       }
     }, verticalDelay);
   }, [scrollToDay, scrollRef, activeIndex]);
-
-  const parseSheetDate = useCallback((dateStr: string) => {
-    let cleanDateStr = dateStr;
-    const match = dateStr.match(/\d/);
-    if (match) cleanDateStr = dateStr.substring(match.index!);
-    if (/^\d{4}[-/]\d{2}[-/]\d{2}/.test(cleanDateStr)) {
-      const parts = cleanDateStr.split('T')[0].split(/[-/]/).map(s => parseInt(s, 10));
-      return new Date(parts[0], parts[1] - 1, parts[2]);
-    }
-    const parts = cleanDateStr.split('/');
-    if (parts.length >= 3) {
-      const m = parseInt(parts[0], 10);
-      const d = parseInt(parts[1], 10);
-      let y = parseInt(parts[2], 10);
-      if (y < 100) y += 2000;
-      if (d > 12) return new Date(y, m - 1, d);
-      if (m > 12) return new Date(y, d - 1, m);
-      return new Date(y, m - 1, d);
-    }
-    let d = new Date(dateStr);
-    if (isNaN(d.getTime())) d = new Date(dateStr.replace(/(\d+)(st|nd|rd|th)/, '$1'));
-    return d;
-  }, []);
-
-  const isSameDay = useCallback((dateStr: string, targetDate: Date) => {
-    const d = parseSheetDate(dateStr);
-    if (isNaN(d.getTime())) return false;
-    return d.getMonth() === targetDate.getMonth() && d.getDate() === targetDate.getDate();
-  }, [parseSheetDate]);
 
   // --- Effects ---
 
@@ -346,9 +379,68 @@ function App() {
     return () => observer.disconnect();
   }, [itinerary, activeIndex, currentTime]);
 
+  // Tactile Feedback for Day Changes
+  useEffect(() => {
+    // Only pulse if we've already initialized (prevents haptic on first load)
+    if (hasScrolledRef.current) {
+      triggerHaptic('light');
+    }
+  }, [activeIndex]);
+
   // --- Render ---
 
   // 6. Native Integrations
+  // --- Notifications ---
+
+  const notifiedEventsRef = useRef<Set<string>>(new Set());
+
+  // Handle Query Param Testing
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const testNotify = params.get('notify');
+    if (testNotify) {
+      // Small delay to ensure SW is ready and permission is checked
+      const timer = setTimeout(() => {
+        void showLocalNotification(
+          'Test Notification', 
+          testNotify === '1' ? 'This is a test notification from query params.' : testNotify
+        );
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  // Automatic Notifications for upcoming activities
+  useEffect(() => {
+    if (!activeEvents.next) return;
+
+    const { title, minutes } = activeEvents.next;
+    
+    // Notify 10 minutes before
+    if (minutes > 0 && minutes <= 10) {
+      const eventId = `notify-10m-${title}`;
+      if (!notifiedEventsRef.current.has(eventId)) {
+        void showLocalNotification(
+          `Upcoming: ${title}`,
+          `Starting in ${Math.ceil(minutes)} minutes!`
+        );
+        notifiedEventsRef.current.add(eventId);
+      }
+    }
+
+    // Notify 1 minute before (High priority)
+    if (minutes > 0 && minutes <= 1) {
+      const eventId = `notify-1m-${title}`;
+      if (!notifiedEventsRef.current.has(eventId)) {
+        void showLocalNotification(
+          `Starting Now: ${title}`,
+          `Time to head to ${title}!`
+        );
+        notifiedEventsRef.current.add(eventId);
+      }
+    }
+  }, [activeEvents.next]);
+
   useEffect(() => {
     if (activeEvents.next) {
       setAppBadge(1);

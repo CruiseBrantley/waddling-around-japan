@@ -26,8 +26,14 @@ export const triggerHaptic = (type: 'light' | 'medium' | 'heavy' = 'light') => {
 export const requestNotificationPermission = async () => {
   if (!('Notification' in window)) return 'unsupported';
   
-  const permission = await Notification.requestPermission();
-  return permission;
+  try {
+    const permission = await Notification.requestPermission();
+    console.log('Notification permission status:', permission);
+    return permission;
+  } catch (e) {
+    console.error('Permission request failed', e);
+    return 'denied';
+  }
 };
 
 /**
@@ -36,21 +42,62 @@ export const requestNotificationPermission = async () => {
  * Real "proactive" notifications usually require a backend + Web Push.
  * However, if the tab is open, we can show a non-push Notification.
  */
-export const showLocalNotification = (title: string, body: string) => {
-  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+export const showLocalNotification = async (title: string, body: string) => {
+  console.log('Attempting notification:', title, body);
+  
+  if (!('Notification' in window)) {
+    console.warn('Notifications not supported in this browser');
+    return;
+  }
+
+  if (Notification.permission !== 'granted') {
+    console.warn('Notification permission not granted (current:', Notification.permission, ')');
+    return;
+  }
+
+  const options: NotificationOptions & { [key: string]: unknown } = {
+    body,
+    icon: '/icon.png',
+    badge: '/icon.png',
+    tag: 'itinerary-alert',
+    renotify: true,
+    vibrate: [100, 50, 100],
+    data: {
+      url: window.location.origin
+    }
+  };
 
   try {
-    new Notification(title, {
-      body,
-      icon: '/icon.png',
-      badge: '/icon.png',
-      tag: 'itinerary-alert'
-    });
+    triggerHaptic('medium');
+
+    // 1. Try Service Worker registration with a timeout to prevent hanging
+    if ('serviceWorker' in navigator) {
+      // Race the SW ready promise against a 2-second timeout
+      const swReady = navigator.serviceWorker.ready;
+      const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('SW Timeout')), 2000));
+      
+      try {
+        const registration = await Promise.race([swReady, timeout]) as ServiceWorkerRegistration;
+        if (registration && 'showNotification' in registration) {
+          await registration.showNotification(title, options);
+          return;
+        }
+      } catch {
+        console.warn('Service Worker not ready or timed out, falling back to Notification API');
+      }
+    }
+
+    // 2. Fallback to standard Notification API
+    new Notification(title, options);
   } catch (e) {
-    // Some mobile browsers require service worker registration for notifications
     console.error('Notification failed', e);
   }
 };
+
+// Expose to window for testing
+if (typeof window !== 'undefined') {
+  (window as unknown as { showLocalNotification: unknown }).showLocalNotification = showLocalNotification;
+}
 
 /**
  * Copies text to clipboard with legacy fallback.

@@ -174,7 +174,7 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
       window.removeEventListener('mouseup', onInteractionEnd);
       daySelector.removeEventListener('scroll', onDayScroll);
     };
-  }, [dayCount, onIndexChange]); 
+  }, [dayCount, onIndexChange, scrollRef, daySelectorRef]); 
 
   const scrollToDay = useCallback((index: number, isInstant = false) => {
     if (!scrollRef.current) return;
@@ -232,7 +232,7 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
       activeScrollerRef.current = null;
       targetMainScrollRef.current = null;
     }, isInstant ? 50 : 10000);
-  }, [onIndexChange]);
+  }, [onIndexChange]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return {
     scrollRef,

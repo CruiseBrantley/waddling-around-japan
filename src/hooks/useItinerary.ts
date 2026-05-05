@@ -83,7 +83,11 @@ export function useItinerary(timeOffset: number = 0) {
 
   // Live Time Update
   useEffect(() => {
-    const updateTime = () => setCurrentTime(getInitialTime());
+    const updateTime = () => {
+      const newTime = getInitialTime();
+      setCurrentTime(newTime);
+    };
+    updateTime(); // Call immediately on change
     const intervalId = setInterval(updateTime, 1000); // Update every second for smooth countdowns
     return () => clearInterval(intervalId);
   }, [getInitialTime]);
