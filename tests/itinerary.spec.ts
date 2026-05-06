@@ -313,4 +313,46 @@ test.describe('Itinerary App Core Features', () => {
       el.dispatchEvent(new Event('touchend', { bubbles: true }));
     });
   });
+
+  test('REGRESSION: should not allow scrolling far past the end of a short day', async ({ page, isMobile }) => {
+    // Only applies to mobile layout where window scrolling is used
+    if (!isMobile) return;
+    
+    await page.goto('/');
+    await page.waitForSelector('.swipe-slide');
+
+    // 1. Go to Day 1 (May 24, 2026)
+    await page.goto('/?date=2026-05-24T12:00:00');
+    await page.waitForTimeout(1000); 
+
+    // 2. Click a day we know is extremely short (e.g., Day 1 is usually short, just arrival)
+    // Or we can just evaluate the active slide's height and try to scroll past it.
+    
+    const activeSlideHeight = await page.evaluate(() => {
+      const activeSlide = document.querySelector('.swipe-slide.active');
+      return activeSlide ? (activeSlide as HTMLElement).offsetHeight : 0;
+    });
+
+    expect(activeSlideHeight).toBeGreaterThan(0);
+
+    // 3. Scroll way down, past the active slide's height
+    await page.evaluate(() => {
+      window.scrollTo(0, 99999);
+    });
+
+    await page.waitForTimeout(500);
+
+    // 4. Verify we are not scrolled past the active slide's bounds
+    // We'll allow some margin for the header, padding, etc.
+    const scrollY = await page.evaluate(() => window.scrollY);
+    const windowHeight = await page.evaluate(() => window.innerHeight);
+
+    // If the active slide is 500px, and window is 800px, scrollY should be 0 (can't scroll)
+    // The main app wrapper shouldn't be much taller than the active slide + header (approx 400-500px).
+    // We want to ensure we didn't scroll to 5000+ pixels.
+    const maxExpectedScroll = Math.max(0, activeSlideHeight + 600 - windowHeight); 
+    
+    // We expect the scrollY to be bounded
+    expect(scrollY).toBeLessThanOrEqual(maxExpectedScroll); 
+  });
 });

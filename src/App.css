@@ -735,6 +735,7 @@
   display: flex;
   align-items: flex-start;
   overflow-x: auto;
+  overflow-y: hidden; /* Force clipping so container height dictates document height */
   scroll-snap-type: x mandatory;
   scrollbar-width: none;
   -ms-overflow-style: none;

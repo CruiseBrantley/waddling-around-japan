@@ -33,28 +33,53 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
     const daySelector = daySelectorRef.current;
     if (!container || !daySelector || dayCount === 0) return;
 
-    const onMainScroll = () => {
+    const updateContainerHeight = () => {
       const isDesktop = window.innerWidth >= 1024;
-      
-      // PROXIMITY LOCK: If we have a target, don't sync until we are close.
-      // We check this FIRST to ensure we can release the 'programmatic' lock when we arrive.
-      if (targetMainScrollRef.current !== null) {
-        const currentPos = isDesktop ? container.scrollTop : container.scrollLeft;
-        const dist = Math.abs(currentPos - targetMainScrollRef.current);
-        if (dist <= 5) {
-          targetMainScrollRef.current = null;
-          activeScrollerRef.current = null;
-        } else {
-          // If we are still far from target and in a locked state, return
-          if (activeScrollerRef.current === 'day' || activeScrollerRef.current === 'programmatic') return;
-        }
-      } else if (activeScrollerRef.current === 'day' || activeScrollerRef.current === 'programmatic') {
-        return;
-      }
+      if (isDesktop) return; // Desktop uses internal scrolling, no height syncing needed
 
+      const slides = Array.from(container.querySelectorAll('.swipe-slide'));
+      if (slides.length === 0) return;
+
+      const scrollLeft = container.scrollLeft;
+      const width = container.clientWidth;
+      if (width === 0) return;
+
+      const progress = scrollLeft / width;
+      const index1 = Math.max(0, Math.floor(progress));
+      const index2 = Math.min(slides.length - 1, Math.ceil(progress));
+      const fraction = progress - index1;
+
+      const h1 = (slides[index1] as HTMLElement)?.offsetHeight || 0;
+      const h2 = (slides[index2] as HTMLElement)?.offsetHeight || 0;
+
+      if (h1 > 0 || h2 > 0) {
+        const currentHeight = h1 + (h2 - h1) * fraction;
+        container.style.height = `${currentHeight}px`;
+      }
+    };
+
+    const onMainScroll = () => {
       requestAnimationFrame(() => {
-        if (activeScrollerRef.current === 'day' || activeScrollerRef.current === 'programmatic') return;
+        const isDesktop = window.innerWidth >= 1024;
         
+        // PROXIMITY LOCK: If we have a target, don't sync until we are close.
+        if (targetMainScrollRef.current !== null) {
+          const currentPos = isDesktop ? container.scrollTop : container.scrollLeft;
+          const dist = Math.abs(currentPos - targetMainScrollRef.current);
+          if (dist <= 5) {
+            targetMainScrollRef.current = null;
+            activeScrollerRef.current = null;
+            updateContainerHeight(); // Force update when we arrive at the target
+          } else {
+            if (activeScrollerRef.current === 'day' || activeScrollerRef.current === 'programmatic') return;
+          }
+        } else if (activeScrollerRef.current === 'day' || activeScrollerRef.current === 'programmatic') {
+          return;
+        }
+
+        // 1. ALWAYS sync visual height during any manual scroll
+        updateContainerHeight();
+
         const slides = Array.from(container.querySelectorAll('.swipe-slide'));
         let bestIndex = 0;
         let minDistance = Infinity;
@@ -150,6 +175,11 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
         targetMainScrollRef.current = null;
       }, 200);
     };
+
+    // Initial height sync (setTimeout to ensure DOM is fully rendered/images loaded)
+    setTimeout(() => {
+      requestAnimationFrame(updateContainerHeight);
+    }, 100);
 
     container.addEventListener('scroll', onMainScroll, { passive: true });
     container.addEventListener('touchstart', () => onInteractionStart('main'), { passive: true });
