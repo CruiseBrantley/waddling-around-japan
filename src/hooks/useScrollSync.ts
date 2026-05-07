@@ -58,6 +58,27 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
       }
     };
 
+    const updateDaySelectorSync = () => {
+      const isDesktop = window.innerWidth >= 1024;
+      if (isDesktop || activeScrollerRef.current !== 'main') return;
+      if (!container || !daySelector) return;
+
+      const scrollLeft = container.scrollLeft;
+      const width = container.clientWidth;
+      if (width === 0) return;
+
+      const progress = scrollLeft / width;
+      
+      const firstBtn = daySelector.querySelector('.day-btn') as HTMLElement;
+      const secondBtn = daySelector.querySelectorAll('.day-btn')[1] as HTMLElement;
+      let actualItemWidth = ITEM_WIDTH;
+      if (firstBtn && secondBtn) {
+        actualItemWidth = secondBtn.offsetLeft - firstBtn.offsetLeft;
+      }
+
+      daySelector.scrollLeft = progress * actualItemWidth;
+    };
+
     const onMainScroll = () => {
       requestAnimationFrame(() => {
         const isDesktop = window.innerWidth >= 1024;
@@ -79,6 +100,9 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
 
         // 1. ALWAYS sync visual height during any manual scroll
         updateContainerHeight();
+        
+        // 2. Sync day selector position if we are swiping the main section
+        updateDaySelectorSync();
 
         const slides = Array.from(container.querySelectorAll('.swipe-slide'));
         let bestIndex = 0;
@@ -131,7 +155,15 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
 
         if (window.innerWidth < 1024) {
           const scrollLeft = daySelector.scrollLeft;
-          const progress = scrollLeft / ITEM_WIDTH;
+          
+          const firstBtn = daySelector.querySelector('.day-btn') as HTMLElement;
+          const secondBtn = daySelector.querySelectorAll('.day-btn')[1] as HTMLElement;
+          let actualItemWidth = ITEM_WIDTH;
+          if (firstBtn && secondBtn) {
+            actualItemWidth = secondBtn.offsetLeft - firstBtn.offsetLeft;
+          }
+
+          const progress = scrollLeft / actualItemWidth;
           const bestIndex = Math.max(0, Math.min(dayCount - 1, Math.round(progress)));
           
           if (bestIndex !== activeIndexRef.current) {
