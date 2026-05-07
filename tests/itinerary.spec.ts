@@ -355,4 +355,53 @@ test.describe('Itinerary App Core Features', () => {
     // We expect the scrollY to be bounded
     expect(scrollY).toBeLessThanOrEqual(maxExpectedScroll); 
   });
+
+  test('REGRESSION: should maintain swipe momentum and snap correctly despite height updates', async ({ page, isMobile }) => {
+    if (!isMobile) return;
+    
+    await page.goto('/');
+    await page.waitForSelector('.swipe-container-outer');
+    
+    const container = page.locator('.swipe-container-outer');
+    
+    // 1. Ensure we are at the start
+    await expect(container).toHaveJSProperty('scrollLeft', 0);
+
+    // 2. Force a height difference to ensure updateContainerHeight actually changes layout
+    await page.evaluate(() => {
+      const slides = document.querySelectorAll('.swipe-slide');
+      if (slides[0]) (slides[0] as HTMLElement).style.height = '500px';
+      if (slides[1]) (slides[1] as HTMLElement).style.height = '1500px';
+    });
+
+    // 3. Get container bounds for accurate swiping
+    const box = await container.boundingBox();
+    if (!box) throw new Error('Container not found');
+    const centerY = box.y + 100; // Swipe near the top of the container
+
+    // 3. Perform a deliberate swipe from right to left (Day 1 -> Day 2)
+    await page.mouse.move(box.x + box.width * 0.8, centerY);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width * 0.2, centerY, { steps: 10 });
+    await page.mouse.up();
+
+    // 4. Wait for the snap/momentum to settle
+    // We give it plenty of time for the 200ms timeout + animation
+    await page.waitForTimeout(1500);
+
+    // 5. Verify we reached Day 2 (or Day 3 if the flick was very fast)
+    const scrollLeft = await container.evaluate(el => el.scrollLeft);
+    const viewportWidth = await page.evaluate(() => window.innerWidth);
+    
+    // It should be snapped to a multiple of viewportWidth
+    const snapDistance = scrollLeft % viewportWidth;
+    const snappedToSomething = snapDistance < 20 || snapDistance > viewportWidth - 20;
+    
+    if (!snappedToSomething || scrollLeft === 0) {
+      console.log(`Flick failed to snap correctly or didn't move. Position: ${scrollLeft}, Viewport: ${viewportWidth}`);
+    }
+    
+    expect(scrollLeft).toBeGreaterThan(0);
+    expect(snappedToSomething).toBe(true);
+  });
 });
