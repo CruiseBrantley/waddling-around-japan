@@ -20,6 +20,7 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
   const activeScrollerRef = useRef<'main' | 'day' | 'programmatic' | null>(null);
   const scrollEndTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const targetMainScrollRef = useRef<number | null>(null);
+  const isDraggingRef = useRef(false);
 
   const ITEM_WIDTH = 76; // 64px width + 12px gap
 
@@ -98,8 +99,10 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
           return;
         }
 
-        // 1. ALWAYS sync visual height during any manual scroll
-        updateContainerHeight();
+        // 1. Sync visual height ONLY while dragging to prevent killing momentum/glide on iOS
+        if (isDraggingRef.current) {
+          updateContainerHeight();
+        }
         
         // 2. Sync day selector position if we are swiping the main section
         updateDaySelectorSync();
@@ -188,6 +191,7 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
       if (scrollEndTimeoutRef.current) clearTimeout(scrollEndTimeoutRef.current);
       activeScrollerRef.current = type;
       targetMainScrollRef.current = null;
+      isDraggingRef.current = true;
       
       // Prevent snapping from fighting the sync during active drag
       if (type === 'day' && container) container.style.scrollSnapType = 'none';
@@ -195,6 +199,7 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
     };
 
     const onInteractionEnd = () => {
+      isDraggingRef.current = false;
       if (activeScrollerRef.current === 'programmatic') return;
       
       // Restore snapping
@@ -205,6 +210,8 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
       scrollEndTimeoutRef.current = setTimeout(() => {
         activeScrollerRef.current = null;
         targetMainScrollRef.current = null;
+        // Final height sync once everything has settled
+        requestAnimationFrame(updateContainerHeight);
       }, 200);
     };
 
