@@ -404,4 +404,126 @@ test.describe('Itinerary App Core Features', () => {
     expect(scrollLeft).toBeGreaterThan(0);
     expect(snappedToSomething).toBe(true);
   });
+
+  test('REGRESSION: window should not be stranded below content after swiping to a short day', async ({ page, isMobile }) => {
+    if (!isMobile) return;
+    
+    // Load on a day with lots of activities (Day 3 = May 26)
+    await page.goto('/?date=2026-05-26T10:00:00');
+    await page.waitForSelector('.swipe-slide');
+    await page.waitForTimeout(500);
+
+    // 1. Scroll down vertically so we're deep in the page
+    await page.evaluate(() => window.scrollTo(0, 800));
+    await page.waitForTimeout(200);
+
+    const scrollYBefore = await page.evaluate(() => window.scrollY);
+    expect(scrollYBefore).toBeGreaterThan(100);
+
+    // 2. Simulate what a completed swipe does: the container's scrollLeft
+    //    snaps to a different day. We do this by directly scrolling the container
+    //    to Day 1 (index 0), which is a short day.
+    //    This bypasses handleDayClick's vertical alignment (which is the point — 
+    //    real swipes don't trigger handleDayClick).
+    await page.evaluate(() => {
+      const container = document.querySelector('.swipe-container-outer') as HTMLElement;
+      if (!container) return;
+      // Scroll to index 0 (Day 1)
+      container.scrollTo({ left: 0, behavior: 'auto' });
+    });
+
+    // Wait for scroll event listeners + height update + vertical correction to settle
+    await page.waitForTimeout(2000);
+
+    // 3. Verify the container height matches the active slide AND we're not stranded
+    const result = await page.evaluate(() => {
+      const container = document.querySelector('.swipe-container-outer') as HTMLElement;
+      const activeSlide = container?.querySelector('.swipe-slide[data-index="0"]') as HTMLElement;
+      const docHeight = document.documentElement.scrollHeight;
+      const viewportBottom = window.scrollY + window.innerHeight;
+
+      return {
+        scrollY: window.scrollY,
+        windowHeight: window.innerHeight,
+        containerHeight: container?.offsetHeight || 0,
+        activeSlideHeight: activeSlide?.offsetHeight || 0,
+        documentHeight: docHeight,
+        viewportBottom,
+        overshoot: Math.max(0, viewportBottom - docHeight),
+        scrollLeft: container?.scrollLeft || 0,
+      };
+    });
+
+    console.log('Short day swipe result:', JSON.stringify(result));
+
+    // Container height should match the active slide
+    const heightDiff = Math.abs(result.containerHeight - result.activeSlideHeight);
+    expect(heightDiff).toBeLessThan(50);
+
+    // The viewport should not extend far past the document bottom
+    expect(result.overshoot).toBeLessThan(100);
+  });
+
+  test('should trigger tick audio via Web Audio API after a user gesture', async ({ page, browserName }) => {
+    // Inject spy BEFORE app loads so it captures the AudioContext the module will use
+     
+    await page.addInitScript(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (window as any).__tickCalls = [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (window as any).__audioDebug = {
+        hasAudioContext: typeof AudioContext !== 'undefined',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        hasWebkitAudioContext: typeof (window as any).webkitAudioContext !== 'undefined',
+      };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const AudioCtx = (typeof AudioContext !== 'undefined') ? AudioContext : (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const origCreate = AudioCtx.prototype.createOscillator;
+       
+      AudioCtx.prototype.createOscillator = function (...args: unknown[]) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (window as any).__tickCalls.push({
+          time: Date.now(),
+          state: this.state
+        });
+        return origCreate.apply(this, args as []);
+      };
+    });
+
+    await page.goto('/?date=2026-05-26T10:00:00');
+    await page.waitForSelector('.day-btn');
+
+    // Check if the environment supports AudioContext at all
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const audioDebug = await page.evaluate(() => (window as any).__audioDebug);
+    console.log(`Audio debug (${browserName}):`, JSON.stringify(audioDebug));
+
+    if (!audioDebug.hasAudioContext && !audioDebug.hasWebkitAudioContext) {
+      test.skip(true, `AudioContext not available in ${browserName} test environment`);
+      return;
+    }
+
+    // Click a day button — this IS a user gesture, so AudioContext should be running
+    const day5 = page.locator('.day-btn').nth(4);
+    await day5.click();
+    await page.waitForTimeout(300);
+
+    // Click another day to trigger a second tick
+    const day3 = page.locator('.day-btn').nth(2);
+    await day3.click();
+    await page.waitForTimeout(300);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const tickCalls = await page.evaluate(() => (window as any).__tickCalls);
+    console.log('Tick calls:', JSON.stringify(tickCalls));
+
+    // Should have at least 2 oscillator creations (one per day change)
+    expect(tickCalls.length).toBeGreaterThanOrEqual(2);
+
+    // Every call should have been in 'running' state (not 'suspended')
+    for (const call of tickCalls) {
+      expect(call.state).toBe('running');
+    }
+  });
 });

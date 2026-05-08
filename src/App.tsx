@@ -17,7 +17,7 @@ import { useScrollSync } from './hooks/useScrollSync'
 
 // Utils
 import { timeToMinutes } from './utils/time'
-import { setAppBadge, clearAppBadge, requestNotificationPermission, triggerHaptic, showLocalNotification } from './utils/native'
+import { setAppBadge, clearAppBadge, requestNotificationPermission, triggerHaptic, triggerTick, showLocalNotification } from './utils/native'
 import heroImg from './assets/hero_optimized.jpg'
 
 function App() {
@@ -86,28 +86,7 @@ function App() {
 
   // 5. Scroll Hook
   const handleIndexChange = useCallback((index: number, type: 'manual' | 'programmatic' | 'daySelector' | 'void') => {
-    // 1. Smart Bottom Snapping (Only for manual swipes)
-    if (type === 'manual' && scrollRef.current && window.scrollY >= 200) {
-      const handleSettle = () => {
-        requestAnimationFrame(() => {
-          const isDesktop = window.innerWidth >= 800;
-          if (isDesktop) return;
 
-          const activeSlide = document.querySelector(`.swipe-slide[data-index="${index}"]`) as HTMLElement;
-          if (!activeSlide) return;
-
-          const rect = activeSlide.getBoundingClientRect();
-          const contentBottom = rect.top + window.scrollY + activeSlide.offsetHeight;
-          const viewportBottom = window.scrollY + window.innerHeight;
-
-          if (viewportBottom > contentBottom + 20) {
-            const targetY = Math.max(0, contentBottom - window.innerHeight + 40);
-            window.scrollTo({ top: targetY, behavior: 'smooth' });
-          }
-        });
-      };
-      scrollRef.current.addEventListener('scrollend', handleSettle, { once: true });
-    }
 
     // 2. Day Selector Sync
     // IMPORTANT: Only scroll the daySelector if the index change came from the main carousel or a button.
@@ -124,7 +103,7 @@ function App() {
     if (type !== 'void' && !hasScrolledRef.current) {
       hasScrolledRef.current = true;
     }
-  }, [scrollRef, daySelectorRef]);
+  }, [daySelectorRef]);
 
   const { 
     activeIndex, 
@@ -387,6 +366,7 @@ function App() {
     // Only pulse if we've already initialized (prevents haptic on first load)
     if (hasScrolledRef.current) {
       triggerHaptic('light');
+      triggerTick();
     }
   }, [activeIndex]);
 

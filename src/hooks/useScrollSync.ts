@@ -126,6 +126,9 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
           activeIndexRef.current = bestIndex;
           setActiveIndex(bestIndex);
           onIndexChange?.(bestIndex, type);
+
+          // Sync container height to new active slide (prevents stranding on short days)
+          updateContainerHeight();
         }
       });
     };
@@ -178,13 +181,37 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
       isDraggingRef.current = false;
       if (activeScrollerRef.current === 'programmatic') return;
       
-      if (scrollEndTimeoutRef.current) clearTimeout(scrollEndTimeoutRef.current);
-      scrollEndTimeoutRef.current = setTimeout(() => {
+      // Final sync after CSS snap completes: update height + fix vertical scroll
+      const settleAfterSnap = () => {
         activeScrollerRef.current = null;
         targetMainScrollRef.current = null;
-        // Final height sync once everything has settled
-        requestAnimationFrame(updateContainerHeight);
-      }, 200);
+        requestAnimationFrame(() => {
+          updateContainerHeight();
+
+          // After height shrinks, correct window.scrollY if user is stranded below content
+          const isDesktop = window.innerWidth >= 800;
+          if (!isDesktop) {
+            const docHeight = document.documentElement.scrollHeight;
+            const viewportBottom = window.scrollY + window.innerHeight;
+            if (viewportBottom > docHeight + 20) {
+              const targetY = Math.max(0, docHeight - window.innerHeight);
+              window.scrollTo({ top: targetY, behavior: 'smooth' });
+            }
+          }
+        });
+      };
+
+      if (scrollEndTimeoutRef.current) clearTimeout(scrollEndTimeoutRef.current);
+      
+      // Use scrollend (fires when CSS snap completes) if available
+      if ('onscrollend' in container) {
+        container.addEventListener('scrollend', settleAfterSnap, { once: true });
+        // Safety fallback in case scrollend doesn't fire
+        scrollEndTimeoutRef.current = setTimeout(settleAfterSnap, 800);
+      } else {
+        // Fallback: wait long enough for CSS snap to complete
+        scrollEndTimeoutRef.current = setTimeout(settleAfterSnap, 600);
+      }
     };
 
     // Initial height sync (setTimeout to ensure DOM is fully rendered/images loaded)

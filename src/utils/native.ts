@@ -21,6 +21,66 @@ export const triggerHaptic = (type: 'light' | 'medium' | 'heavy' = 'light') => {
 };
 
 /**
+ * Shared AudioContext for tick sounds.
+ * Browsers require AudioContext to be created/resumed after a user gesture
+ * (tap/click). Swipes alone don't qualify, so we initialize on the first
+ * interaction and reuse the same context for all subsequent ticks.
+ */
+let _tickCtx: AudioContext | null = null;
+
+const getTickContext = (): AudioContext | null => {
+  if (_tickCtx && _tickCtx.state !== 'closed') return _tickCtx;
+  try {
+    const Ctor = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    if (!Ctor) return null;
+    _tickCtx = new Ctor();
+    return _tickCtx;
+  } catch { return null; }
+};
+
+// Prime the AudioContext on the very first user gesture so swipes work later.
+const primeAudio = () => {
+  const ctx = getTickContext();
+  if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {});
+  document.removeEventListener('touchstart', primeAudio, true);
+  document.removeEventListener('mousedown', primeAudio, true);
+};
+document.addEventListener('touchstart', primeAudio, { capture: true, once: true });
+document.addEventListener('mousedown', primeAudio, { capture: true, once: true });
+
+/**
+ * Plays a subtle "tick" sound for tactile feedback.
+ * Uses Web Audio API to generate the sound programmatically.
+ */
+export const triggerTick = () => {
+  try {
+    const ctx = getTickContext();
+    if (!ctx) return;
+
+    // If still suspended (no gesture yet), silently skip
+    if (ctx.state === 'suspended') return;
+
+    const oscillator = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+
+    // Sharp percussive click — like a wheel peg snapping
+    oscillator.type = 'triangle';
+    oscillator.frequency.setValueAtTime(800, ctx.currentTime);
+
+    gainNode.gain.setValueAtTime(0.08, ctx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.004);
+
+    oscillator.connect(gainNode);
+    gainNode.connect(ctx.destination);
+
+    oscillator.start();
+    oscillator.stop(ctx.currentTime + 0.005);
+  } catch {
+    // Fail silently
+  }
+};
+
+/**
  * Requests notification permission.
  */
 export const requestNotificationPermission = async () => {
