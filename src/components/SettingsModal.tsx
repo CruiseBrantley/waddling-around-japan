@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { triggerHaptic, triggerTick, requestNotificationPermission } from '../utils/native';
-import { AppSettings, saveSettings, supportsNotifications } from '../utils/settings';
+import { saveSettings, supportsNotifications } from '../utils/settings';
+import type { AppSettings } from '../utils/settings';
 import './SettingsModal.css';
 
 const TIMING_OPTIONS = [
