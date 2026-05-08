@@ -1,5 +1,6 @@
 export interface AppSettings {
   soundEnabled: boolean;
+  hapticsEnabled: boolean;
   notificationsEnabled: boolean;
   /** Minutes before event to send the first notification */
   notifyMinutesBefore: number;
@@ -9,6 +10,7 @@ export interface AppSettings {
 
 export const SETTINGS_DEFAULTS: AppSettings = {
   soundEnabled: true,
+  hapticsEnabled: true,
   notificationsEnabled: false,
   notifyMinutesBefore: 10,
   notifyUrgentMinutesBefore: 1,

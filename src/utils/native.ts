@@ -8,13 +8,17 @@
  * Note: navigator.vibrate is supported on Android/Chrome.
  * iOS does not support navigator.vibrate, but this remains for cross-platform.
  */
-export const triggerHaptic = (type: 'light' | 'medium' | 'heavy' = 'light') => {
-  if (!navigator.vibrate) return;
+let _hapticsEnabled = true;
+export const setHapticsEnabled = (enabled: boolean) => { _hapticsEnabled = enabled; };
 
+export const triggerHaptic = (type: 'light' | 'medium' | 'heavy' = 'light') => {
+  if (!navigator.vibrate || !_hapticsEnabled) return;
+
+  // Modern Android motors (like OnePlus 13) can be subtle; increased duration for better feedback
   const patterns = {
-    light: [10],
-    medium: [20],
-    heavy: [50]
+    light: [25],         // Sharp, noticeable tap
+    medium: [60],        // Clear confirmation
+    heavy: [100, 30, 100] // Powerful dual-pulse for alerts
   };
 
   navigator.vibrate(patterns[type]);

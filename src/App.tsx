@@ -20,7 +20,7 @@ import { useScrollSync } from './hooks/useScrollSync'
 
 // Utils
 import { timeToMinutes } from './utils/time'
-import { setAppBadge, clearAppBadge, triggerHaptic, triggerTick, showLocalNotification } from './utils/native'
+import { setAppBadge, clearAppBadge, triggerHaptic, triggerTick, showLocalNotification, setHapticsEnabled } from './utils/native'
 import heroImg from './assets/hero_optimized.jpg'
 
 function App() {
@@ -268,6 +268,11 @@ function App() {
   }, [scrollToDay, scrollRef, activeIndex]);
 
   // --- Effects ---
+
+  // Sync global haptic setting
+  useEffect(() => {
+    setHapticsEnabled(settings.hapticsEnabled);
+  }, [settings.hapticsEnabled]);
 
   // Search Reset
   useEffect(() => {

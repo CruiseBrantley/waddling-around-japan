@@ -72,7 +72,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     const next = { ...settings, ...partial };
     onSettingsChange(next);
     saveSettings(next);
-    triggerHaptic('light');
+    if (next.hapticsEnabled) {
+      triggerHaptic('light');
+    }
   };
 
   const handleNotificationToggle = async () => {
@@ -84,7 +86,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
     // Turning on — request permission if needed
     if (Notification.permission !== 'granted') {
-      triggerHaptic('medium');
+      if (settings.hapticsEnabled) triggerHaptic('medium');
       const result = await requestNotificationPermission();
       setPermissionState(result === 'granted' ? 'granted' : result === 'denied' ? 'denied' : 'default');
       if (result === 'granted') {
@@ -102,6 +104,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     const newVal = !settings.soundEnabled;
     update({ soundEnabled: newVal });
     if (newVal) triggerTick(); // Play a tick so they hear what it sounds like
+  };
+
+  const handleHapticsToggle = () => {
+    const newVal = !settings.hapticsEnabled;
+    update({ hapticsEnabled: newVal });
+    if (newVal) triggerHaptic('heavy'); // Demonstrate the strength
   };
 
   const showNotifications = supportsNotifications();
@@ -128,6 +136,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               className={`settings-toggle ${settings.soundEnabled ? 'active' : ''}`}
               onClick={handleSoundToggle}
               aria-label="Toggle sound"
+            >
+              <span className="settings-toggle-knob" />
+            </button>
+          </div>
+
+          {/* Haptics Toggle */}
+          <div className="settings-row">
+            <div className="settings-row-info">
+              <span className="settings-icon">📳</span>
+              <div>
+                <div className="settings-label">Haptic Vibration</div>
+                <div className="settings-hint">Tactile feedback on interactions and day changes</div>
+              </div>
+            </div>
+            <button 
+              className={`settings-toggle ${settings.hapticsEnabled ? 'active' : ''}`}
+              onClick={handleHapticsToggle}
+              aria-label="Toggle haptics"
             >
               <span className="settings-toggle-knob" />
             </button>
