@@ -215,22 +215,28 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       <span className="settings-timing-label">Heads up alert</span>
                       <div className="settings-timing-feedback">
                         {hasHaptics && (
-                          <button 
-                            className={`settings-toggle mini ${settings.notifyHeadsUpVibrate ? 'active' : ''}`}
-                            onClick={() => update({ notifyHeadsUpVibrate: !settings.notifyHeadsUpVibrate })}
-                            title="Vibrate"
-                          />
+                          <div className="settings-feedback-item-mini">
+                            <span className="mini-icon">📳</span>
+                            <button 
+                              className={`settings-toggle mini vibrate ${settings.notifyHeadsUpVibrate ? 'active' : ''}`}
+                              onClick={() => update({ notifyHeadsUpVibrate: !settings.notifyHeadsUpVibrate })}
+                              title="Vibrate"
+                            />
+                          </div>
                         )}
                         {hasSound && (
-                          <button 
-                            className={`settings-toggle mini ${settings.notifyHeadsUpChime ? 'active' : ''}`}
-                            onClick={() => {
-                              const newVal = !settings.notifyHeadsUpChime;
-                              update({ notifyHeadsUpChime: newVal });
-                              if (newVal) triggerAlertSound('info');
-                            }}
-                            title="Chime"
-                          />
+                          <div className="settings-feedback-item-mini">
+                            <span className="mini-icon">🔊</span>
+                            <button 
+                              className={`settings-toggle mini chime ${settings.notifyHeadsUpChime ? 'active' : ''}`}
+                              onClick={() => {
+                                const newVal = !settings.notifyHeadsUpChime;
+                                update({ notifyHeadsUpChime: newVal });
+                                if (newVal) triggerAlertSound('info');
+                              }}
+                              title="Chime"
+                            />
+                          </div>
                         )}
                       </div>
                     </div>
@@ -258,22 +264,28 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       <span className="settings-timing-label">Urgent alert</span>
                       <div className="settings-timing-feedback">
                         {hasHaptics && (
-                          <button 
-                            className={`settings-toggle mini ${settings.notifyUrgentVibrate ? 'active' : ''}`}
-                            onClick={() => update({ notifyUrgentVibrate: !settings.notifyUrgentVibrate })}
-                            title="Vibrate"
-                          />
+                          <div className="settings-feedback-item-mini">
+                            <span className="mini-icon">📳</span>
+                            <button 
+                              className={`settings-toggle mini vibrate ${settings.notifyUrgentVibrate ? 'active' : ''}`}
+                              onClick={() => update({ notifyUrgentVibrate: !settings.notifyUrgentVibrate })}
+                              title="Vibrate"
+                            />
+                          </div>
                         )}
                         {hasSound && (
-                          <button 
-                            className={`settings-toggle mini ${settings.notifyUrgentChime ? 'active' : ''}`}
-                            onClick={() => {
-                              const newVal = !settings.notifyUrgentChime;
-                              update({ notifyUrgentChime: newVal });
-                              if (newVal) triggerAlertSound('urgent');
-                            }}
-                            title="Chime"
-                          />
+                          <div className="settings-feedback-item-mini">
+                            <span className="mini-icon">🔊</span>
+                            <button 
+                              className={`settings-toggle mini chime ${settings.notifyUrgentChime ? 'active' : ''}`}
+                              onClick={() => {
+                                const newVal = !settings.notifyUrgentChime;
+                                update({ notifyUrgentChime: newVal });
+                                if (newVal) triggerAlertSound('urgent');
+                              }}
+                              title="Chime"
+                            />
+                          </div>
                         )}
                       </div>
                     </div>

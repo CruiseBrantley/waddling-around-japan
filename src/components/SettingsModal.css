@@ -101,6 +101,14 @@
   background: var(--primary, #b78deb);
 }
 
+.settings-toggle.vibrate.active {
+  background: #ff9f0a; /* iOS Orange for tactile */
+}
+
+.settings-toggle.chime.active {
+  background: #32d7ff; /* iOS Cyan for audio */
+}
+
 .settings-toggle.disabled {
   opacity: 0.35;
   cursor: not-allowed;
@@ -153,6 +161,17 @@
 .settings-timing-feedback {
   display: flex;
   gap: 12px;
+}
+
+.settings-feedback-item-mini {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mini-icon {
+  font-size: 14px;
+  opacity: 0.8;
 }
 
 .settings-timing-label {
