@@ -51,11 +51,16 @@ const getTickContext = (): AudioContext | null => {
 const primeAudio = () => {
   const ctx = getTickContext();
   if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {});
-  document.removeEventListener('touchstart', primeAudio, true);
-  document.removeEventListener('mousedown', primeAudio, true);
+  
+  // Clean up all listeners
+  ['touchstart', 'mousedown', 'click', 'touchend'].forEach(type => {
+    document.removeEventListener(type, primeAudio, true);
+  });
 };
-document.addEventListener('touchstart', primeAudio, { capture: true, once: true });
-document.addEventListener('mousedown', primeAudio, { capture: true, once: true });
+
+['touchstart', 'mousedown', 'click', 'touchend'].forEach(type => {
+  document.addEventListener(type, primeAudio, { capture: true, once: true });
+});
 
 /**
  * Plays a subtle "tick" sound for tactile feedback.
@@ -66,8 +71,11 @@ export const triggerTick = () => {
     const ctx = getTickContext();
     if (!ctx) return;
 
-    // If still suspended (no gesture yet), silently skip
-    if (ctx.state === 'suspended') return;
+    // Try to resume if suspended (common on iOS/mobile)
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+      if (ctx.state === 'suspended') return;
+    }
 
     const oscillator = ctx.createOscillator();
     const gainNode = ctx.createGain();
@@ -76,14 +84,15 @@ export const triggerTick = () => {
     oscillator.type = 'triangle';
     oscillator.frequency.setValueAtTime(800, ctx.currentTime);
 
-    gainNode.gain.setValueAtTime(0.08, ctx.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.004);
+    // Slightly increased gain for mobile speakers
+    gainNode.gain.setValueAtTime(0.15, ctx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.005);
 
     oscillator.connect(gainNode);
     gainNode.connect(ctx.destination);
 
     oscillator.start();
-    oscillator.stop(ctx.currentTime + 0.005);
+    oscillator.stop(ctx.currentTime + 0.006);
   } catch {
     // Fail silently
   }
@@ -95,7 +104,15 @@ export const triggerTick = () => {
 export const triggerAlertSound = (type: 'info' | 'urgent' = 'info') => {
   try {
     const ctx = getTickContext();
-    if (!ctx || ctx.state === 'suspended' || !_soundOnAlerts) return;
+    if (!ctx || !_soundOnAlerts) return;
+
+    // On iOS/mobile, the context might be suspended if backgrounded.
+    // We try to resume it, though it may only work if we are still active.
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+      // If still suspended, we likely can't play sound right now
+      if (ctx.state === 'suspended') return;
+    }
 
     const playTone = (freq: number, start: number, duration: number, gainVal = 0.12) => {
       const osc = ctx.createOscillator();
