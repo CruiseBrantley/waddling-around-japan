@@ -140,7 +140,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
             </div>
             <button 
-              className={`settings-toggle ${settings.soundEnabled ? 'active' : ''} ${!hasSound ? 'disabled' : ''}`}
+              className={`settings-toggle ${(settings.soundEnabled && hasSound) ? 'active' : ''} ${!hasSound ? 'disabled' : ''}`}
               onClick={hasSound ? handleSoundToggle : undefined}
               disabled={!hasSound}
               aria-label="Toggle sound"
@@ -163,7 +163,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
             </div>
             <button 
-              className={`settings-toggle ${settings.hapticsEnabled ? 'active' : ''} ${!hasHaptics ? 'disabled' : ''}`}
+              className={`settings-toggle ${(settings.hapticsEnabled && hasHaptics) ? 'active' : ''} ${!hasHaptics ? 'disabled' : ''}`}
               onClick={hasHaptics ? handleHapticsToggle : undefined}
               disabled={!hasHaptics}
               aria-label="Toggle haptics"
@@ -250,7 +250,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <div className="settings-feedback-item">
                       <span className="settings-timing-label">Vibrate</span>
                       <button 
-                        className={`settings-toggle mini ${settings.vibrateOnAlerts ? 'active' : ''} ${!hasHaptics ? 'disabled' : ''}`}
+                        className={`settings-toggle mini ${(settings.vibrateOnAlerts && hasHaptics) ? 'active' : ''} ${!hasHaptics ? 'disabled' : ''}`}
                         onClick={hasHaptics ? () => update({ vibrateOnAlerts: !settings.vibrateOnAlerts }) : undefined}
                         disabled={!hasHaptics}
                       />
@@ -258,7 +258,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <div className="settings-feedback-item">
                       <span className="settings-timing-label">Chime</span>
                       <button 
-                        className={`settings-toggle mini ${settings.soundOnAlerts ? 'active' : ''} ${!hasSound ? 'disabled' : ''}`}
+                        className={`settings-toggle mini ${(settings.soundOnAlerts && hasSound) ? 'active' : ''} ${!hasSound ? 'disabled' : ''}`}
                         onClick={hasSound ? () => update({ soundOnAlerts: !settings.soundOnAlerts }) : undefined}
                         disabled={!hasSound}
                       />
