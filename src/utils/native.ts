@@ -80,19 +80,19 @@ export const triggerTick = () => {
     const oscillator = ctx.createOscillator();
     const gainNode = ctx.createGain();
 
-    // Sharp percussive click — like a wheel peg snapping
-    oscillator.type = 'triangle';
-    oscillator.frequency.setValueAtTime(800, ctx.currentTime);
+    // Smoother sine wave for a "blunter" tactile feel
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(400, ctx.currentTime);
 
-    // Slightly increased gain for mobile speakers
-    gainNode.gain.setValueAtTime(0.15, ctx.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.005);
+    // Subtler gain envelope
+    gainNode.gain.setValueAtTime(0.12, ctx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.008);
 
     oscillator.connect(gainNode);
     gainNode.connect(ctx.destination);
 
     oscillator.start();
-    oscillator.stop(ctx.currentTime + 0.006);
+    oscillator.stop(ctx.currentTime + 0.01);
   } catch {
     // Fail silently
   }
