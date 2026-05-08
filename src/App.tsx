@@ -5,6 +5,9 @@ import './App.css'
 // Modular Components
 import { Hero } from './components/Hero'
 import { ShareModal } from './components/ShareModal';
+import { SettingsModal } from './components/SettingsModal';
+import { loadSettings } from './utils/settings';
+import type { AppSettings } from './utils/settings';
 import { SearchBar } from './components/SearchBar'
 import { DaySelector } from './components/DaySelector'
 import { ActivityList } from './components/ActivityList'
@@ -17,7 +20,7 @@ import { useScrollSync } from './hooks/useScrollSync'
 
 // Utils
 import { timeToMinutes } from './utils/time'
-import { setAppBadge, clearAppBadge, requestNotificationPermission, triggerHaptic, triggerTick, showLocalNotification } from './utils/native'
+import { setAppBadge, clearAppBadge, triggerHaptic, triggerTick, showLocalNotification } from './utils/native'
 import heroImg from './assets/hero_optimized.jpg'
 
 function App() {
@@ -52,9 +55,9 @@ function App() {
   const { needRefresh: [needRefresh], updateServiceWorker } = useRegisterSW();
   const [isLiveCardInView, setIsLiveCardInView] = useState(true);
   const [isShareOpen, setIsShareOpen] = useState(false);
-  const [alertsDismissed, setAlertsDismissed] = useState(() => 
-    localStorage.getItem('alerts_dismissed') === 'true'
-  );
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [settings, setSettings] = useState<AppSettings>(loadSettings);
+
   const activeCardRef = useRef<HTMLDivElement | null>(null);
   const hasScrolledRef = useRef(false);
   const prevSearchTerm = useRef(searchTerm);
@@ -366,9 +369,11 @@ function App() {
     // Only pulse if we've already initialized (prevents haptic on first load)
     if (hasScrolledRef.current) {
       triggerHaptic('light');
-      triggerTick();
+      if (settings.soundEnabled) {
+        triggerTick();
+      }
     }
-  }, [activeIndex]);
+  }, [activeIndex, settings.soundEnabled]);
 
   // --- Render ---
 
@@ -395,13 +400,13 @@ function App() {
 
   // Automatic Notifications for upcoming activities
   useEffect(() => {
-    if (!activeEvents.next) return;
+    if (!activeEvents.next || !settings.notificationsEnabled) return;
 
     const { title, minutes } = activeEvents.next;
     
-    // Notify 10 minutes before
-    if (minutes > 0 && minutes <= 10) {
-      const eventId = `notify-10m-${title}`;
+    // Notify at user-defined heads-up threshold
+    if (minutes > 0 && minutes <= settings.notifyMinutesBefore) {
+      const eventId = `notify-heads-up-${title}`;
       if (!notifiedEventsRef.current.has(eventId)) {
         void showLocalNotification(
           `Upcoming: ${title}`,
@@ -411,9 +416,9 @@ function App() {
       }
     }
 
-    // Notify 1 minute before (High priority)
-    if (minutes > 0 && minutes <= 1) {
-      const eventId = `notify-1m-${title}`;
+    // Notify at user-defined urgent threshold
+    if (minutes > 0 && minutes <= settings.notifyUrgentMinutesBefore) {
+      const eventId = `notify-urgent-${title}`;
       if (!notifiedEventsRef.current.has(eventId)) {
         void showLocalNotification(
           `Starting Now: ${title}`,
@@ -422,7 +427,7 @@ function App() {
         notifiedEventsRef.current.add(eventId);
       }
     }
-  }, [activeEvents.next]);
+  }, [activeEvents.next, settings.notificationsEnabled, settings.notifyMinutesBefore, settings.notifyUrgentMinutesBefore]);
 
   useEffect(() => {
     // Show remaining activities today as a badge
@@ -442,30 +447,7 @@ function App() {
     }
   }, [filteredDays, currentTime, isSameDay]);
 
-  const handleEnableNotifications = async () => {
-    triggerHaptic('medium');
-    const result = await requestNotificationPermission();
-    
-    if (result === 'granted') {
-      alert('Notifications enabled! We will alert you before your next activity.');
-    } else if (result === 'denied') {
-      alert('Notifications are blocked. Please enable them in your browser settings to receive alerts.');
-    } else if (result === 'unsupported') {
-      alert('Notifications are not supported on this browser or connection. (Note: Most browsers require a secure HTTPS connection for alerts).');
-    }
-  };
 
-  const handleDismissAlerts = () => {
-    triggerHaptic('light');
-    setAlertsDismissed(true);
-    localStorage.setItem('alerts_dismissed', 'true');
-  };
-
-  const handleRestoreAlerts = () => {
-    triggerHaptic('light');
-    setAlertsDismissed(false);
-    localStorage.removeItem('alerts_dismissed');
-  };
 
   if (loading) {
     return (
@@ -515,29 +497,14 @@ function App() {
                   </svg>
                   Share
                 </button>
-                {alertsDismissed && (!('Notification' in window) || Notification.permission !== 'granted') && (
-                  <button className="settings-toggle-btn" onClick={handleRestoreAlerts} title="Show Alert Settings">
-                    ⚙️
-                  </button>
-                )}
+                <button className="settings-toggle-btn" onClick={() => setIsSettingsOpen(true)} title="Settings">
+                  ⚙️
+                </button>
               </div>
             </div>
           </div>
 
-          {!alertsDismissed && (!('Notification' in window) || Notification.permission !== 'granted') && (
-            <div className="settings-card glass">
-              <button className="dismiss-card" onClick={handleDismissAlerts}>×</button>
-              <div className="settings-card-content">
-                <p>Stay updated with arrival alerts on your lock screen.</p>
-                <button 
-                  className={`notify-btn ${!('Notification' in window) ? 'unsupported' : ''}`} 
-                  onClick={handleEnableNotifications}
-                >
-                  {!('Notification' in window) ? '⚠️ Alerts Unavailable' : '🔔 Enable Alerts'}
-                </button>
-              </div>
-            </div>
-          )}
+
 
           <DaySelector ref={daySelectorRef} days={filteredDays} searchTerm={searchTerm} activeIndex={activeIndex} onDayClick={handleDayClick} />
         </aside>
@@ -591,6 +558,13 @@ function App() {
         isOpen={isShareOpen} 
         onClose={() => setIsShareOpen(false)} 
         url={window.location.href} 
+      />
+
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        settings={settings}
+        onSettingsChange={setSettings}
       />
     </div>
   );
