@@ -59,26 +59,7 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
       }
     };
 
-    const updateDaySelectorSync = () => {
-      const isDesktop = window.innerWidth >= 800;
-      if (isDesktop || activeScrollerRef.current !== 'main') return;
-      if (!container || !daySelector) return;
 
-      const scrollLeft = container.scrollLeft;
-      const width = container.clientWidth;
-      if (width === 0) return;
-
-      const progress = scrollLeft / width;
-      
-      const firstBtn = daySelector.querySelector('.day-btn') as HTMLElement;
-      const secondBtn = daySelector.querySelectorAll('.day-btn')[1] as HTMLElement;
-      let actualItemWidth = ITEM_WIDTH;
-      if (firstBtn && secondBtn) {
-        actualItemWidth = secondBtn.offsetLeft - firstBtn.offsetLeft;
-      }
-
-      daySelector.scrollLeft = progress * actualItemWidth;
-    };
 
     const onMainScroll = () => {
       requestAnimationFrame(() => {
@@ -104,8 +85,7 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
           updateContainerHeight();
         }
         
-        // 2. Sync day selector position if we are swiping the main section
-        updateDaySelectorSync();
+
 
         const slides = Array.from(container.querySelectorAll('.swipe-slide'));
         let bestIndex = 0;
@@ -192,20 +172,12 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
       activeScrollerRef.current = type;
       targetMainScrollRef.current = null;
       isDraggingRef.current = true;
-      
-      // Prevent snapping from fighting the sync during active drag
-      if (type === 'day' && container) container.style.scrollSnapType = 'none';
-      if (type === 'main' && daySelector) daySelector.style.scrollSnapType = 'none';
     };
 
     const onInteractionEnd = () => {
       isDraggingRef.current = false;
       if (activeScrollerRef.current === 'programmatic') return;
       
-      // Restore snapping
-      if (container) container.style.scrollSnapType = '';
-      if (daySelector) daySelector.style.scrollSnapType = '';
-
       if (scrollEndTimeoutRef.current) clearTimeout(scrollEndTimeoutRef.current);
       scrollEndTimeoutRef.current = setTimeout(() => {
         activeScrollerRef.current = null;

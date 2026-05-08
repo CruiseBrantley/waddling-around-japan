@@ -4,6 +4,7 @@ import './App.css'
 
 // Modular Components
 import { Hero } from './components/Hero'
+import { ShareModal } from './components/ShareModal';
 import { SearchBar } from './components/SearchBar'
 import { DaySelector } from './components/DaySelector'
 import { ActivityList } from './components/ActivityList'
@@ -50,6 +51,7 @@ function App() {
   // 3. PWA & UI State
   const { needRefresh: [needRefresh], updateServiceWorker } = useRegisterSW();
   const [isLiveCardInView, setIsLiveCardInView] = useState(true);
+  const [isShareOpen, setIsShareOpen] = useState(false);
   const [alertsDismissed, setAlertsDismissed] = useState(() => 
     localStorage.getItem('alerts_dismissed') === 'true'
   );
@@ -116,6 +118,11 @@ function App() {
         left: index * 76,
         behavior: 'auto'
       });
+    }
+
+    // 3. Initialization: Enable haptics after the first interaction
+    if (type !== 'void' && !hasScrolledRef.current) {
+      hasScrolledRef.current = true;
     }
   }, [scrollRef, daySelectorRef]);
 
@@ -519,11 +526,21 @@ function App() {
             <SearchBar title={itinerary?.title || 'Japan Itinerary'} searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
             <div className="sidebar-meta">
               <span>Last sync: {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-              {alertsDismissed && (!('Notification' in window) || Notification.permission !== 'granted') && (
-                <button className="settings-toggle-btn" onClick={handleRestoreAlerts} title="Show Alert Settings">
-                  ⚙️
+              <div className="sidebar-meta-actions">
+                <button className="share-btn-sidebar glass" onClick={() => setIsShareOpen(true)}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+                    <polyline points="16 6 12 2 8 6" />
+                    <line x1="12" y1="2" x2="12" y2="15" />
+                  </svg>
+                  Share
                 </button>
-              )}
+                {alertsDismissed && (!('Notification' in window) || Notification.permission !== 'granted') && (
+                  <button className="settings-toggle-btn" onClick={handleRestoreAlerts} title="Show Alert Settings">
+                    ⚙️
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -588,6 +605,12 @@ function App() {
         nextEvent={activeEvents.next} 
         isLiveCardInView={isLiveCardInView} 
         jumpToNow={jumpToNow} 
+      />
+
+      <ShareModal 
+        isOpen={isShareOpen} 
+        onClose={() => setIsShareOpen(false)} 
+        url={window.location.href} 
       />
     </div>
   );
