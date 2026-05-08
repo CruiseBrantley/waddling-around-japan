@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { triggerHaptic, triggerTick, requestNotificationPermission } from '../utils/native';
+import { triggerHaptic, triggerTick, requestNotificationPermission, triggerAlertSound } from '../utils/native';
 import { saveSettings, supportsNotifications, isIOS, isStandalone, supportsHaptics, supportsSound } from '../utils/settings';
 import type { AppSettings } from '../utils/settings';
 import './SettingsModal.css';
@@ -267,7 +267,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         <span className="settings-timing-label">Chime</span>
                         <button 
                           className={`settings-toggle mini ${settings.soundOnAlerts ? 'active' : ''}`}
-                          onClick={() => update({ soundOnAlerts: !settings.soundOnAlerts })}
+                          onClick={() => {
+                            const newVal = !settings.soundOnAlerts;
+                            update({ soundOnAlerts: newVal });
+                            if (newVal) triggerAlertSound('info');
+                          }}
                         />
                       </div>
                     )}
