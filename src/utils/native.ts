@@ -9,12 +9,9 @@
  * iOS does not support navigator.vibrate, but this remains for cross-platform.
  */
 let _hapticsEnabled = true;
-let _vibrateOnAlerts = true;
-let _soundOnAlerts = true;
 
 export const setHapticsEnabled = (enabled: boolean) => { _hapticsEnabled = enabled; };
-export const setVibrateOnAlerts = (enabled: boolean) => { _vibrateOnAlerts = enabled; };
-export const setSoundOnAlerts = (enabled: boolean) => { _soundOnAlerts = enabled; };
+// Removed global alert setters in favor of per-notification parameters
 
 export const triggerHaptic = (type: 'light' | 'medium' | 'heavy' = 'light') => {
   if (!navigator.vibrate || !_hapticsEnabled) return;
@@ -120,7 +117,7 @@ export const triggerTick = () => {
 export const triggerAlertSound = (type: 'info' | 'urgent' = 'info') => {
   try {
     const ctx = getTickContext();
-    if (!ctx || !_soundOnAlerts) return;
+    if (!ctx) return;
 
     // On iOS/mobile, the context might be suspended if backgrounded.
     // We try to resume it, though it may only work if we are still active.
@@ -181,8 +178,14 @@ export const requestNotificationPermission = async () => {
  * Real "proactive" notifications usually require a backend + Web Push.
  * However, if the tab is open, we can show a non-push Notification.
  */
-export const showLocalNotification = async (title: string, body: string, type: 'info' | 'urgent' = 'info') => {
-  console.log('Attempting notification:', title, body, type);
+export const showLocalNotification = async (
+  title: string, 
+  body: string, 
+  type: 'info' | 'urgent' = 'info',
+  vibrate = true,
+  sound = true
+) => {
+  console.log('Attempting notification:', title, body, type, 'vibrate:', vibrate, 'sound:', sound);
   
   if (!('Notification' in window)) {
     console.warn('Notifications not supported in this browser');
@@ -200,18 +203,18 @@ export const showLocalNotification = async (title: string, body: string, type: '
     badge: '/icon.png',
     tag: 'itinerary-alert',
     renotify: true,
-    vibrate: _vibrateOnAlerts ? (type === 'urgent' ? [150, 50, 150, 50, 150] : [120, 40, 120]) : [],
+    vibrate: vibrate ? (type === 'urgent' ? [150, 50, 150, 50, 150] : [120, 40, 120]) : [],
     data: {
       url: window.location.origin
     }
   };
 
   try {
-    if (_vibrateOnAlerts) {
+    if (vibrate) {
       triggerHaptic(type === 'urgent' ? 'heavy' : 'medium');
     }
     
-    if (_soundOnAlerts) {
+    if (sound) {
       triggerAlertSound(type);
     }
 

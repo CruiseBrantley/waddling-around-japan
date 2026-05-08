@@ -211,7 +211,29 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               {settings.notificationsEnabled && permissionState !== 'denied' && !iosAndNotStandalone && (
                 <div className="settings-timing-section">
                   <div className="settings-timing-row">
-                    <span className="settings-timing-label">Heads up alert</span>
+                    <div className="settings-timing-header">
+                      <span className="settings-timing-label">Heads up alert</span>
+                      <div className="settings-timing-feedback">
+                        {hasHaptics && (
+                          <button 
+                            className={`settings-toggle mini ${settings.notifyHeadsUpVibrate ? 'active' : ''}`}
+                            onClick={() => update({ notifyHeadsUpVibrate: !settings.notifyHeadsUpVibrate })}
+                            title="Vibrate"
+                          />
+                        )}
+                        {hasSound && (
+                          <button 
+                            className={`settings-toggle mini ${settings.notifyHeadsUpChime ? 'active' : ''}`}
+                            onClick={() => {
+                              const newVal = !settings.notifyHeadsUpChime;
+                              update({ notifyHeadsUpChime: newVal });
+                              if (newVal) triggerAlertSound('info');
+                            }}
+                            title="Chime"
+                          />
+                        )}
+                      </div>
+                    </div>
                     <div className="settings-chip-group">
                       <button
                         className={`settings-chip ${!settings.notifyHeadsUpEnabled ? 'active' : ''}`}
@@ -232,7 +254,29 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
 
                   <div className="settings-timing-row">
-                    <span className="settings-timing-label">Urgent alert</span>
+                    <div className="settings-timing-header">
+                      <span className="settings-timing-label">Urgent alert</span>
+                      <div className="settings-timing-feedback">
+                        {hasHaptics && (
+                          <button 
+                            className={`settings-toggle mini ${settings.notifyUrgentVibrate ? 'active' : ''}`}
+                            onClick={() => update({ notifyUrgentVibrate: !settings.notifyUrgentVibrate })}
+                            title="Vibrate"
+                          />
+                        )}
+                        {hasSound && (
+                          <button 
+                            className={`settings-toggle mini ${settings.notifyUrgentChime ? 'active' : ''}`}
+                            onClick={() => {
+                              const newVal = !settings.notifyUrgentChime;
+                              update({ notifyUrgentChime: newVal });
+                              if (newVal) triggerAlertSound('urgent');
+                            }}
+                            title="Chime"
+                          />
+                        )}
+                      </div>
+                    </div>
                     <div className="settings-chip-group">
                       <button
                         className={`settings-chip ${!settings.notifyUrgentEnabled ? 'active' : ''}`}
@@ -250,31 +294,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         </button>
                       ))}
                     </div>
-                  </div>
-
-                  <div className="settings-feedback-row">
-                    {hasHaptics && (
-                      <div className="settings-feedback-item">
-                        <span className="settings-timing-label">Vibrate</span>
-                        <button 
-                          className={`settings-toggle mini ${settings.vibrateOnAlerts ? 'active' : ''}`}
-                          onClick={() => update({ vibrateOnAlerts: !settings.vibrateOnAlerts })}
-                        />
-                      </div>
-                    )}
-                    {hasSound && (
-                      <div className="settings-feedback-item">
-                        <span className="settings-timing-label">Chime</span>
-                        <button 
-                          className={`settings-toggle mini ${settings.soundOnAlerts ? 'active' : ''}`}
-                          onClick={() => {
-                            const newVal = !settings.soundOnAlerts;
-                            update({ soundOnAlerts: newVal });
-                            if (newVal) triggerAlertSound('info');
-                          }}
-                        />
-                      </div>
-                    )}
                   </div>
                 </div>
               )}

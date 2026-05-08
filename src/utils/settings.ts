@@ -1,11 +1,13 @@
 export interface AppSettings {
   soundEnabled: boolean;
   hapticsEnabled: boolean;
-  vibrateOnAlerts: boolean;
-  soundOnAlerts: boolean;
   notificationsEnabled: boolean;
   notifyHeadsUpEnabled: boolean;
+  notifyHeadsUpChime: boolean;
+  notifyHeadsUpVibrate: boolean;
   notifyUrgentEnabled: boolean;
+  notifyUrgentChime: boolean;
+  notifyUrgentVibrate: boolean;
   /** Minutes before event to send the first notification */
   notifyMinutesBefore: number;
   /** Minutes before event to send the urgent notification */
@@ -15,11 +17,13 @@ export interface AppSettings {
 export const SETTINGS_DEFAULTS: AppSettings = {
   soundEnabled: true,
   hapticsEnabled: true,
-  vibrateOnAlerts: true,
-  soundOnAlerts: true,
   notificationsEnabled: false,
   notifyHeadsUpEnabled: true,
+  notifyHeadsUpChime: true,
+  notifyHeadsUpVibrate: true,
   notifyUrgentEnabled: true,
+  notifyUrgentChime: true,
+  notifyUrgentVibrate: true,
   notifyMinutesBefore: 10,
   notifyUrgentMinutesBefore: 1,
 };

@@ -20,7 +20,7 @@ import { useScrollSync } from './hooks/useScrollSync'
 
 // Utils
 import { timeToMinutes } from './utils/time'
-import { setAppBadge, clearAppBadge, triggerHaptic, triggerTick, showLocalNotification, setHapticsEnabled, setVibrateOnAlerts, setSoundOnAlerts } from './utils/native'
+import { setAppBadge, clearAppBadge, triggerHaptic, triggerTick, showLocalNotification, setHapticsEnabled } from './utils/native'
 import heroImg from './assets/hero_optimized.jpg'
 
 function App() {
@@ -272,9 +272,7 @@ function App() {
   // Sync global alert settings
   useEffect(() => {
     setHapticsEnabled(settings.hapticsEnabled);
-    setVibrateOnAlerts(settings.vibrateOnAlerts);
-    setSoundOnAlerts(settings.soundOnAlerts);
-  }, [settings.hapticsEnabled, settings.vibrateOnAlerts, settings.soundOnAlerts]);
+  }, [settings.hapticsEnabled]);
 
   // Search Reset
   useEffect(() => {
@@ -420,7 +418,10 @@ function App() {
       if (!notifiedEventsRef.current.has(eventId)) {
         void showLocalNotification(
           `Upcoming: ${title}`,
-          `Starting in ${Math.ceil(minutes)} minutes!`
+          `Starting in ${Math.ceil(minutes)} minutes!`,
+          'info',
+          settings.notifyHeadsUpVibrate,
+          settings.notifyHeadsUpChime
         );
         notifiedEventsRef.current.add(eventId);
       }
@@ -433,7 +434,9 @@ function App() {
         void showLocalNotification(
           `Starting Now: ${title}`,
           `Time to head to ${title}!`,
-          'urgent'
+          'urgent',
+          settings.notifyUrgentVibrate,
+          settings.notifyUrgentChime
         );
         notifiedEventsRef.current.add(eventId);
       }

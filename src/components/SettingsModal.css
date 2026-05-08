@@ -144,6 +144,17 @@
   gap: 8px;
 }
 
+.settings-timing-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.settings-timing-feedback {
+  display: flex;
+  gap: 12px;
+}
+
 .settings-timing-label {
   font-size: 12px;
   font-weight: 600;
