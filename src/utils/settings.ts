@@ -32,14 +32,21 @@ export function saveSettings(settings: AppSettings) {
   localStorage.setItem('app_settings', JSON.stringify(settings));
 }
 
-/** Detect iOS (iPhone, iPad, iPod) — notifications are unsupported */
+/** Detect iOS (iPhone, iPad, iPod) */
 export function isIOS(): boolean {
   if (typeof navigator === 'undefined') return false;
   return /iPhone|iPad|iPod/.test(navigator.userAgent) || 
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 }
 
+/** Check if the app is running in standalone PWA mode */
+export function isStandalone(): boolean {
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+  const isAppleStandalone = (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
+  return isStandalone || isAppleStandalone;
+}
+
 /** Check if the browser supports notifications at all */
 export function supportsNotifications(): boolean {
-  return 'Notification' in window && 'serviceWorker' in navigator && !isIOS();
+  return 'Notification' in window && 'serviceWorker' in navigator;
 }

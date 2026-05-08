@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { triggerHaptic, triggerTick, requestNotificationPermission } from '../utils/native';
-import { saveSettings, supportsNotifications } from '../utils/settings';
+import { saveSettings, supportsNotifications, isIOS, isStandalone } from '../utils/settings';
 import type { AppSettings } from '../utils/settings';
 import './SettingsModal.css';
 
@@ -113,6 +113,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   const showNotifications = supportsNotifications();
+  const iosAndNotStandalone = isIOS() && !isStandalone();
 
   return (
     <div className="settings-modal-overlay fade-in" onClick={onClose}>
@@ -159,8 +160,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </button>
           </div>
 
-          {/* Notifications Section — hidden on iOS */}
-          {showNotifications && (
+          {/* Notifications Section */}
+          {showNotifications ? (
             <>
               <div className="settings-divider" />
 
@@ -170,24 +171,38 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <div>
                     <div className="settings-label">Activity Alerts</div>
                     <div className="settings-hint">
-                      {permissionState === 'denied' 
-                        ? 'Blocked — enable in browser settings' 
-                        : 'Get notified before upcoming activities'}
+                      {iosAndNotStandalone 
+                        ? 'Requires "Add to Home Screen"' 
+                        : (permissionState === 'denied' 
+                            ? 'Blocked — enable in browser settings' 
+                            : 'Get notified before upcoming activities')}
                     </div>
                   </div>
                 </div>
                 <button 
-                  className={`settings-toggle ${settings.notificationsEnabled ? 'active' : ''} ${permissionState === 'denied' ? 'disabled' : ''}`}
+                  className={`settings-toggle ${settings.notificationsEnabled ? 'active' : ''} ${(permissionState === 'denied' || iosAndNotStandalone) ? 'disabled' : ''}`}
                   onClick={handleNotificationToggle}
-                  disabled={permissionState === 'denied'}
+                  disabled={permissionState === 'denied' || iosAndNotStandalone}
                   aria-label="Toggle notifications"
                 >
                   <span className="settings-toggle-knob" />
                 </button>
               </div>
 
+              {/* iOS standalone helper */}
+              {iosAndNotStandalone && (
+                <div className="settings-ios-helper">
+                  To enable alerts on iPhone:
+                  <ol>
+                    <li>Tap the <strong>Share</strong> button <span className="share-icon-mini">⎋</span></li>
+                    <li>Select <strong>Add to Home Screen</strong></li>
+                    <li>Open this app from your home screen</li>
+                  </ol>
+                </div>
+              )}
+
               {/* Timing and Feedback — only shown when notifications are on */}
-              {settings.notificationsEnabled && permissionState !== 'denied' && (
+              {settings.notificationsEnabled && permissionState !== 'denied' && !iosAndNotStandalone && (
                 <div className="settings-timing-section">
                   <div className="settings-timing-row">
                     <span className="settings-timing-label">Heads up alert</span>
@@ -238,15 +253,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
               )}
             </>
-          )}
-
-          {/* iOS info message */}
-          {!showNotifications && (
+          ) : (
             <>
               <div className="settings-divider" />
               <div className="settings-ios-note">
                 <span className="settings-icon">ℹ️</span>
-                <span>Push notifications are not available on this device.</span>
+                <span>Push notifications are not supported on this browser.</span>
               </div>
             </>
           )}
