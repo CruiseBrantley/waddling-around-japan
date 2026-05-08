@@ -20,7 +20,7 @@ import { useScrollSync } from './hooks/useScrollSync'
 
 // Utils
 import { timeToMinutes } from './utils/time'
-import { setAppBadge, clearAppBadge, triggerHaptic, triggerTick, showLocalNotification, setHapticsEnabled } from './utils/native'
+import { setAppBadge, clearAppBadge, triggerHaptic, triggerTick, showLocalNotification, setHapticsEnabled, setVibrateOnAlerts, setSoundOnAlerts } from './utils/native'
 import heroImg from './assets/hero_optimized.jpg'
 
 function App() {
@@ -269,10 +269,12 @@ function App() {
 
   // --- Effects ---
 
-  // Sync global haptic setting
+  // Sync global alert settings
   useEffect(() => {
     setHapticsEnabled(settings.hapticsEnabled);
-  }, [settings.hapticsEnabled]);
+    setVibrateOnAlerts(settings.vibrateOnAlerts);
+    setSoundOnAlerts(settings.soundOnAlerts);
+  }, [settings.hapticsEnabled, settings.vibrateOnAlerts, settings.soundOnAlerts]);
 
   // Search Reset
   useEffect(() => {
@@ -427,7 +429,8 @@ function App() {
       if (!notifiedEventsRef.current.has(eventId)) {
         void showLocalNotification(
           `Starting Now: ${title}`,
-          `Time to head to ${title}!`
+          `Time to head to ${title}!`,
+          'urgent'
         );
         notifiedEventsRef.current.add(eventId);
       }

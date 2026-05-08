@@ -9,7 +9,12 @@
  * iOS does not support navigator.vibrate, but this remains for cross-platform.
  */
 let _hapticsEnabled = true;
+let _vibrateOnAlerts = true;
+let _soundOnAlerts = true;
+
 export const setHapticsEnabled = (enabled: boolean) => { _hapticsEnabled = enabled; };
+export const setVibrateOnAlerts = (enabled: boolean) => { _vibrateOnAlerts = enabled; };
+export const setSoundOnAlerts = (enabled: boolean) => { _soundOnAlerts = enabled; };
 
 export const triggerHaptic = (type: 'light' | 'medium' | 'heavy' = 'light') => {
   if (!navigator.vibrate || !_hapticsEnabled) return;
@@ -18,7 +23,7 @@ export const triggerHaptic = (type: 'light' | 'medium' | 'heavy' = 'light') => {
   const patterns = {
     light: [25],         // Sharp, noticeable tap
     medium: [60],        // Clear confirmation
-    heavy: [100, 30, 100] // Powerful dual-pulse for alerts
+    heavy: [120, 40, 120] // Powerful dual-pulse for alerts (slightly increased)
   };
 
   navigator.vibrate(patterns[type]);
@@ -85,6 +90,43 @@ export const triggerTick = () => {
 };
 
 /**
+ * Plays a more distinct "alert" chime for arrival notifications.
+ */
+export const triggerAlertSound = (type: 'info' | 'urgent' = 'info') => {
+  try {
+    const ctx = getTickContext();
+    if (!ctx || ctx.state === 'suspended' || !_soundOnAlerts) return;
+
+    const playTone = (freq: number, start: number, duration: number, gainVal = 0.12) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, start);
+      gain.gain.setValueAtTime(gainVal, start);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + duration + 0.05);
+    };
+
+    const now = ctx.currentTime;
+    if (type === 'urgent') {
+      // More intense three-tone rising chime
+      playTone(523.25, now, 0.15);       // C5
+      playTone(659.25, now + 0.12, 0.15); // E5
+      playTone(783.99, now + 0.24, 0.3);  // G5
+    } else {
+      // Simple double-tone chime
+      playTone(660, now, 0.15);      // E5
+      playTone(880, now + 0.1, 0.2); // A5
+    }
+  } catch {
+    // Fail silently
+  }
+};
+
+/**
  * Requests notification permission.
  */
 export const requestNotificationPermission = async () => {
@@ -106,8 +148,8 @@ export const requestNotificationPermission = async () => {
  * Real "proactive" notifications usually require a backend + Web Push.
  * However, if the tab is open, we can show a non-push Notification.
  */
-export const showLocalNotification = async (title: string, body: string) => {
-  console.log('Attempting notification:', title, body);
+export const showLocalNotification = async (title: string, body: string, type: 'info' | 'urgent' = 'info') => {
+  console.log('Attempting notification:', title, body, type);
   
   if (!('Notification' in window)) {
     console.warn('Notifications not supported in this browser');
@@ -125,14 +167,21 @@ export const showLocalNotification = async (title: string, body: string) => {
     badge: '/icon.png',
     tag: 'itinerary-alert',
     renotify: true,
-    vibrate: [100, 50, 100],
+    vibrate: _vibrateOnAlerts ? (type === 'urgent' ? [150, 50, 150, 50, 150] : [120, 40, 120]) : [],
     data: {
       url: window.location.origin
     }
   };
 
   try {
-    triggerHaptic('medium');
+    if (_vibrateOnAlerts) {
+      triggerHaptic(type === 'urgent' ? 'heavy' : 'medium');
+    }
+    
+    if (_soundOnAlerts) {
+      triggerAlertSound(type);
+    }
+
 
     // 1. Try Service Worker registration with a timeout to prevent hanging
     if ('serviceWorker' in navigator) {

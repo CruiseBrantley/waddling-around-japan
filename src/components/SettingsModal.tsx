@@ -186,7 +186,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </button>
               </div>
 
-              {/* Timing selectors — only shown when notifications are on */}
+              {/* Timing and Feedback — only shown when notifications are on */}
               {settings.notificationsEnabled && permissionState !== 'denied' && (
                 <div className="settings-timing-section">
                   <div className="settings-timing-row">
@@ -216,6 +216,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           {opt.label}
                         </button>
                       ))}
+                    </div>
+                  </div>
+
+                  <div className="settings-feedback-row">
+                    <div className="settings-feedback-item">
+                      <span className="settings-timing-label">Vibrate</span>
+                      <button 
+                        className={`settings-toggle mini ${settings.vibrateOnAlerts ? 'active' : ''}`}
+                        onClick={() => update({ vibrateOnAlerts: !settings.vibrateOnAlerts })}
+                      />
+                    </div>
+                    <div className="settings-feedback-item">
+                      <span className="settings-timing-label">Chime</span>
+                      <button 
+                        className={`settings-toggle mini ${settings.soundOnAlerts ? 'active' : ''}`}
+                        onClick={() => update({ soundOnAlerts: !settings.soundOnAlerts })}
+                      />
                     </div>
                   </div>
                 </div>
