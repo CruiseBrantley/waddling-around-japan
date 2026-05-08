@@ -50,7 +50,23 @@ const getTickContext = (): AudioContext | null => {
 // Prime the AudioContext on the very first user gesture so swipes work later.
 const primeAudio = () => {
   const ctx = getTickContext();
-  if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {});
+  if (!ctx) return;
+
+  if (ctx.state === 'suspended') {
+    ctx.resume().catch(() => {});
+  }
+
+  // Create and play a silent buffer — this is often more effective than 
+  // just calling resume() for "unlocking" the audio engine on iOS/mobile.
+  try {
+    const buffer = ctx.createBuffer(1, 1, 22050);
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(ctx.destination);
+    source.start(0);
+  } catch (e) {
+    console.warn('Audio priming failed:', e);
+  }
   
   // Clean up all listeners
   ['touchstart', 'mousedown', 'click', 'touchend'].forEach(type => {

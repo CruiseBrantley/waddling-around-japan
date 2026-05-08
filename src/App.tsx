@@ -371,16 +371,19 @@ function App() {
     return () => observer.disconnect();
   }, [itinerary, activeIndex, currentTime]);
 
+  const prevIndexRef = useRef<number>(activeIndex);
+
   // Tactile Feedback for Day Changes
   useEffect(() => {
-    // Only pulse if we've already initialized (prevents haptic on first load)
-    if (hasScrolledRef.current) {
+    // Only pulse if the index actually changed (prevents feedback on first load)
+    if (prevIndexRef.current !== activeIndex) {
       triggerHaptic('light');
       if (settings.soundEnabled) {
         triggerTick();
       }
+      prevIndexRef.current = activeIndex;
     }
-  }, [activeIndex, settings.soundEnabled]);
+  }, [activeIndex, settings.soundEnabled, settings.hapticsEnabled]);
 
   // --- Render ---
 
