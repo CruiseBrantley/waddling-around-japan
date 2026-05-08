@@ -213,11 +213,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <div className="settings-timing-row">
                     <span className="settings-timing-label">Heads up alert</span>
                     <div className="settings-chip-group">
+                      <button
+                        className={`settings-chip ${!settings.notifyHeadsUpEnabled ? 'active' : ''}`}
+                        onClick={() => update({ notifyHeadsUpEnabled: false })}
+                      >
+                        Off
+                      </button>
                       {TIMING_OPTIONS.map(opt => (
                         <button
                           key={opt.value}
-                          className={`settings-chip ${settings.notifyMinutesBefore === opt.value ? 'active' : ''}`}
-                          onClick={() => update({ notifyMinutesBefore: opt.value })}
+                          className={`settings-chip ${settings.notifyHeadsUpEnabled && settings.notifyMinutesBefore === opt.value ? 'active' : ''}`}
+                          onClick={() => update({ notifyHeadsUpEnabled: true, notifyMinutesBefore: opt.value })}
                         >
                           {opt.label}
                         </button>
@@ -228,11 +234,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <div className="settings-timing-row">
                     <span className="settings-timing-label">Urgent alert</span>
                     <div className="settings-chip-group">
+                      <button
+                        className={`settings-chip ${!settings.notifyUrgentEnabled ? 'active' : ''}`}
+                        onClick={() => update({ notifyUrgentEnabled: false })}
+                      >
+                        Off
+                      </button>
                       {URGENT_OPTIONS.map(opt => (
                         <button
                           key={opt.value}
-                          className={`settings-chip ${settings.notifyUrgentMinutesBefore === opt.value ? 'active' : ''}`}
-                          onClick={() => update({ notifyUrgentMinutesBefore: opt.value })}
+                          className={`settings-chip ${settings.notifyUrgentEnabled && settings.notifyUrgentMinutesBefore === opt.value ? 'active' : ''}`}
+                          onClick={() => update({ notifyUrgentEnabled: true, notifyUrgentMinutesBefore: opt.value })}
                         >
                           {opt.label}
                         </button>

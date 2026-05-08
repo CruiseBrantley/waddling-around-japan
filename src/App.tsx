@@ -415,7 +415,7 @@ function App() {
     const { title, minutes } = activeEvents.next;
     
     // Notify at user-defined heads-up threshold
-    if (minutes > 0 && minutes <= settings.notifyMinutesBefore) {
+    if (settings.notifyHeadsUpEnabled && minutes > 0 && minutes <= settings.notifyMinutesBefore) {
       const eventId = `notify-heads-up-${title}`;
       if (!notifiedEventsRef.current.has(eventId)) {
         void showLocalNotification(
@@ -427,7 +427,7 @@ function App() {
     }
 
     // Notify at user-defined urgent threshold
-    if (minutes > 0 && minutes <= settings.notifyUrgentMinutesBefore) {
+    if (settings.notifyUrgentEnabled && minutes > 0 && minutes <= settings.notifyUrgentMinutesBefore) {
       const eventId = `notify-urgent-${title}`;
       if (!notifiedEventsRef.current.has(eventId)) {
         void showLocalNotification(
