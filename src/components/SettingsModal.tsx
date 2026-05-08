@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { triggerHaptic, triggerTick, requestNotificationPermission } from '../utils/native';
-import { saveSettings, supportsNotifications, isIOS, isStandalone } from '../utils/settings';
+import { saveSettings, supportsNotifications, isIOS, isStandalone, supportsHaptics, supportsSound } from '../utils/settings';
 import type { AppSettings } from '../utils/settings';
 import './SettingsModal.css';
 
@@ -114,6 +114,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const showNotifications = supportsNotifications();
   const iosAndNotStandalone = isIOS() && !isStandalone();
+  const hasHaptics = supportsHaptics();
+  const hasSound = supportsSound();
 
   return (
     <div className="settings-modal-overlay fade-in" onClick={onClose}>
@@ -130,12 +132,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <span className="settings-icon">🔊</span>
               <div>
                 <div className="settings-label">Day Change Sound</div>
-                <div className="settings-hint">Play a subtle tick when swiping between days</div>
+                <div className="settings-hint">
+                  {hasSound 
+                    ? 'Play a subtle tick when swiping between days' 
+                    : 'Not supported on this browser'}
+                </div>
               </div>
             </div>
             <button 
-              className={`settings-toggle ${settings.soundEnabled ? 'active' : ''}`}
-              onClick={handleSoundToggle}
+              className={`settings-toggle ${settings.soundEnabled ? 'active' : ''} ${!hasSound ? 'disabled' : ''}`}
+              onClick={hasSound ? handleSoundToggle : undefined}
+              disabled={!hasSound}
               aria-label="Toggle sound"
             >
               <span className="settings-toggle-knob" />
@@ -148,12 +155,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <span className="settings-icon">📳</span>
               <div>
                 <div className="settings-label">Haptic Vibration</div>
-                <div className="settings-hint">Tactile feedback on interactions and day changes</div>
+                <div className="settings-hint">
+                  {hasHaptics 
+                    ? 'Tactile feedback on interactions and day changes' 
+                    : (isIOS() ? 'Unsupported on iOS' : 'Not supported on this device')}
+                </div>
               </div>
             </div>
             <button 
-              className={`settings-toggle ${settings.hapticsEnabled ? 'active' : ''}`}
-              onClick={handleHapticsToggle}
+              className={`settings-toggle ${settings.hapticsEnabled ? 'active' : ''} ${!hasHaptics ? 'disabled' : ''}`}
+              onClick={hasHaptics ? handleHapticsToggle : undefined}
+              disabled={!hasHaptics}
               aria-label="Toggle haptics"
             >
               <span className="settings-toggle-knob" />
@@ -238,15 +250,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <div className="settings-feedback-item">
                       <span className="settings-timing-label">Vibrate</span>
                       <button 
-                        className={`settings-toggle mini ${settings.vibrateOnAlerts ? 'active' : ''}`}
-                        onClick={() => update({ vibrateOnAlerts: !settings.vibrateOnAlerts })}
+                        className={`settings-toggle mini ${settings.vibrateOnAlerts ? 'active' : ''} ${!hasHaptics ? 'disabled' : ''}`}
+                        onClick={hasHaptics ? () => update({ vibrateOnAlerts: !settings.vibrateOnAlerts }) : undefined}
+                        disabled={!hasHaptics}
                       />
                     </div>
                     <div className="settings-feedback-item">
                       <span className="settings-timing-label">Chime</span>
                       <button 
-                        className={`settings-toggle mini ${settings.soundOnAlerts ? 'active' : ''}`}
-                        onClick={() => update({ soundOnAlerts: !settings.soundOnAlerts })}
+                        className={`settings-toggle mini ${settings.soundOnAlerts ? 'active' : ''} ${!hasSound ? 'disabled' : ''}`}
+                        onClick={hasSound ? () => update({ soundOnAlerts: !settings.soundOnAlerts }) : undefined}
+                        disabled={!hasSound}
                       />
                     </div>
                   </div>

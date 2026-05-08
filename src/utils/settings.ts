@@ -50,3 +50,14 @@ export function isStandalone(): boolean {
 export function supportsNotifications(): boolean {
   return 'Notification' in window && 'serviceWorker' in navigator;
 }
+
+/** Check if the browser supports haptic vibration (navigator.vibrate) */
+export function supportsHaptics(): boolean {
+  // iOS does not support navigator.vibrate
+  return typeof navigator !== 'undefined' && !!navigator.vibrate && !isIOS();
+}
+
+/** Check if the browser supports Web Audio API */
+export function supportsSound(): boolean {
+  return typeof window !== 'undefined' && !!(window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext);
+}
