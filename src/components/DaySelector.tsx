@@ -18,7 +18,7 @@ const DaySelectorComponent = React.forwardRef<HTMLDivElement, DaySelectorProps>(
   // Desktop sidebar sync: ensures the active day button is always visible in the sidebar
   React.useEffect(() => {
     if (ref && typeof ref === 'object' && 'current' in ref && ref.current) {
-      if (window.innerWidth >= 1024) {
+      if (window.innerWidth >= 800) {
         const activeBtn = ref.current.querySelector('.day-btn.is-active');
         if (activeBtn) {
           activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });

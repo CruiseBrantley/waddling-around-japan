@@ -88,7 +88,7 @@ function App() {
     if (type === 'manual' && scrollRef.current && window.scrollY >= 200) {
       const handleSettle = () => {
         requestAnimationFrame(() => {
-          const isDesktop = window.innerWidth >= 1024;
+          const isDesktop = window.innerWidth >= 800;
           if (isDesktop) return;
 
           const activeSlide = document.querySelector(`.swipe-slide[data-index="${index}"]`) as HTMLElement;
@@ -199,7 +199,7 @@ function App() {
       }
     }
 
-    const isDesktop = window.innerWidth >= 1024;
+    const isDesktop = window.innerWidth >= 800;
     if (isDesktop) return; // Desktop uses independent column scrolling, no window scroll needed
 
     // 3. Perform vertical alignment (Mobile Only)
@@ -256,7 +256,7 @@ function App() {
         targetCard = (activeCardRef.current || activeSlide?.querySelector('.activity-card.is-live')) as HTMLElement;
       }
 
-      const isDesktop = window.innerWidth >= 1024;
+      const isDesktop = window.innerWidth >= 800;
       const scroller = isDesktop ? scrollRef.current : window;
 
       if (targetCard) {

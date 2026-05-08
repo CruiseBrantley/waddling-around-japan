@@ -35,7 +35,7 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
     if (!container || !daySelector || dayCount === 0) return;
 
     const updateContainerHeight = () => {
-      const isDesktop = window.innerWidth >= 1024;
+      const isDesktop = window.innerWidth >= 800;
       if (isDesktop) return; // Desktop uses internal scrolling, no height syncing needed
 
       const slides = Array.from(container.querySelectorAll('.swipe-slide'));
@@ -60,7 +60,7 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
     };
 
     const updateDaySelectorSync = () => {
-      const isDesktop = window.innerWidth >= 1024;
+      const isDesktop = window.innerWidth >= 800;
       if (isDesktop || activeScrollerRef.current !== 'main') return;
       if (!container || !daySelector) return;
 
@@ -82,7 +82,7 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
 
     const onMainScroll = () => {
       requestAnimationFrame(() => {
-        const isDesktop = window.innerWidth >= 1024;
+        const isDesktop = window.innerWidth >= 800;
         
         // PROXIMITY LOCK: If we have a target, don't sync until we are close.
         if (targetMainScrollRef.current !== null) {
@@ -156,7 +156,7 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
       requestAnimationFrame(() => {
         if (activeScrollerRef.current === 'main' || activeScrollerRef.current === 'programmatic') return;
 
-        if (window.innerWidth < 1024) {
+        if (window.innerWidth < 800) {
           const scrollLeft = daySelector.scrollLeft;
           
           const firstBtn = daySelector.querySelector('.day-btn') as HTMLElement;
@@ -246,7 +246,7 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
     }
     const container = scrollRef.current;
     const daySelector = daySelectorRef.current;
-    const isDesktop = window.innerWidth >= 1024;
+    const isDesktop = window.innerWidth >= 800;
     
     // Calculate targets correctly for the orientation
     const targetX = index * container.clientWidth;

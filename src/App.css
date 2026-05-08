@@ -19,7 +19,7 @@
   z-index: 1; /* Stay above blobs */
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 800px) {
   .hero-container {
     height: 300px;
   }
@@ -114,7 +114,7 @@
   scroll-snap-type: x mandatory;
 }
 
-@media (max-width: 1023px) {
+@media (max-width: 799px) {
   .day-scroll-container {
     padding: 8px calc(50% - 32px);
   }
@@ -517,7 +517,7 @@
   display: contents; /* Allow sticky children to see the app-wrapper/body */
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 800px) {
   .mobile-top-content,
   .mobile-only {
     display: none !important;
@@ -923,7 +923,7 @@
 
 
 /* Desktop Layout */
-@media (min-width: 1024px) {
+@media (min-width: 800px) {
   .app-wrapper {
     background: var(--bg-main);
     display: flex;
@@ -1490,7 +1490,7 @@
   font-family: var(--font-heading);
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 800px) {
   .floating-actions {
     bottom: 40px;
     right: 40px;
