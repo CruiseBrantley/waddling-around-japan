@@ -127,50 +127,44 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         <div className="settings-modal-content">
           {/* Sound Toggle */}
-          <div className="settings-row">
-            <div className="settings-row-info">
-              <span className="settings-icon">🔊</span>
-              <div>
-                <div className="settings-label">Day Change Sound</div>
-                <div className="settings-hint">
-                  {hasSound 
-                    ? 'Play a subtle tick when swiping between days' 
-                    : 'Not supported on this browser'}
+          {hasSound && (
+            <div className="settings-row">
+              <div className="settings-row-info">
+                <span className="settings-icon">🔊</span>
+                <div>
+                  <div className="settings-label">Day Change Sound</div>
+                  <div className="settings-hint">Play a subtle tick when swiping between days</div>
                 </div>
               </div>
+              <button 
+                className={`settings-toggle ${settings.soundEnabled ? 'active' : ''}`}
+                onClick={handleSoundToggle}
+                aria-label="Toggle sound"
+              >
+                <span className="settings-toggle-knob" />
+              </button>
             </div>
-            <button 
-              className={`settings-toggle ${(settings.soundEnabled && hasSound) ? 'active' : ''} ${!hasSound ? 'disabled' : ''}`}
-              onClick={hasSound ? handleSoundToggle : undefined}
-              disabled={!hasSound}
-              aria-label="Toggle sound"
-            >
-              <span className="settings-toggle-knob" />
-            </button>
-          </div>
+          )}
 
           {/* Haptics Toggle */}
-          <div className="settings-row">
-            <div className="settings-row-info">
-              <span className="settings-icon">📳</span>
-              <div>
-                <div className="settings-label">Haptic Vibration</div>
-                <div className="settings-hint">
-                  {hasHaptics 
-                    ? 'Tactile feedback on interactions and day changes' 
-                    : (isIOS() ? 'Unsupported on iOS' : 'Not supported on this device')}
+          {hasHaptics && (
+            <div className="settings-row">
+              <div className="settings-row-info">
+                <span className="settings-icon">📳</span>
+                <div>
+                  <div className="settings-label">Haptic Vibration</div>
+                  <div className="settings-hint">Tactile feedback on interactions and day changes</div>
                 </div>
               </div>
+              <button 
+                className={`settings-toggle ${settings.hapticsEnabled ? 'active' : ''}`}
+                onClick={handleHapticsToggle}
+                aria-label="Toggle haptics"
+              >
+                <span className="settings-toggle-knob" />
+              </button>
             </div>
-            <button 
-              className={`settings-toggle ${(settings.hapticsEnabled && hasHaptics) ? 'active' : ''} ${!hasHaptics ? 'disabled' : ''}`}
-              onClick={hasHaptics ? handleHapticsToggle : undefined}
-              disabled={!hasHaptics}
-              aria-label="Toggle haptics"
-            >
-              <span className="settings-toggle-knob" />
-            </button>
-          </div>
+          )}
 
           {/* Notifications Section */}
           {showNotifications ? (
@@ -247,22 +241,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
 
                   <div className="settings-feedback-row">
-                    <div className="settings-feedback-item">
-                      <span className="settings-timing-label">Vibrate</span>
-                      <button 
-                        className={`settings-toggle mini ${(settings.vibrateOnAlerts && hasHaptics) ? 'active' : ''} ${!hasHaptics ? 'disabled' : ''}`}
-                        onClick={hasHaptics ? () => update({ vibrateOnAlerts: !settings.vibrateOnAlerts }) : undefined}
-                        disabled={!hasHaptics}
-                      />
-                    </div>
-                    <div className="settings-feedback-item">
-                      <span className="settings-timing-label">Chime</span>
-                      <button 
-                        className={`settings-toggle mini ${(settings.soundOnAlerts && hasSound) ? 'active' : ''} ${!hasSound ? 'disabled' : ''}`}
-                        onClick={hasSound ? () => update({ soundOnAlerts: !settings.soundOnAlerts }) : undefined}
-                        disabled={!hasSound}
-                      />
-                    </div>
+                    {hasHaptics && (
+                      <div className="settings-feedback-item">
+                        <span className="settings-timing-label">Vibrate</span>
+                        <button 
+                          className={`settings-toggle mini ${settings.vibrateOnAlerts ? 'active' : ''}`}
+                          onClick={() => update({ vibrateOnAlerts: !settings.vibrateOnAlerts })}
+                        />
+                      </div>
+                    )}
+                    {hasSound && (
+                      <div className="settings-feedback-item">
+                        <span className="settings-timing-label">Chime</span>
+                        <button 
+                          className={`settings-toggle mini ${settings.soundOnAlerts ? 'active' : ''}`}
+                          onClick={() => update({ soundOnAlerts: !settings.soundOnAlerts })}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
