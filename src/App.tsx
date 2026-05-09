@@ -39,7 +39,13 @@ function App() {
     return 0;
   });
 
-  // 2. Data Hook
+  // 2. Settings & UI State
+  const [settings, setSettings] = useState<AppSettings>(loadSettings);
+  const [isLiveCardInView, setIsLiveCardInView] = useState(true);
+  const [isShareOpen, setIsShareOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  // 3. Data Hook
   const {
     itinerary,
     loading,
@@ -49,14 +55,9 @@ function App() {
     currentTime,
     isTripActive,
     getInitialTime
-  } = useItinerary(timeOffset);
+  } = useItinerary(timeOffset, settings.debugTime);
 
-  // 3. PWA & UI State
   const { needRefresh: [needRefresh], updateServiceWorker } = useRegisterSW();
-  const [isLiveCardInView, setIsLiveCardInView] = useState(true);
-  const [isShareOpen, setIsShareOpen] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [settings, setSettings] = useState<AppSettings>(loadSettings);
 
   const activeCardRef = useRef<HTMLDivElement | null>(null);
   const hasScrolledRef = useRef(false);

@@ -12,6 +12,8 @@ export interface AppSettings {
   notifyMinutesBefore: number;
   /** Minutes before event to send the urgent notification */
   notifyUrgentMinutesBefore: number;
+  /** Manual time override for testing (e.g. "14:30") */
+  debugTime: string | null;
 }
 
 export const SETTINGS_DEFAULTS: AppSettings = {
@@ -26,6 +28,7 @@ export const SETTINGS_DEFAULTS: AppSettings = {
   notifyUrgentVibrate: true,
   notifyMinutesBefore: 10,
   notifyUrgentMinutesBefore: 1,
+  debugTime: null,
 };
 
 export function loadSettings(): AppSettings {

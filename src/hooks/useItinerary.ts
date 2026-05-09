@@ -1,14 +1,23 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { fetchItinerary, type Itinerary } from '../services/sheets';
 
-export function useItinerary(timeOffset: number = 0) {
+export function useItinerary(timeOffset: number = 0, debugTime: string | null = null) {
   const [itinerary, setItinerary] = useState<Itinerary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
-  const getInitialTime = useCallback(() => new Date(Date.now() + timeOffset), [timeOffset]);
+  const getInitialTime = useCallback(() => {
+    if (debugTime) {
+      const [h, m] = debugTime.split(':').map(Number);
+      const d = new Date();
+      d.setHours(h || 0, m || 0, 0, 0);
+      return d;
+    }
+    return new Date(Date.now() + timeOffset);
+  }, [timeOffset, debugTime]);
+  
   const [currentTime, setCurrentTime] = useState(() => getInitialTime());
 
   // Helper to parse dates robustly and timezone-agnostically from sheet strings

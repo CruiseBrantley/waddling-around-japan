@@ -252,6 +252,48 @@
   transform: translateX(16px);
 }
 
+.settings-dev-section {
+  padding-top: 12px;
+}
+
+.settings-label.dev {
+  color: var(--primary);
+  opacity: 0.6;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 12px;
+}
+
+.settings-dev-input-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-dev-input {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: white;
+  padding: 4px 8px;
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.settings-dev-clear {
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 4px;
+  color: white;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.settings-dev-clear:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
 .settings-ios-helper {
   background: rgba(183, 141, 235, 0.08);
   border: 1px solid rgba(183, 141, 235, 0.2);

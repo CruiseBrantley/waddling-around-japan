@@ -310,15 +310,37 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
               )}
             </>
-          ) : (
-            <>
-              <div className="settings-divider" />
-              <div className="settings-ios-note">
-                <span className="settings-icon">ℹ️</span>
-                <span>Push notifications are not supported on this browser.</span>
+          ) : null}
+
+          {/* Developer Tools */}
+          <div className="settings-divider" />
+          <div className="settings-dev-section">
+            <div className="settings-label dev">Developer Tools</div>
+            <div className="settings-row dev">
+              <div className="settings-row-info">
+                <div>
+                  <div className="settings-label">Time Override</div>
+                  <div className="settings-hint">Set manual time for testing (e.g. 14:30)</div>
+                </div>
               </div>
-            </>
-          )}
+              <div className="settings-dev-input-group">
+                <input 
+                  type="time" 
+                  className="settings-dev-input"
+                  value={settings.debugTime || ''}
+                  onChange={(e) => update({ debugTime: e.target.value || null })}
+                />
+                {settings.debugTime && (
+                  <button 
+                    className="settings-dev-clear"
+                    onClick={() => update({ debugTime: null })}
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
