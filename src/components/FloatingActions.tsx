@@ -48,8 +48,8 @@ export const FloatingActions: React.FC<FloatingActionsProps> = ({
   }
 
   const isImminent = nextEvent && nextEvent.minutes <= 5 && nextEvent.minutes > 0;
-  // Progress should increase as we get closer (0% at 5m, 100% at 0m)
-  const progress = isImminent ? ((5 - nextEvent.minutes) / 5) * 100 : 0;
+  // Progress should shrink as we get closer (100% at 5m, 0% at 0m)
+  const progress = isImminent ? (nextEvent.minutes / 5) * 100 : 0;
 
   return (
     <div className="floating-actions">
@@ -63,7 +63,7 @@ export const FloatingActions: React.FC<FloatingActionsProps> = ({
           }}
         >
           {/* High-Precision Shrinking Countdown */}
-          <svg className="pill-progress-svg ccw" preserveAspectRatio="none" style={{ opacity: isImminent ? 1 : 0 }}>
+          <svg className="pill-progress-svg" preserveAspectRatio="none" style={{ opacity: isImminent ? 1 : 0 }}>
             <defs>
               <mask id="progress-mask">
                 <rect 
