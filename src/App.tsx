@@ -29,16 +29,6 @@ function App() {
     return sessionStorage.getItem('itinerary_searchTerm') || '';
   });
 
-  const [timeOffset, setTimeOffset] = useState(() => {
-    const params = new URLSearchParams(window.location.search);
-    const mockDateStr = params.get('date');
-    if (mockDateStr) {
-      const mockDate = new Date(mockDateStr);
-      if (!isNaN(mockDate.getTime())) return mockDate.getTime() - Date.now();
-    }
-    return 0;
-  });
-
   // 2. Settings & UI State
   const [settings, setSettings] = useState<AppSettings>(loadSettings);
   const [isLiveCardInView, setIsLiveCardInView] = useState(true);
@@ -55,7 +45,7 @@ function App() {
     currentTime,
     isTripActive,
     getInitialTime
-  } = useItinerary(timeOffset, settings.debugTime, settings.debugDate);
+  } = useItinerary(settings.debugTime, settings.debugDate);
 
   const { needRefresh: [needRefresh], updateServiceWorker } = useRegisterSW();
 
@@ -159,32 +149,30 @@ function App() {
     // Enable haptics for subsequent interactions if not already enabled
     hasScrolledRef.current = true;
 
-    // 2. Debug Sync: If we have a mock date or ?debug=1, jump the clock to this day
+    // 2. Debug Sync: If we have ?debug=1, jump the clock to this day via settings
     const params = new URLSearchParams(window.location.search);
-    if (params.get('debug') || timeOffset !== 0) {
+    if (params.get('debug')) {
       const targetDay = filteredDays[index];
       if (targetDay && targetDay.activities.length > 0) {
         const firstAct = targetDay.activities[0];
         const dayDate = parseSheetDate(targetDay.date);
-        // Use the centralized timeToMinutes to handle AM/PM correctly
         const totalMinutes = timeToMinutes(firstAct.time);
         const h = Math.floor(totalMinutes / 60);
         const m = totalMinutes % 60;
         
         if (!isNaN(h) && !isNaN(m) && !isNaN(dayDate.getTime())) {
-          // Set clock to 10 minutes before the first activity of that day
+          // Calculate 10 mins before
           const targetTime = new Date(dayDate);
           targetTime.setHours(h, m - 10, 0);
           
-          const newOffset = targetTime.getTime() - Date.now();
-          if (!isNaN(newOffset)) {
-            setTimeOffset(newOffset);
-            
-            // Update URL for persistence
-            const newUrl = new URL(window.location.href);
-            newUrl.searchParams.set('date', targetTime.toISOString());
-            window.history.replaceState({}, '', newUrl);
-          }
+          const debugDate = targetTime.toISOString().split('T')[0];
+          const debugTime = `${String(targetTime.getHours()).padStart(2, '0')}:${String(targetTime.getMinutes()).padStart(2, '0')}`;
+          
+          setSettings(prev => ({
+            ...prev,
+            debugDate,
+            debugTime
+          }));
         }
       }
     }
@@ -212,7 +200,7 @@ function App() {
         window.scrollTo({ top: 0, behavior: 'auto' });
       }
     }, 50);
-  }, [scrollToDay, scrollRef, filteredDays, timeOffset, parseSheetDate]);
+  }, [scrollToDay, scrollRef, filteredDays, parseSheetDate]);
 
   const performSmartJump = useCallback((index: number, targetTitle?: string) => {
     if (index === -1) return;
