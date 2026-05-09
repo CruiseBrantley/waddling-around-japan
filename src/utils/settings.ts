@@ -16,6 +16,8 @@ export interface AppSettings {
   debugTime: string | null;
   /** Manual date override for testing (e.g. "2024-05-15") */
   debugDate: string | null;
+  /** Milliseconds offset from real time */
+  debugOffset: number | null;
 }
 
 export const SETTINGS_DEFAULTS: AppSettings = {
@@ -32,6 +34,7 @@ export const SETTINGS_DEFAULTS: AppSettings = {
   notifyUrgentMinutesBefore: 1,
   debugTime: null,
   debugDate: null,
+  debugOffset: null,
 };
 
 export function loadSettings(): AppSettings {

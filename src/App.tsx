@@ -45,7 +45,7 @@ function App() {
     currentTime,
     isTripActive,
     getInitialTime
-  } = useItinerary(settings.debugTime, settings.debugDate);
+  } = useItinerary(settings.debugOffset);
 
   const { needRefresh: [needRefresh], updateServiceWorker } = useRegisterSW();
 
@@ -167,11 +167,13 @@ function App() {
           
           const debugDate = targetTime.toISOString().split('T')[0];
           const debugTime = `${String(targetTime.getHours()).padStart(2, '0')}:${String(targetTime.getMinutes()).padStart(2, '0')}`;
+          const debugOffset = targetTime.getTime() - Date.now();
           
           setSettings(prev => ({
             ...prev,
             debugDate,
-            debugTime
+            debugTime,
+            debugOffset
           }));
         }
       }

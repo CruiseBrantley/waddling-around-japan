@@ -338,14 +338,37 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     onChange={(e) => update({ debugTime: e.target.value || null })}
                   />
                 </div>
-                {(settings.debugTime || settings.debugDate) && (
+                <div className="settings-dev-buttons">
                   <button 
-                    className="settings-dev-clear"
-                    onClick={() => update({ debugTime: null, debugDate: null })}
+                    className="settings-dev-button primary"
+                    disabled={!settings.debugDate && !settings.debugTime}
+                    onClick={() => {
+                      const d = new Date();
+                      if (settings.debugDate) {
+                        const [y, m, day] = settings.debugDate.split('-').map(Number);
+                        d.setFullYear(y, m - 1, day);
+                      }
+                      if (settings.debugTime) {
+                        const [h, min] = settings.debugTime.split(':').map(Number);
+                        d.setHours(h || 0, min || 0, 0, 0);
+                      } else if (settings.debugDate) {
+                        d.setHours(0, 0, 0, 0);
+                      }
+                      const offset = d.getTime() - Date.now();
+                      update({ debugOffset: offset });
+                    }}
                   >
-                    Clear
+                    Apply
                   </button>
-                )}
+                  {(settings.debugOffset !== null || settings.debugDate || settings.debugTime) && (
+                    <button 
+                      className="settings-dev-button"
+                      onClick={() => update({ debugTime: null, debugDate: null, debugOffset: null })}
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>

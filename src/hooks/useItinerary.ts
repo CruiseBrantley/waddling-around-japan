@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { fetchItinerary, type Itinerary } from '../services/sheets';
 
-export function useItinerary(debugTime: string | null = null, debugDate: string | null = null) {
+export function useItinerary(debugOffset: number | null = null) {
   const [itinerary, setItinerary] = useState<Itinerary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -10,19 +10,9 @@ export function useItinerary(debugTime: string | null = null, debugDate: string 
 
   const getInitialTime = useCallback(() => {
     // 1. Manual Debug Overrides (Reactive from Settings)
-    if (debugTime || debugDate) {
-      const d = new Date();
-      if (debugDate) {
-        const [y, m, day] = debugDate.split('-').map(Number);
-        d.setFullYear(y, m - 1, day);
-      }
-      if (debugTime) {
-        const [h, min] = debugTime.split(':').map(Number);
-        d.setHours(h || 0, min || 0, 0, 0);
-      } else if (debugDate) {
-        d.setHours(0, 0, 0, 0);
-      }
-      return d;
+    // Priority: Settings Offset > URL Param > System Time
+    if (debugOffset !== null) {
+      return new Date(Date.now() + debugOffset);
     }
 
     // 2. URL Parameter Mocking (Legacy/CI Testing)
@@ -31,7 +21,6 @@ export function useItinerary(debugTime: string | null = null, debugDate: string 
     if (mockDateStr) {
       const mockDate = new Date(mockDateStr);
       if (!isNaN(mockDate.getTime())) {
-        // For URL params, we still use a relative offset so time "flows"
         const offset = mockDate.getTime() - Date.now();
         return new Date(Date.now() + offset);
       }
@@ -39,7 +28,7 @@ export function useItinerary(debugTime: string | null = null, debugDate: string 
 
     // 3. System Time
     return new Date();
-  }, [debugTime, debugDate]);
+  }, [debugOffset]);
   
   const [currentTime, setCurrentTime] = useState(() => getInitialTime());
 
