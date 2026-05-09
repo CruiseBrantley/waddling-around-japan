@@ -1351,12 +1351,12 @@
 
 .pill-progress-pulse {
   fill: none;
-  stroke: white;
-  stroke-width: 3px;
-  stroke-dasharray: 12, 88; /* Slightly larger segment for visibility */
-  opacity: 0.7;
-  filter: blur(2px);
-  animation: pulse-travel var(--pulse-duration, 3s) linear infinite;
+  stroke: rgba(255, 255, 255, 0.6);
+  stroke-width: 2px;
+  stroke-dasharray: 10, 90;
+  opacity: 0.4;
+  filter: blur(1.5px);
+  animation: pulse-travel var(--pulse-duration, 4s) linear infinite;
 }
 
 @keyframes pulse-travel {
