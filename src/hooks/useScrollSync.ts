@@ -271,6 +271,12 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
         behavior: isInstant ? 'auto' : 'smooth'
       });
 
+      // Force immediate height sync for programmatic jumps to ensure vertical scrolling room
+      const targetSlide = container.querySelectorAll('.swipe-slide')[index] as HTMLElement;
+      if (targetSlide) {
+        container.style.height = `${targetSlide.offsetHeight}px`;
+      }
+
       if (daySelector) {
         daySelector.scrollTo({
           left: index * ITEM_WIDTH,

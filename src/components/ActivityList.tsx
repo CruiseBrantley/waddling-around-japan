@@ -25,12 +25,21 @@ export const ActivityList: React.FC<ActivityListProps> = ({
 
   // Find which activity should be live based on time ranges
   const getLiveActivityId = () => {
+    if (allActivities.length === 0) return null;
+
+    // Special case: if before the first activity, but within 30 mins, make first live
+    const firstMins = timeToMinutes(allActivities[0].time);
+    if (currentMinutes < firstMins && currentMinutes >= firstMins - 30) {
+      return allActivities[0].id;
+    }
+
     for (let i = 0; i < allActivities.length; i++) {
       const activityMinutes = timeToMinutes(allActivities[i].time);
       const nextActivity = allActivities[i + 1];
-      const nextMinutes = nextActivity ? timeToMinutes(nextActivity.time) : 1440;
+      // If last activity, assume it lasts 2 hours for progress purposes (rather than until midnight)
+      const endMins = nextActivity ? timeToMinutes(nextActivity.time) : activityMinutes + 120;
       
-      if (currentMinutes >= activityMinutes && currentMinutes < nextMinutes) {
+      if (currentMinutes >= activityMinutes && currentMinutes < endMins) {
         return allActivities[i].id;
       }
     }
@@ -68,7 +77,8 @@ export const ActivityList: React.FC<ActivityListProps> = ({
             const startMins = timeToMinutes(activity.time);
             const actualIndex = allActivities.findIndex(a => a.id === activity.id);
             const nextActivity = allActivities[actualIndex + 1];
-            const endMins = nextActivity ? timeToMinutes(nextActivity.time) : 1440;
+            // Match the duration logic in getLiveActivityId
+            const endMins = nextActivity ? timeToMinutes(nextActivity.time) : startMins + 120;
             progress = Math.min(100, Math.max(0, ((currentMinutes - startMins) / (endMins - startMins)) * 100));
           }
 
