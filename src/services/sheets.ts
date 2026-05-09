@@ -148,10 +148,11 @@ function transformFullSheetData(rowData: SheetRow[]): Itinerary {
 
     // Detect if activity has a background color (Reservation)
     const bg = cells[colIndex.activity]?.userEnteredFormat?.backgroundColor;
+    // Target specific reservation color (Maroon/Dark Red: ~0.65, 0.11, 0.0)
     const isReservation = bg && (
-      (bg.red !== undefined && bg.red < 0.95) || 
-      (bg.green !== undefined && bg.green < 0.95) || 
-      (bg.blue !== undefined && bg.blue < 0.95)
+      Math.abs((bg.red || 0) - 0.65) < 0.1 && 
+      Math.abs((bg.green || 0) - 0.11) < 0.1 && 
+      (bg.blue || 0) < 0.1
     );
 
     const activity: ItineraryActivity = {
