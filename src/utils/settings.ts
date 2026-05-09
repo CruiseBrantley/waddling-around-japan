@@ -14,6 +14,8 @@ export interface AppSettings {
   notifyUrgentMinutesBefore: number;
   /** Manual time override for testing (e.g. "14:30") */
   debugTime: string | null;
+  /** Manual date override for testing (e.g. "2024-05-15") */
+  debugDate: string | null;
 }
 
 export const SETTINGS_DEFAULTS: AppSettings = {
@@ -29,6 +31,7 @@ export const SETTINGS_DEFAULTS: AppSettings = {
   notifyMinutesBefore: 10,
   notifyUrgentMinutesBefore: 1,
   debugTime: null,
+  debugDate: null,
 };
 
 export function loadSettings(): AppSettings {

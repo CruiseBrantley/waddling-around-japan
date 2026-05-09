@@ -319,21 +319,29 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="settings-row dev">
               <div className="settings-row-info">
                 <div>
-                  <div className="settings-label">Time Override</div>
-                  <div className="settings-hint">Set manual time for testing (e.g. 14:30)</div>
+                  <div className="settings-label">Manual Override</div>
+                  <div className="settings-hint">Set custom date & time for testing</div>
                 </div>
               </div>
               <div className="settings-dev-input-group">
-                <input 
-                  type="time" 
-                  className="settings-dev-input"
-                  value={settings.debugTime || ''}
-                  onChange={(e) => update({ debugTime: e.target.value || null })}
-                />
-                {settings.debugTime && (
+                <div className="settings-dev-stack">
+                  <input 
+                    type="date" 
+                    className="settings-dev-input"
+                    value={settings.debugDate || ''}
+                    onChange={(e) => update({ debugDate: e.target.value || null })}
+                  />
+                  <input 
+                    type="time" 
+                    className="settings-dev-input"
+                    value={settings.debugTime || ''}
+                    onChange={(e) => update({ debugTime: e.target.value || null })}
+                  />
+                </div>
+                {(settings.debugTime || settings.debugDate) && (
                   <button 
                     className="settings-dev-clear"
-                    onClick={() => update({ debugTime: null })}
+                    onClick={() => update({ debugTime: null, debugDate: null })}
                   >
                     Clear
                   </button>

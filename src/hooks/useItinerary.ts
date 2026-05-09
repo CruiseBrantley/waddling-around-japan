@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { fetchItinerary, type Itinerary } from '../services/sheets';
 
-export function useItinerary(timeOffset: number = 0, debugTime: string | null = null) {
+export function useItinerary(timeOffset: number = 0, debugTime: string | null = null, debugDate: string | null = null) {
   const [itinerary, setItinerary] = useState<Itinerary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -9,14 +9,23 @@ export function useItinerary(timeOffset: number = 0, debugTime: string | null = 
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
   const getInitialTime = useCallback(() => {
-    if (debugTime) {
-      const [h, m] = debugTime.split(':').map(Number);
+    if (debugTime || debugDate) {
       const d = new Date();
-      d.setHours(h || 0, m || 0, 0, 0);
+      if (debugDate) {
+        const [y, m, day] = debugDate.split('-').map(Number);
+        d.setFullYear(y, m - 1, day);
+      }
+      if (debugTime) {
+        const [h, min] = debugTime.split(':').map(Number);
+        d.setHours(h || 0, min || 0, 0, 0);
+      } else if (debugDate) {
+        // If date is set but not time, default to start of day
+        d.setHours(0, 0, 0, 0);
+      }
       return d;
     }
     return new Date(Date.now() + timeOffset);
-  }, [timeOffset, debugTime]);
+  }, [timeOffset, debugTime, debugDate]);
   
   const [currentTime, setCurrentTime] = useState(() => getInitialTime());
 

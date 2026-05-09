@@ -55,7 +55,7 @@ function App() {
     currentTime,
     isTripActive,
     getInitialTime
-  } = useItinerary(timeOffset, settings.debugTime);
+  } = useItinerary(timeOffset, settings.debugTime, settings.debugDate);
 
   const { needRefresh: [needRefresh], updateServiceWorker } = useRegisterSW();
 
