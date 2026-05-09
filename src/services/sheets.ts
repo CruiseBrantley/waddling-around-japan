@@ -8,6 +8,7 @@ export interface ItineraryActivity {
   cost?: string;
   notes: string;
   category: string;
+  requiresReservation?: boolean;
   type:
     | "sightseeing"
     | "food"
@@ -38,6 +39,13 @@ interface SheetRow {
   values?: Array<{
     formattedValue?: string;
     hyperlink?: string;
+    userEnteredFormat?: {
+      backgroundColor?: {
+        red?: number;
+        green?: number;
+        blue?: number;
+      };
+    };
   }>;
 }
 
@@ -138,6 +146,14 @@ function transformFullSheetData(rowData: SheetRow[]): Itinerary {
     const formattedLink = String(cells[colIndex.link]?.formattedValue || "").trim();
     const cleanLink = hyperLink || extractUrl(formattedLink);
 
+    // Detect if activity has a background color (Reservation)
+    const bg = cells[colIndex.activity]?.userEnteredFormat?.backgroundColor;
+    const isReservation = bg && (
+      (bg.red !== undefined && bg.red < 0.95) || 
+      (bg.green !== undefined && bg.green < 0.95) || 
+      (bg.blue !== undefined && bg.blue < 0.95)
+    );
+
     const activity: ItineraryActivity = {
       id: `act-${index}`,
       date: activityDate,
@@ -148,6 +164,7 @@ function transformFullSheetData(rowData: SheetRow[]): Itinerary {
       cost: String(cells[colIndex.cost]?.formattedValue || "").trim() || undefined,
       notes: String(cells[colIndex.notes]?.formattedValue || "").trim(),
       category: inferredCategory.display,
+      requiresReservation: !!isReservation,
       type: inferredCategory.type
     };
 

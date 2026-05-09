@@ -14,14 +14,19 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
 }) => {
   return (
   <div
-    className={`activity-card glass ${isLive ? 'is-live' : ''}`}
+    className={`activity-card glass ${isLive ? 'is-live' : ''} ${activity.requiresReservation ? 'is-reservation' : ''}`}
     ref={isLive ? activeCardRef : undefined}
   >
       <div className="card-header">
-        <h3 className="activity-title">
-          {activity.title}
-          {isLive && <span className="live-badge">● ONGOING</span>}
-        </h3>
+        <div className="title-row">
+          <h3 className="activity-title">
+            {activity.title}
+            {isLive && <span className="live-badge">● ONGOING</span>}
+          </h3>
+          {activity.requiresReservation && (
+            <span className="reservation-badge">🎟️ RESERVATION REQUIRED</span>
+          )}
+        </div>
         <span className={`category-tag type-${activity.type}`}>
           {activity.category}
         </span>
