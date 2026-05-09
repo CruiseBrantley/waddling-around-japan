@@ -63,7 +63,7 @@ export const FloatingActions: React.FC<FloatingActionsProps> = ({
           }}
         >
           {/* High-Precision Shrinking Countdown */}
-          <svg className="pill-progress-svg" preserveAspectRatio="none" style={{ opacity: isImminent ? 1 : 0 }}>
+          <svg className="pill-progress-svg ccw" preserveAspectRatio="none" style={{ opacity: isImminent ? 1 : 0 }}>
             <defs>
               <mask id="progress-mask">
                 <rect 
