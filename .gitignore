@@ -38,6 +38,12 @@ firestore-debug.log*
 pubsub-debug.log*
 ui-debug.log*
 
+# Push Server
+server/.env
+server/subscriptions.json
+server/dist/
+server/lib/
+
 # Temp & Scratch
 /scratch/
 test-results/
