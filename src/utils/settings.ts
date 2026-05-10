@@ -20,6 +20,8 @@ export interface AppSettings {
   debugDate: string | null;
   /** Milliseconds offset from real time */
   debugOffset: number | null;
+  /** Developer mode for testing push notifications */
+  devMode: boolean;
 }
 
 export const SETTINGS_DEFAULTS: AppSettings = {
@@ -37,6 +39,7 @@ export const SETTINGS_DEFAULTS: AppSettings = {
   debugTime: null,
   debugDate: null,
   debugOffset: null,
+  devMode: false,
 };
 
 export function loadSettings(): AppSettings {

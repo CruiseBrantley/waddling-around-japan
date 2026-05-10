@@ -62,10 +62,15 @@ export const getJapanTime = (): Date => {
   return new Date(japanTimeStr);
 };
 
+let subscriptionsFile = path.join(__dirname, '..', 'subscriptions.json');
+
+export const setSubscriptionsFile = (filePath: string) => {
+  subscriptionsFile = filePath;
+};
+
 // Main polling function called by the cron job
 export const pollAndNotify = async () => {
-  const SUBSCRIPTIONS_FILE = path.join(__dirname, '..', 'subscriptions.json');
-  if (!fs.existsSync(SUBSCRIPTIONS_FILE)) return;
+  if (!fs.existsSync(subscriptionsFile)) return;
 
   try {
     const itinerary = await fetchItinerary();
@@ -75,7 +80,7 @@ export const pollAndNotify = async () => {
     const nextEvent = getNextEvent(itinerary.days, currentTime);
     if (!nextEvent) return;
 
-    const data = fs.readFileSync(SUBSCRIPTIONS_FILE, 'utf8');
+    const data = fs.readFileSync(subscriptionsFile, 'utf8');
     const subscriptions: SubscriptionData[] = JSON.parse(data);
     if (subscriptions.length === 0) return;
 
@@ -115,7 +120,7 @@ export const pollAndNotify = async () => {
     }
 
     if (updatedAny) {
-      fs.writeFileSync(SUBSCRIPTIONS_FILE, JSON.stringify(subscriptions, null, 2), 'utf8');
+      fs.writeFileSync(subscriptionsFile, JSON.stringify(subscriptions, null, 2), 'utf8');
     }
 
   } catch (error) {

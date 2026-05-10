@@ -17,6 +17,7 @@ export interface SubscriptionData {
   };
   lastHeadsUpEvent?: string; // e.g. "Dinner-2024-05-15"
   lastUrgentEvent?: string;
+  isDev?: boolean;
 }
 
 // Set up the subscriptions file path (can be overridden for testing)
@@ -60,7 +61,8 @@ app.post('/subscribe', (req, res) => {
   
   const newData: SubscriptionData = {
     subscription,
-    settings: settings || { notifyMinutesBefore: 10, notifyUrgentMinutesBefore: 1 }
+    settings: settings || { notifyMinutesBefore: 10, notifyUrgentMinutesBefore: 1 },
+    isDev: req.body.isDev === true
   };
 
   if (index !== -1) {
@@ -77,29 +79,36 @@ app.post('/subscribe', (req, res) => {
 
 // A simple test endpoint to manually trigger a push to all subscribers
 app.post('/test-broadcast', async (req, res) => {
-  const { type = 'info', body = 'This is a test web push notification from the local Express server!', title = 'Test Broadcast' } = req.body;
-  
-  const payload = JSON.stringify({
-    title,
-    body,
-    type
-  });
+  try {
+    const { type = 'info', body = 'This is a test web push notification from the local Express server!', title = 'Test Broadcast' } = req.body || {};
+    
+    const payload = JSON.stringify({
+      title,
+      body,
+      type
+    });
 
-  const subscriptions = loadSubscriptions();
-  if (subscriptions.length === 0) {
-    return res.status(400).json({ message: 'No subscriptions found' });
+    const subscriptions = loadSubscriptions();
+    const targets = subscriptions.filter(s => s.isDev === true);
+    
+    if (targets.length === 0) {
+      return res.status(400).json({ message: 'No developer subscriptions found' });
+    }
+
+    const results = await Promise.allSettled(
+      targets.map(sub => webPush.sendNotification(sub.subscription, payload))
+    );
+
+    const successful = results.filter(r => r.status === 'fulfilled').length;
+    console.log(`Broadcast complete. Sent ${successful}/${targets.length}`);
+    
+    res.status(200).json({ 
+      message: 'Broadcast complete', 
+      sent: successful, 
+      total: targets.length 
+    });
+  } catch (error) {
+    console.error('Test broadcast failed:', error);
+    res.status(500).json({ error: 'Internal server error during broadcast' });
   }
-
-  const results = await Promise.allSettled(
-    subscriptions.map(sub => webPush.sendNotification(sub, payload))
-  );
-
-  const successful = results.filter(r => r.status === 'fulfilled').length;
-  console.log(`Broadcast complete. Sent ${successful}/${subscriptions.length}`);
-  
-  res.status(200).json({ 
-    message: 'Broadcast complete', 
-    sent: successful, 
-    total: subscriptions.length 
-  });
 });

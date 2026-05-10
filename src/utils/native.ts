@@ -159,7 +159,7 @@ export const triggerAlertSound = (type: 'info' | 'urgent' = 'info') => {
 /**
  * Requests notification permission.
  */
-export const requestNotificationPermission = async (settings: { notifyMinutesBefore: number, notifyUrgentMinutesBefore: number }) => {
+export const requestNotificationPermission = async (settings: { notifyMinutesBefore: number, notifyUrgentMinutesBefore: number, devMode: boolean }) => {
   if (!('Notification' in window)) return 'unsupported';
   
   try {
@@ -194,7 +194,7 @@ const urlBase64ToUint8Array = (base64String: string) => {
 /**
  * Subscribes the device to Web Push and sends the subscription to the backend.
  */
-export const subscribeToPushNotifications = async (settings: { notifyMinutesBefore: number, notifyUrgentMinutesBefore: number }) => {
+export const subscribeToPushNotifications = async (settings: { notifyMinutesBefore: number, notifyUrgentMinutesBefore: number, devMode: boolean }) => {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
     console.warn('Push messaging is not supported.');
     return;
@@ -223,7 +223,14 @@ export const subscribeToPushNotifications = async (settings: { notifyMinutesBefo
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
     await fetch(`${apiUrl}/subscribe`, {
       method: 'POST',
-      body: JSON.stringify({ subscription, settings }),
+      body: JSON.stringify({ 
+        subscription, 
+        settings: {
+          notifyMinutesBefore: settings.notifyMinutesBefore,
+          notifyUrgentMinutesBefore: settings.notifyUrgentMinutesBefore
+        },
+        isDev: settings.devMode
+      }),
       headers: {
         'Content-Type': 'application/json'
       }

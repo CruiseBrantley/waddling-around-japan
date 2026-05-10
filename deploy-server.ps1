@@ -20,7 +20,9 @@ if ($LASTEXITCODE -ne 0) {
 
 # 2. Rebuild and Restart on Pi
 Write-Host "🔨 Rebuilding and Restarting on Pi..." -ForegroundColor Yellow
-ssh "${PI_USER}@${PI_HOST}" "cd $DEST_DIR && npm install --no-audit --no-fund && ./node_modules/.bin/tsc && pm2 restart waddling-push"
+# We try to restart, but if it fails (first time), we start it. 
+# Finally, we run 'pm2 save' to ensure it survives a system reboot.
+ssh "${PI_USER}@${PI_HOST}" "cd $DEST_DIR && npm install --no-audit --no-fund && npm run build && (pm2 restart waddling-push || pm2 start dist/index.js --name waddling-push) && pm2 save"
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "❌ Remote build/restart failed!" -ForegroundColor Red

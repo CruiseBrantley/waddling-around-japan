@@ -48,17 +48,15 @@ describe('Poller Logic Tests', () => {
     });
 
     it('should find the next event later today', () => {
-      // Current time: 11:00 on May 24. Next event is Lunch at 14:00 (180 mins)
       const current = new Date('2026-05-24T11:00:00');
       const result = getNextEvent(mockDays, current);
-      expect(result).toEqual({ title: 'Lunch', minutes: 180 });
+      expect(result).toEqual({ title: 'Lunch', minutes: 180, time: '14:00' });
     });
 
     it('should find the next event tomorrow if today is done', () => {
-      // Current time: 15:00 on May 24. Next event is Train at 09:00 tomorrow (18 hours = 1080 mins)
       const current = new Date('2026-05-24T15:00:00');
       const result = getNextEvent(mockDays, current);
-      expect(result).toEqual({ title: 'Train', minutes: 1080 });
+      expect(result).toEqual({ title: 'Train', minutes: 1080, time: '09:00' });
     });
 
     it('should return null if it is the last day and all events passed', () => {

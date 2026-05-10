@@ -41,10 +41,15 @@ describe('Express Server API Tests', () => {
 
   it('should accept valid subscriptions on /subscribe and save to file', async () => {
     const mockSubscription = { endpoint: 'https://example.com/push/123', keys: { auth: 'a', p256dh: 'b' } };
+    const payload = { 
+      subscription: mockSubscription, 
+      settings: { notifyMinutesBefore: 10, notifyUrgentMinutesBefore: 1 },
+      isDev: false
+    };
 
     const response = await request(app)
       .post('/subscribe')
-      .send(mockSubscription);
+      .send(payload);
 
     expect(response.status).toBe(201);
     expect(response.body).toEqual({ success: true });
@@ -53,19 +58,20 @@ describe('Express Server API Tests', () => {
     expect(fs.existsSync(TEST_SUBS_FILE)).toBe(true);
     const data = JSON.parse(fs.readFileSync(TEST_SUBS_FILE, 'utf8'));
     expect(data.length).toBe(1);
-    expect(data[0].endpoint).toBe(mockSubscription.endpoint);
+    expect(data[0].subscription.endpoint).toBe(mockSubscription.endpoint);
   });
 
   it('should not add duplicate subscriptions on /subscribe', async () => {
     const mockSubscription = { endpoint: 'https://example.com/push/123' };
+    const payload = { subscription: mockSubscription };
 
     // Subscribe once
-    await request(app).post('/subscribe').send(mockSubscription);
+    await request(app).post('/subscribe').send(payload);
     
     // Subscribe again with exact same endpoint
     const response2 = await request(app)
       .post('/subscribe')
-      .send(mockSubscription);
+      .send(payload);
 
     expect(response2.status).toBe(201);
 
@@ -74,18 +80,21 @@ describe('Express Server API Tests', () => {
     expect(data.length).toBe(1);
   });
 
-  it('should fail /test-broadcast if no subscriptions exist', async () => {
+  it('should fail /test-broadcast if no developer subscriptions found', async () => {
     const response = await request(app).post('/test-broadcast');
     
     expect(response.status).toBe(400);
-    expect(response.body.message).toBe('No subscriptions found');
+    expect(response.body.message).toBe('No developer subscriptions found');
   });
 
-  it('should succeed /test-broadcast if subscriptions exist', async () => {
-    // Subscribe first
+  it('should succeed /test-broadcast if developer subscriptions exist', async () => {
+    // Subscribe as dev
     await request(app)
       .post('/subscribe')
-      .send({ endpoint: 'https://example.com/push/123' });
+      .send({ 
+        subscription: { endpoint: 'https://example.com/push/dev' },
+        isDev: true
+      });
 
     const response = await request(app).post('/test-broadcast');
     

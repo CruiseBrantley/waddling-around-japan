@@ -37,6 +37,11 @@ interface SheetRow {
   }>;
 }
 
+import fs from 'fs';
+import path from 'path';
+
+const CACHE_FILE = path.join(__dirname, '..', 'itinerary_cache.json');
+
 /**
  * Fetch itinerary data from Google Sheets V4 API
  */
@@ -51,18 +56,43 @@ export async function fetchItinerary(): Promise<Itinerary> {
 
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}?includeGridData=true&ranges=${encodeURIComponent(RANGE)}&key=${API_KEY}`;
 
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Sheets API Error: ${response.statusText}`);
-  }
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Sheets API Error: ${response.statusText}`);
+    }
 
-  const data = await response.json();
-  const sheetData = data.sheets?.[0]?.data?.[0]?.rowData;
-  if (!sheetData) {
-    throw new Error("No data found in the spreadsheet range.");
-  }
+    const data = await response.json();
+    const sheetData = data.sheets?.[0]?.data?.[0]?.rowData;
+    if (!sheetData) {
+      throw new Error("No data found in the spreadsheet range.");
+    }
 
-  return transformFullSheetData(sheetData);
+    const itinerary = transformFullSheetData(sheetData);
+    
+    // Save to server-side cache for offline resilience
+    try {
+      fs.writeFileSync(CACHE_FILE, JSON.stringify(itinerary, null, 2));
+    } catch (e) {
+      console.warn("Failed to write itinerary cache file:", e);
+    }
+    
+    return itinerary;
+  } catch (error) {
+    console.warn("Server: Sheets fetch failed, checking local cache...", error);
+    
+    if (fs.existsSync(CACHE_FILE)) {
+      try {
+        const cachedData = fs.readFileSync(CACHE_FILE, 'utf8');
+        console.log("Server: Using cached itinerary data from Disk.");
+        return JSON.parse(cachedData);
+      } catch (e) {
+        console.error("Server: Failed to read itinerary cache file:", e);
+      }
+    }
+    
+    throw error;
+  }
 }
 
 /**

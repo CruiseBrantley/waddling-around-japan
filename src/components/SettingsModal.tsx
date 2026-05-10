@@ -76,13 +76,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       triggerHaptic('light');
     }
 
-    // If thresholds changed and notifications are already enabled, sync with backend
-    const thresholdChanged = 
+    // If thresholds or dev mode changed and notifications are already enabled, sync with backend
+    const syncRequired = 
       (partial.notifyMinutesBefore !== undefined && partial.notifyMinutesBefore !== settings.notifyMinutesBefore) ||
-      (partial.notifyUrgentMinutesBefore !== undefined && partial.notifyUrgentMinutesBefore !== settings.notifyUrgentMinutesBefore);
+      (partial.notifyUrgentMinutesBefore !== undefined && partial.notifyUrgentMinutesBefore !== settings.notifyUrgentMinutesBefore) ||
+      (partial.devMode !== undefined && partial.devMode !== settings.devMode);
       
-    if (next.notificationsEnabled && thresholdChanged) {
-      console.log('Syncing updated notification thresholds to backend...');
+    if (next.notificationsEnabled && syncRequired) {
+      console.log('Syncing updated settings to backend...');
       subscribeToPushNotifications(next);
     }
   };
@@ -383,7 +384,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
               </div>
             </div>
+
+            <div className="settings-section">
+              <h3 className="settings-section-title">Developer Options</h3>
+              <div className="settings-row">
+                <div className="settings-label-group">
+                  <span className="settings-label">Developer Mode</span>
+                  <span className="settings-hint">Receive test push notifications</span>
+                </div>
+                <button 
+                  className={`settings-toggle ${settings.devMode ? 'active' : ''}`}
+                  onClick={() => update({ devMode: !settings.devMode })}
+                  aria-label="Toggle developer mode"
+                >
+                  <span className="settings-toggle-knob" />
+                </button>
+              </div>
+            </div>
           </div>
+
           <div className="settings-footer">
             <p className="version-info">Version {APP_VERSION}</p>
           </div>
