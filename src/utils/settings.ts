@@ -1,4 +1,4 @@
-export const APP_VERSION = '1.3.3'; // Fixed background update flicker
+export const APP_VERSION = '1.3.4'; // Robust background detection and composite throttle
 
 export interface AppSettings {
   soundEnabled: boolean;

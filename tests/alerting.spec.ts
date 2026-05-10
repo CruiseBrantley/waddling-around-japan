@@ -204,4 +204,54 @@ test.describe('Alerting and Notification System', () => {
     expect(countAfterReset).toBe(2);
   });
 
+  test('should fire notification immediately when backgrounded regardless of previous state', async ({ page }) => {
+    await page.goto('/?date=2026-05-24T05:50:00'); 
+    await page.waitForSelector('.activity-card');
+
+    await page.evaluate(() => {
+      /* eslint-disable @typescript-eslint/no-explicit-any */
+      (window as any).__notifyCount = 0;
+      (window as any).Notification = class {
+        static permission = 'granted';
+        constructor() { (window as any).__notifyCount++; }
+        close() {}
+      };
+      if ('ServiceWorkerRegistration' in window) {
+        (ServiceWorkerRegistration.prototype as any).showNotification = async function() {
+          (window as any).__notifyCount++;
+        };
+      }
+      /* eslint-enable @typescript-eslint/no-explicit-any */
+    });
+
+    // 1. Hide the app
+    await page.evaluate(() => {
+      Object.defineProperty(document, 'visibilityState', { value: 'hidden', writable: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await page.waitForTimeout(500);
+    
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    const count1 = await page.evaluate(() => (window as any).__notifyCount);
+    expect(count1).toBe(1);
+
+    // 2. Show the app (should clear throttle)
+    await page.evaluate(() => {
+      Object.defineProperty(document, 'visibilityState', { value: 'visible', writable: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await page.waitForTimeout(100);
+
+    // 3. Hide again immediately (within same minute)
+    await page.evaluate(() => {
+      Object.defineProperty(document, 'visibilityState', { value: 'hidden', writable: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await page.waitForTimeout(500);
+
+    const count2 = await page.evaluate(() => (window as any).__notifyCount);
+    expect(count2).toBe(2); // Should fire again!
+    /* eslint-enable @typescript-eslint/no-explicit-any */
+  });
+
 });

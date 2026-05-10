@@ -380,7 +380,7 @@ function App() {
   // --- Notifications ---
 
   const notifiedEventsRef = useRef<Set<string>>(new Set());
-  const lastNotifiedMinuteRef = useRef<number>(-1);
+  const lastNotifiedKeyRef = useRef<string>('');
 
   // Handle Query Param Testing
   useEffect(() => {
@@ -420,7 +420,7 @@ function App() {
       if (document.visibilityState === 'visible') {
         void clearEventNotifications();
         clearAppBadge();
-        lastNotifiedMinuteRef.current = -1; // Reset throttle on focus
+        lastNotifiedKeyRef.current = ''; // Reset throttle on focus
         
         // If they just clicked a notification (detected via flag/param)
         const params = new URLSearchParams(window.location.search);
@@ -434,6 +434,11 @@ function App() {
           window.history.replaceState({}, '', window.location.pathname);
         }
       }
+    };
+
+    const handleBlur = () => {
+      // Some mobile browsers favor blur for backgrounding
+      document.dispatchEvent(new Event('visibilitychange'));
     };
 
     const handleSWMessage = (event: MessageEvent) => {
@@ -459,12 +464,16 @@ function App() {
 
     void clearEventNotifications();
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('blur', handleBlur);
+    window.addEventListener('focus', handleVisibilityChange);
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.addEventListener('message', handleSWMessage);
     }
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('blur', handleBlur);
+      window.removeEventListener('focus', handleVisibilityChange);
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.removeEventListener('message', handleSWMessage);
       }
@@ -513,7 +522,8 @@ function App() {
 
     // 2. Perpetual Timer: If in background, keep the notification tray updated silently
     const roundedMinutes = Math.ceil(minutes);
-    if (isHidden && minutes > 0 && lastNotifiedMinuteRef.current !== roundedMinutes) {
+    const notifyKey = `${title}-${roundedMinutes}`;
+    if (isHidden && minutes > 0 && lastNotifiedKeyRef.current !== notifyKey) {
       void showLocalNotification(
         `Next: ${title}`,
         `Starting in ${roundedMinutes} minutes`,
@@ -522,7 +532,7 @@ function App() {
         false, // No sound for idle updates
         false  // No renotify (silent update in tray)
       );
-      lastNotifiedMinuteRef.current = roundedMinutes;
+      lastNotifiedKeyRef.current = notifyKey;
     }
   }, [
     activeEvents.next, 

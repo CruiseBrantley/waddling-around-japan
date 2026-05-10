@@ -374,7 +374,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
           <div className="settings-footer">
             <p className="version-info">Version {APP_VERSION}</p>
-            <p>Made for the Waddlers Trip 2026 🦆</p>
           </div>
         </div>
       </div>
