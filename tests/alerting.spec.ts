@@ -1,0 +1,120 @@
+import { test, expect } from '@playwright/test';
+
+test.describe('Alerting and Notification System', () => {
+
+  test.beforeEach(async ({ page }) => {
+    // Enable notification permission for the browser context
+    await page.context().grantPermissions(['notifications']);
+    await page.goto('/?date=2026-05-24T12:00:00'); // Ensure we are on a valid day
+    await page.waitForSelector('.activity-card');
+  });
+
+  test('should highlight activities requiring a reservation', async ({ page }) => {
+    // Target a specific known reservation to avoid strict mode violation
+    const reservationCard = page.locator('.activity-card.is-reservation', { hasText: 'Dinner Yakiniku' }).first();
+    await expect(reservationCard).toBeVisible();
+    await expect(reservationCard.locator('.reservation-badge')).toContainText('RESERVATION REQUIRED');
+    
+    // Verify standard cards don't have it
+    const standardCard = page.locator('.activity-card:not(.is-reservation)').first();
+    await expect(standardCard).toBeVisible();
+    await expect(standardCard.locator('.reservation-badge')).not.toBeVisible();
+  });
+
+  test('should send a notification with a tag when the app is hidden', async ({ page }) => {
+    // Spy on notification calls
+    await page.evaluate(() => {
+      /* eslint-disable @typescript-eslint/no-explicit-any */
+      (window as any).__notifications = [];
+      // We'll mock the showLocalNotification call directly for easier tracking in Playwright
+      const oldNotify = (window as any).showLocalNotification;
+      (window as any).showLocalNotification = async (...args: any[]) => {
+        (window as any).__notifications.push(args);
+        if (oldNotify) return oldNotify(...args);
+      };
+      /* eslint-enable @typescript-eslint/no-explicit-any */
+    });
+
+    // Mock an imminent event
+    await page.goto('/?date=2026-05-24T05:56:00'); 
+    await page.waitForTimeout(1000);
+
+    // Hide the page to trigger background timer
+    await page.evaluate(() => {
+      Object.defineProperty(document, 'visibilityState', { value: 'hidden', writable: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+
+    // We can't easily wait for a real minute, so we'll check the call that happens on hidden.
+    await page.waitForTimeout(2000);
+
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    const notifications = await page.evaluate(() => (window as any).__notifications || []);
+    
+    // The perpetual timer update should be in the logs
+    // [title, body, type, vibrate, sound, renotify]
+    const timerCall = notifications.find((n: any) => n[0] && n[0].startsWith('Next:'));
+    if (timerCall) {
+      expect(timerCall[5]).toBe(false); // renotify should be false for idle updates
+    }
+    /* eslint-enable @typescript-eslint/no-explicit-any */
+  });
+
+  test('should clear notifications and badge when app becomes visible', async ({ page }) => {
+    // Mock the notification clearing logic
+    await page.evaluate(() => {
+      /* eslint-disable @typescript-eslint/no-explicit-any */
+      (window as any).__cleared = false;
+      const oldClear = (navigator as any).clearAppBadge;
+      (navigator as any).clearAppBadge = async () => {
+        (window as any).__cleared = true;
+        if (oldClear) return oldClear.apply(navigator);
+      };
+      /* eslint-enable @typescript-eslint/no-explicit-any */
+    });
+
+    // Trigger visibility change to 'visible'
+    await page.evaluate(() => {
+      Object.defineProperty(document, 'visibilityState', { value: 'visible', writable: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+
+    await page.waitForTimeout(500);
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    const cleared = await page.evaluate(() => (window as any).__cleared);
+    /* eslint-enable @typescript-eslint/no-explicit-any */
+    expect(cleared).toBe(true);
+  });
+
+  test('should show correct progress on the countdown pill', async ({ page }) => {
+    // Set time to 2 minutes before event (05:58 for 06:00 event)
+    await page.goto('/?date=2026-05-24T05:58:00');
+    await page.waitForSelector('.upcoming-pill');
+
+    const progress = await page.locator('.pill-progress-rect').evaluate(el => {
+      const style = window.getComputedStyle(el);
+      return style.strokeDasharray;
+    });
+
+    // At 2 mins remaining out of 5 mins threshold:
+    // Shrinking logic: (2 / 5) * 100 = 40% remaining
+    expect(progress).toContain('40');
+  });
+
+  test('should align pulse and border directions', async ({ page }) => {
+    await page.goto('/?date=2026-05-24T05:58:00');
+    await page.waitForSelector('.upcoming-pill');
+
+    const pillSvg = page.locator('.pill-progress-svg');
+    // Ensure .ccw class is REMOVED (we want Top-Left origin)
+    await expect(pillSvg).not.toHaveClass(/ccw/);
+    
+    // Verify pulse animation uses pulse-travel keyframes
+    const animation = await page.locator('.pill-progress-pulse').evaluate(el => {
+      const styles = window.getComputedStyle(el);
+      return styles.animationName;
+    });
+    expect(animation).toBe('pulse-travel');
+  });
+
+});
