@@ -436,11 +436,6 @@ function App() {
       }
     };
 
-    const handleBlur = () => {
-      // Some mobile browsers favor blur for backgrounding
-      document.dispatchEvent(new Event('visibilitychange'));
-    };
-
     const handleSWMessage = (event: MessageEvent) => {
       if (event.data && event.data.type === 'NOTIFICATION_CLICK') {
         if (loading) {
@@ -464,16 +459,12 @@ function App() {
 
     void clearEventNotifications();
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('blur', handleBlur);
-    window.addEventListener('focus', handleVisibilityChange);
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.addEventListener('message', handleSWMessage);
     }
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('blur', handleBlur);
-      window.removeEventListener('focus', handleVisibilityChange);
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.removeEventListener('message', handleSWMessage);
       }
@@ -530,7 +521,8 @@ function App() {
         'info',
         false, // No vibrate for idle updates
         false, // No sound for idle updates
-        false  // No renotify (silent update in tray)
+        false, // No renotify (silent update in tray)
+        'itinerary-timer'
       );
       lastNotifiedKeyRef.current = notifyKey;
     }

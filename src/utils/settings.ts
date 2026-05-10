@@ -1,4 +1,4 @@
-export const APP_VERSION = '1.3.4'; // Robust background detection and composite throttle
+export const APP_VERSION = '1.3.5'; // Refined notification lifecycle and tags
 
 export interface AppSettings {
   soundEnabled: boolean;

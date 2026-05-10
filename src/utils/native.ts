@@ -184,9 +184,10 @@ export const showLocalNotification = async (
   type: 'info' | 'urgent' = 'info',
   vibrate = true,
   sound = true,
-  renotify = true
+  renotify = true,
+  tag = 'itinerary-alert'
 ) => {
-  console.log('Attempting notification:', title, body, type, 'vibrate:', vibrate, 'sound:', sound, 'renotify:', renotify);
+  console.log('Attempting notification:', title, body, type, 'vibrate:', vibrate, 'sound:', sound, 'renotify:', renotify, 'tag:', tag);
   
   if (!('Notification' in window)) {
     console.warn('Notifications not supported in this browser');
@@ -202,7 +203,7 @@ export const showLocalNotification = async (
     body,
     icon: '/icon.png',
     badge: '/icon.png',
-    tag: 'itinerary-alert',
+    tag,
     renotify,
     silent: !sound,
     vibrate: vibrate ? (type === 'urgent' ? [150, 50, 150, 50, 150] : [120, 40, 120]) : [],
@@ -255,8 +256,12 @@ export const clearEventNotifications = async () => {
   try {
     const registration = await navigator.serviceWorker.ready;
     if ('getNotifications' in registration) {
-      const notifications = await registration.getNotifications({ tag: 'itinerary-alert' });
-      notifications.forEach(n => n.close());
+      const notifications = await registration.getNotifications();
+      notifications.forEach(n => {
+        if (n.tag === 'itinerary-alert' || n.tag === 'itinerary-timer') {
+          n.close();
+        }
+      });
     }
   } catch (e) {
     console.warn('Failed to clear notifications:', e);
