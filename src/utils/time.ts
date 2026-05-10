@@ -4,11 +4,12 @@
 export const timeToMinutes = (timeStr: string): number => {
   if (!timeStr) return 0;
   
-  const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+  // Handle formats like "9:30 AM", "14:30", "7 PM", "19"
+  const match = timeStr.match(/(\d+)(?::(\d+))?\s*(AM|PM)?/i);
   if (!match) return 0;
 
-  let hours = parseInt(match[1]);
-  const minutes = parseInt(match[2]);
+  let hours = parseInt(match[1], 10);
+  const minutes = match[2] ? parseInt(match[2], 10) : 0;
   const modifier = match[3]?.toUpperCase();
 
   if (modifier === 'PM' && hours < 12) hours += 12;

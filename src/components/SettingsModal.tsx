@@ -24,10 +24,11 @@ interface SettingsModalProps {
   onClose: () => void;
   settings: AppSettings;
   onSettingsChange: (settings: AppSettings) => void;
+  currentTime: Date;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ 
-  isOpen, onClose, settings, onSettingsChange 
+  isOpen, onClose, settings, onSettingsChange, currentTime 
 }) => {
   const [permissionState, setPermissionState] = useState<NotificationPermission | 'unsupported'>(() => {
     if (!supportsNotifications()) return 'unsupported';
@@ -328,23 +329,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {/* Developer Tools */}
           <div className="settings-divider" />
-          <div className="settings-dev-section">
-            <div className="settings-label dev">Developer Tools</div>
-            <div className="settings-row dev">
-              <div className="settings-row-info">
-                <div>
-                  <div className="settings-label">Manual Override</div>
-                  <div className="settings-hint">Set custom date & time for testing</div>
-                </div>
+          <div className="settings-dev-container">
+            <h3 className="settings-section-title">Developer Tools</h3>
+            
+            <div className="settings-dev-card">
+              <div className="settings-dev-header">
+                <div className="settings-label">Manual Override</div>
+                <div className="settings-hint">Set custom date & time for testing</div>
               </div>
-              <div className="settings-dev-input-group">
-                <div className="settings-dev-stack">
+              
+              <div className="settings-dev-grid">
+                <div className="settings-dev-field">
+                  <span className="dev-field-label">Date</span>
                   <input 
                     type="date" 
                     className="settings-dev-input"
                     value={settings.debugDate || ''}
                     onChange={(e) => update({ debugDate: e.target.value || null })}
                   />
+                </div>
+                <div className="settings-dev-field">
+                  <span className="dev-field-label">Time</span>
                   <input 
                     type="time" 
                     className="settings-dev-input"
@@ -352,7 +357,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     onChange={(e) => update({ debugTime: e.target.value || null })}
                   />
                 </div>
-                <div className="settings-dev-buttons">
+                <div className="settings-dev-actions">
                   <button 
                     className="settings-dev-button primary"
                     disabled={!settings.debugDate && !settings.debugTime}
@@ -372,20 +377,42 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       update({ debugOffset: offset });
                     }}
                   >
-                    Apply
+                    Apply Override
                   </button>
                   {(settings.debugOffset !== null || settings.debugDate || settings.debugTime) && (
                     <button 
-                      className="settings-dev-button"
+                      className="settings-dev-button secondary"
                       onClick={() => update({ debugTime: null, debugDate: null, debugOffset: null })}
                     >
-                      Clear
+                      Reset to System
                     </button>
                   )}
                 </div>
               </div>
             </div>
 
+            <div className="settings-dev-card debug-info">
+              <div className="settings-dev-header">
+                <div className="settings-label">Active Logic Debug</div>
+              </div>
+              <div className="debug-stats-grid">
+                <div className="debug-stat">
+                  <span className="debug-label">App Time</span>
+                  <span className="debug-value">{currentTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'})}</span>
+                </div>
+                <div className="debug-stat">
+                  <span className="debug-label">Current Minutes</span>
+                  <span className="debug-value">
+                    {(currentTime.getHours() * 60 + currentTime.getMinutes() + (currentTime.getSeconds() / 60)).toFixed(1)}
+                  </span>
+                </div>
+              </div>
+              <div className="debug-rule-box">
+                <span className="debug-rule-label">Live Window Rule</span>
+                <code className="debug-rule-code">[Start] to [min(Next Start, Start + 150m)]</code>
+              </div>
+            </div>
+            
             <div className="settings-section">
               <h3 className="settings-section-title">Developer Options</h3>
               <div className="settings-row">

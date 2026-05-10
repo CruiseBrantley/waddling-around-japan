@@ -307,7 +307,9 @@ function App() {
       const act = today.activities[i];
       const startMin = timeToMinutes(act.time);
       const nextAct = today.activities[i + 1];
-      const endMin = nextAct ? timeToMinutes(nextAct.time) : 1440;
+      // Realistic Logic: End at next activity start OR after a max duration of 2.5 hours (150 mins)
+      const maxDuration = 150; 
+      const endMin = nextAct ? Math.min(timeToMinutes(nextAct.time), startMin + maxDuration) : startMin + maxDuration;
       
       if (nowMin >= startMin && nowMin < endMin) {
         current = { ...act, dayIdx: todayIdx };
@@ -607,6 +609,7 @@ function App() {
         onClose={() => setIsSettingsOpen(false)}
         settings={settings}
         onSettingsChange={setSettings}
+        currentTime={currentTime}
       />
     </div>
   );

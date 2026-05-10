@@ -36,8 +36,9 @@ export const ActivityList: React.FC<ActivityListProps> = ({
     for (let i = 0; i < allActivities.length; i++) {
       const activityMinutes = timeToMinutes(allActivities[i].time);
       const nextActivity = allActivities[i + 1];
-      // If last activity, assume it lasts 2 hours for progress purposes (rather than until midnight)
-      const endMins = nextActivity ? timeToMinutes(nextActivity.time) : activityMinutes + 120;
+      // Realistic Logic: End at next activity start OR after a max duration of 2.5 hours (150 mins)
+      const maxDuration = 150;
+      const endMins = nextActivity ? Math.min(timeToMinutes(nextActivity.time), activityMinutes + maxDuration) : activityMinutes + maxDuration;
       
       if (currentMinutes >= activityMinutes && currentMinutes < endMins) {
         return allActivities[i].id;
@@ -77,8 +78,9 @@ export const ActivityList: React.FC<ActivityListProps> = ({
             const startMins = timeToMinutes(activity.time);
             const actualIndex = allActivities.findIndex(a => a.id === activity.id);
             const nextActivity = allActivities[actualIndex + 1];
-            // Match the duration logic in getLiveActivityId
-            const endMins = nextActivity ? timeToMinutes(nextActivity.time) : startMins + 120;
+            // Realistic Logic: Match the duration logic in getLiveActivityId
+            const maxDuration = 150;
+            const endMins = nextActivity ? Math.min(timeToMinutes(nextActivity.time), startMins + maxDuration) : startMins + maxDuration;
             progress = Math.min(100, Math.max(0, ((currentMinutes - startMins) / (endMins - startMins)) * 100));
           }
 

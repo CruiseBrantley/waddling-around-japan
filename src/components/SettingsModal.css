@@ -300,56 +300,154 @@
   gap: 8px;
 }
 
-.settings-dev-stack {
+.settings-dev-container {
+  padding: 0 4px;
+  margin-top: 8px;
+}
+
+.settings-dev-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.settings-dev-card.debug-info {
+  background: rgba(183, 141, 235, 0.05);
+  border-color: rgba(183, 141, 235, 0.15);
+}
+
+.settings-dev-header {
+  margin-bottom: 16px;
+}
+
+.settings-dev-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.settings-dev-field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
+}
+
+.dev-field-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.5;
+  font-weight: 600;
 }
 
 .settings-dev-input {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(0, 0, 0, 0.2);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 6px;
+  border-radius: 8px;
   color: white;
-  padding: 4px 8px;
+  padding: 8px 10px;
   font-family: inherit;
   font-size: 14px;
+  width: 100%;
+  box-sizing: border-box;
+  outline: none;
+  transition: border-color 0.2s;
 }
 
-.settings-dev-buttons {
+.settings-dev-input:focus {
+  border-color: var(--primary);
+}
+
+.settings-dev-actions {
+  grid-column: span 2;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
+  margin-top: 4px;
 }
 
 .settings-dev-button {
-  background: rgba(255, 255, 255, 0.1);
   border: none;
-  border-radius: 4px;
-  color: white;
-  padding: 4px 12px;
-  font-size: 12px;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
-  white-space: nowrap;
+  transition: all 0.2s;
+  width: 100%;
 }
 
 .settings-dev-button.primary {
   background: var(--primary);
   color: #1a1a1a;
-  font-weight: 600;
-}
-
-.settings-dev-button:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.2);
 }
 
 .settings-dev-button.primary:hover:not(:disabled) {
   background: white;
+  transform: translateY(-1px);
+}
+
+.settings-dev-button.secondary {
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+}
+
+.settings-dev-button.secondary:hover {
+  background: rgba(255, 255, 255, 0.15);
 }
 
 .settings-dev-button:disabled {
   opacity: 0.3;
   cursor: not-allowed;
+}
+
+/* Debug Info Styling */
+.debug-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.debug-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.debug-label {
+  font-size: 11px;
+  opacity: 0.5;
+}
+
+.debug-value {
+  font-family: monospace;
+  font-size: 14px;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.debug-rule-box {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.debug-rule-label {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  opacity: 0.4;
+  margin-bottom: 4px;
+}
+
+.debug-rule-code {
+  font-family: monospace;
+  font-size: 11px;
+  opacity: 0.8;
+  word-break: break-all;
 }
 
 .settings-ios-helper {
@@ -387,6 +485,7 @@
   vertical-align: middle;
 }
 
+/* Keyframes */
 @keyframes settings-expand {
   from { 
     opacity: 0; 

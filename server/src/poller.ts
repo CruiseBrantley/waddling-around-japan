@@ -14,13 +14,15 @@ export const timeToMinutes = (timeStr: string): number => {
   return (hours * 60) + minutes;
 };
 
-// Helper to check if a date string matches a Date object
+// Helper to check if a date string matches a Date object (in Japan timezone)
 export const isSameDay = (dateStr: string, dateObj: Date) => {
-  const localDateStr = new Date(dateObj.getTime() - (dateObj.getTimezoneOffset() * 60000))
-    .toISOString()
-    .split('T')[0];
+  // Use en-CA locale as it gives YYYY-MM-DD
+  const japanDateStr = new Intl.DateTimeFormat('en-CA', { 
+    timeZone: 'Asia/Tokyo' 
+  }).format(dateObj);
+  
   const cleanDateStr = dateStr.replace(/\//g, '-').split('T')[0];
-  return localDateStr === cleanDateStr;
+  return japanDateStr === cleanDateStr;
 };
 
 export interface AlertTarget {
@@ -58,6 +60,9 @@ export const getNextEvent = (days: ItineraryDay[], currentTime: Date): AlertTarg
 };
 
 export const getJapanTime = (): Date => {
+  // Get current time in Tokyo as a Date object
+  // Note: new Date(toLocaleString) is generally safe for simple comparisons
+  // but we should be careful. This is the current pattern in the project.
   const japanTimeStr = new Date().toLocaleString("en-US", { timeZone: "Asia/Tokyo" });
   return new Date(japanTimeStr);
 };

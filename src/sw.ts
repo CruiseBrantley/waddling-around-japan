@@ -57,7 +57,11 @@ swSelf.addEventListener('push', (event: any) => {
   }
 
   event.waitUntil(
-    swSelf.registration.showNotification(data.title, options)
+    swSelf.registration.getNotifications({ tag: data.tag }).then((notifications: any[]) => {
+      // Force close existing notifications with the same tag to prevent stacking on all platforms
+      notifications.forEach((n: any) => n.close());
+      return swSelf.registration.showNotification(data.title, options);
+    })
   );
 });
 
