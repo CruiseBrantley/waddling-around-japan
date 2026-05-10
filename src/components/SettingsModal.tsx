@@ -98,6 +98,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     // Turning on
     if (Notification.permission !== 'granted') {
       if (settings.hapticsEnabled) triggerHaptic('medium');
+      // Requesting for the first time
       const result = await requestNotificationPermission(settings); // This will auto-subscribe if granted
       setPermissionState(result === 'granted' ? 'granted' : result === 'denied' ? 'denied' : 'default');
       if (result === 'granted') {

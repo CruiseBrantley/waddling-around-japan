@@ -203,9 +203,9 @@ export const subscribeToPushNotifications = async (settings: { notifyMinutesBefo
   try {
     const registration = await navigator.serviceWorker.ready;
     
-    const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+    const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY || (window as unknown as { VITE_VAPID_PUBLIC_KEY?: string }).VITE_VAPID_PUBLIC_KEY;
     if (!vapidPublicKey) {
-      console.error('Missing VITE_VAPID_PUBLIC_KEY in .env');
+      console.error('Missing VITE_VAPID_PUBLIC_KEY in .env or window');
       return;
     }
 

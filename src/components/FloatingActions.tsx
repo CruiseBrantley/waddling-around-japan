@@ -49,7 +49,8 @@ export const FloatingActions: React.FC<FloatingActionsProps> = ({
 
   const isImminent = nextEvent && nextEvent.minutes <= 5 && nextEvent.minutes > 0;
   // Progress should shrink as we get closer (100% at 5m, 0% at 0m)
-  const progress = isImminent ? (nextEvent.minutes / 5) * 100 : 0;
+  // Round to nearest integer for consistent rendering and test stability
+  const progress = isImminent ? Math.round((nextEvent.minutes / 5) * 100) : 0;
 
   return (
     <div className="floating-actions">

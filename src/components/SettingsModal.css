@@ -6,9 +6,10 @@
   backdrop-filter: blur(12px) saturate(160%);
   z-index: 100000;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: flex-start;
   padding: 20px;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 20px);
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 20px);
   animation: modal-backdrop-in 0.3s ease;
   touch-action: none;
 }
@@ -16,7 +17,7 @@
 .settings-modal {
   width: 100%;
   max-width: 380px;
-  max-height: calc(100vh - 40px);
+  max-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 40px);
   background: #14151a;
   border-radius: 32px;
   color: white;
@@ -29,6 +30,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  margin: 0 auto; /* Keep centered horizontally with flex-start */
 }
 
 .settings-modal-header {
@@ -54,6 +56,7 @@
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+  scroll-padding-top: 70px; /* Ensure scrolled items aren't under sticky header */
 }
 
 .settings-modal-content::-webkit-scrollbar {
