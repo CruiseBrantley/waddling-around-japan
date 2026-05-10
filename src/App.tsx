@@ -380,6 +380,7 @@ function App() {
   // --- Notifications ---
 
   const notifiedEventsRef = useRef<Set<string>>(new Set());
+  const lastNotifiedMinuteRef = useRef<number>(-1);
 
   // Handle Query Param Testing
   useEffect(() => {
@@ -456,6 +457,7 @@ function App() {
     }
 
     void clearEventNotifications();
+    lastNotifiedMinuteRef.current = -1; // Reset throttle on focus
     document.addEventListener('visibilitychange', handleVisibilityChange);
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.addEventListener('message', handleSWMessage);
@@ -510,15 +512,17 @@ function App() {
     }
 
     // 2. Perpetual Timer: If in background, keep the notification tray updated silently
-    if (isHidden && minutes > 0) {
+    const roundedMinutes = Math.ceil(minutes);
+    if (isHidden && minutes > 0 && lastNotifiedMinuteRef.current !== roundedMinutes) {
       void showLocalNotification(
         `Next: ${title}`,
-        `Starting in ${Math.ceil(minutes)} minutes`,
+        `Starting in ${roundedMinutes} minutes`,
         'info',
         false, // No vibrate for idle updates
         false, // No sound for idle updates
         false  // No renotify (silent update in tray)
       );
+      lastNotifiedMinuteRef.current = roundedMinutes;
     }
   }, [
     activeEvents.next, 

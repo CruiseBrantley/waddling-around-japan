@@ -204,6 +204,7 @@ export const showLocalNotification = async (
     badge: '/icon.png',
     tag: 'itinerary-alert',
     renotify,
+    silent: !sound,
     vibrate: vibrate ? (type === 'urgent' ? [150, 50, 150, 50, 150] : [120, 40, 120]) : [],
     data: {
       url: window.location.origin

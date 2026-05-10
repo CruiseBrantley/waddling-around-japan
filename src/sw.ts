@@ -6,7 +6,6 @@ import { ExpirationPlugin } from 'workbox-expiration'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-// @ts-expect-error - WB_MANIFEST is injected at build time
 const swSelf = (self as any)
 
 cleanupOutdatedCaches()

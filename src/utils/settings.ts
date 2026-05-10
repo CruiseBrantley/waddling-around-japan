@@ -1,3 +1,5 @@
+export const APP_VERSION = '1.3.2'; // Added silent notification fix
+
 export interface AppSettings {
   soundEnabled: boolean;
   hapticsEnabled: boolean;

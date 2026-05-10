@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { triggerHaptic, triggerTick, requestNotificationPermission, triggerAlertSound } from '../utils/native';
-import { saveSettings, supportsNotifications, isIOS, isStandalone, supportsHaptics, supportsSound } from '../utils/settings';
+import { saveSettings, supportsNotifications, isIOS, isStandalone, supportsHaptics, supportsSound, APP_VERSION } from '../utils/settings';
 import type { AppSettings } from '../utils/settings';
 import './SettingsModal.css';
 
@@ -371,6 +371,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
               </div>
             </div>
+          </div>
+          <div className="settings-footer">
+            <p className="version-info">Version {APP_VERSION}</p>
+            <p>Made for the Waddlers Trip 2026 🦆</p>
           </div>
         </div>
       </div>
