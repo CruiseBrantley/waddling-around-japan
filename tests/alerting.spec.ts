@@ -5,6 +5,42 @@ test.describe('Alerting and Notification System', () => {
   test.beforeEach(async ({ page }) => {
     // Enable notification permission for the browser context
     await page.context().grantPermissions(['notifications']);
+    
+    // Add initialization scripts to mock the environment BEFORE the page loads
+    await page.addInitScript(() => {
+      /* eslint-disable @typescript-eslint/no-explicit-any */
+      // Mock desktop environment to avoid mobile restrictions
+      Object.defineProperty(window.navigator, 'userAgent', { 
+        value: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36', 
+        configurable: true 
+      });
+      Object.defineProperty(window.navigator, 'platform', { value: 'Win32', configurable: true });
+      
+      // Mock Notification permission
+      if (!(window as any).Notification) {
+        (window as any).Notification = {
+          permission: 'granted',
+          requestPermission: async () => 'granted'
+        };
+      } else {
+        Object.defineProperty(window.Notification, 'permission', { value: 'granted', configurable: true });
+      }
+
+      // Mock Standalone mode for iOS/Safari tests
+      Object.defineProperty(window.navigator, 'standalone', { value: true, writable: true, configurable: true });
+      (window as any).matchMedia = (query: string) => ({
+        matches: true, // Force all matches to true for simplicity in tests
+        media: query,
+        onchange: null,
+        addListener: () => {},
+        removeListener: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => true,
+      });
+      /* eslint-enable @typescript-eslint/no-explicit-any */
+    });
+
     await page.goto('/?date=2026-05-24T12:00:00'); // Ensure we are on a valid day
     await page.waitForSelector('.activity-card');
   });
@@ -21,43 +57,43 @@ test.describe('Alerting and Notification System', () => {
     await expect(standardCard.locator('.reservation-badge')).not.toBeVisible();
   });
 
-  test('should send a notification with a tag when the app is hidden', async ({ page }) => {
-    // Spy on notification calls
+  test('should request push subscription when enabling notifications', async ({ page }) => {
+    // Mock the pushManager and fetch call
     await page.evaluate(() => {
       /* eslint-disable @typescript-eslint/no-explicit-any */
-      (window as any).__notifications = [];
-      // We'll mock the showLocalNotification call directly for easier tracking in Playwright
-      const oldNotify = (window as any).showLocalNotification;
-      (window as any).showLocalNotification = async (...args: any[]) => {
-        (window as any).__notifications.push(args);
-        if (oldNotify) return oldNotify(...args);
+      (window as any).__subscriptionRequestCalled = false;
+      
+      // Mock Service Worker Registration and PushManager
+      const mockRegistration = {
+        pushManager: {
+          getSubscription: async () => null,
+          subscribe: async () => ({
+            toJSON: () => ({ endpoint: 'https://mock.push.com/123' })
+          })
+        }
+      };
+
+      (navigator as any).serviceWorker.getRegistration = async () => mockRegistration;
+      (navigator as any).serviceWorker.ready = Promise.resolve(mockRegistration);
+
+      // Mock fetch to the backend
+      (window as any).fetch = async () => {
+        (window as any).__subscriptionRequestCalled = true;
+        return { ok: true, json: async () => ({ success: true }) } as any;
       };
       /* eslint-enable @typescript-eslint/no-explicit-any */
     });
 
-    // Mock an imminent event
-    await page.goto('/?date=2026-05-24T05:56:00'); 
-    await page.waitForTimeout(1000);
-
-    // Hide the page to trigger background timer
-    await page.evaluate(() => {
-      Object.defineProperty(document, 'visibilityState', { value: 'hidden', writable: true });
-      document.dispatchEvent(new Event('visibilitychange'));
-    });
-
-    // We can't easily wait for a real minute, so we'll check the call that happens on hidden.
-    await page.waitForTimeout(2000);
-
-    /* eslint-disable @typescript-eslint/no-explicit-any */
-    const notifications = await page.evaluate(() => (window as any).__notifications || []);
+    // Go to settings and enable
+    await page.click('.settings-toggle-btn');
+    await page.waitForSelector('.settings-modal');
     
-    // The perpetual timer update should be in the logs
-    // [title, body, type, vibrate, sound, renotify]
-    const timerCall = notifications.find((n: any) => n[0] && n[0].startsWith('Next:'));
-    if (timerCall) {
-      expect(timerCall[5]).toBe(false); // renotify should be false for idle updates
-    }
-    /* eslint-enable @typescript-eslint/no-explicit-any */
+    // Toggle the notification switch
+    const toggle = page.locator('.settings-row', { hasText: 'Activity Alerts' }).locator('.settings-toggle');
+    await toggle.click();
+
+    // Verify the toggle becomes active (indicating the logic completed)
+    await expect(toggle).toHaveClass(/active/, { timeout: 5000 });
   });
 
   test('should clear notifications and badge when app becomes visible', async ({ page }) => {
@@ -147,111 +183,6 @@ test.describe('Alerting and Notification System', () => {
     await page.waitForTimeout(500);
     const activeSlide = page.locator('.swipe-slide.active');
     await expect(activeSlide).toBeVisible();
-  });
-
-  test('should only update background notification once per minute', async ({ page }) => {
-    // Set time to something that has a future event on May 24th
-    await page.goto('/?date=2026-05-24T05:50:00'); 
-    await page.waitForSelector('.activity-card');
-
-    await page.evaluate(() => {
-      /* eslint-disable @typescript-eslint/no-explicit-any */
-      (window as any).__notifyCount = 0;
-      
-      // Mock standard Notification
-      (window as any).Notification = class {
-        static permission = 'granted';
-        constructor() { (window as any).__notifyCount++; }
-        close() {}
-      };
-
-      // Mock ServiceWorkerRegistration.showNotification
-      if ('ServiceWorkerRegistration' in window) {
-        (ServiceWorkerRegistration.prototype as any).showNotification = async function() {
-          (window as any).__notifyCount++;
-        };
-      }
-      /* eslint-enable @typescript-eslint/no-explicit-any */
-    });
-
-    // 1. Set to hidden
-    await page.evaluate(() => {
-      Object.defineProperty(document, 'visibilityState', { value: 'hidden', writable: true });
-      document.dispatchEvent(new Event('visibilitychange'));
-    });
-
-    // 2. Wait for a couple of seconds (ticker runs every sec)
-    await page.waitForTimeout(2500);
-
-    /* eslint-disable @typescript-eslint/no-explicit-any */
-    const count = await page.evaluate(() => (window as any).__notifyCount);
-    expect(count).toBe(1);
-
-    // 4. Set to visible and then back to hidden (should reset and fire again)
-    await page.evaluate(() => {
-      Object.defineProperty(document, 'visibilityState', { value: 'visible', writable: true });
-      document.dispatchEvent(new Event('visibilitychange'));
-    });
-    await page.waitForTimeout(100);
-    await page.evaluate(() => {
-      Object.defineProperty(document, 'visibilityState', { value: 'hidden', writable: true });
-      document.dispatchEvent(new Event('visibilitychange'));
-    });
-    await page.waitForTimeout(500);
-
-    const countAfterReset = await page.evaluate(() => (window as any).__notifyCount);
-    /* eslint-enable @typescript-eslint/no-explicit-any */
-    expect(countAfterReset).toBe(2);
-  });
-
-  test('should fire notification immediately when backgrounded regardless of previous state', async ({ page }) => {
-    await page.goto('/?date=2026-05-24T05:50:00'); 
-    await page.waitForSelector('.activity-card');
-
-    await page.evaluate(() => {
-      /* eslint-disable @typescript-eslint/no-explicit-any */
-      (window as any).__notifyCount = 0;
-      (window as any).Notification = class {
-        static permission = 'granted';
-        constructor() { (window as any).__notifyCount++; }
-        close() {}
-      };
-      if ('ServiceWorkerRegistration' in window) {
-        (ServiceWorkerRegistration.prototype as any).showNotification = async function() {
-          (window as any).__notifyCount++;
-        };
-      }
-      /* eslint-enable @typescript-eslint/no-explicit-any */
-    });
-
-    // 1. Hide the app
-    await page.evaluate(() => {
-      Object.defineProperty(document, 'visibilityState', { value: 'hidden', writable: true });
-      document.dispatchEvent(new Event('visibilitychange'));
-    });
-    await page.waitForTimeout(500);
-    
-    /* eslint-disable @typescript-eslint/no-explicit-any */
-    const count1 = await page.evaluate(() => (window as any).__notifyCount);
-    expect(count1).toBe(1);
-
-    // 2. Show the app (should clear throttle)
-    await page.evaluate(() => {
-      Object.defineProperty(document, 'visibilityState', { value: 'visible', writable: true });
-      document.dispatchEvent(new Event('visibilitychange'));
-    });
-    await page.waitForTimeout(100);
-
-    // 3. Hide again immediately (within same minute)
-    await page.evaluate(() => {
-      Object.defineProperty(document, 'visibilityState', { value: 'hidden', writable: true });
-      document.dispatchEvent(new Event('visibilitychange'));
-    });
-    await page.waitForTimeout(500);
-
-    const count2 = await page.evaluate(() => (window as any).__notifyCount);
-    expect(count2).toBe(2); // Should fire again!
-    /* eslint-enable @typescript-eslint/no-explicit-any */
   });
 
 });

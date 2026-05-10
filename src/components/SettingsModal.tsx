@@ -75,6 +75,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     if (next.hapticsEnabled) {
       triggerHaptic('light');
     }
+
+    // If thresholds changed and notifications are already enabled, sync with backend
+    const thresholdChanged = 
+      (partial.notifyMinutesBefore !== undefined && partial.notifyMinutesBefore !== settings.notifyMinutesBefore) ||
+      (partial.notifyUrgentMinutesBefore !== undefined && partial.notifyUrgentMinutesBefore !== settings.notifyUrgentMinutesBefore);
+      
+    if (next.notificationsEnabled && thresholdChanged) {
+      console.log('Syncing updated notification thresholds to backend...');
+      subscribeToPushNotifications(next);
+    }
   };
 
   const handleNotificationToggle = async () => {
@@ -87,7 +97,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     // Turning on
     if (Notification.permission !== 'granted') {
       if (settings.hapticsEnabled) triggerHaptic('medium');
-      const result = await requestNotificationPermission(); // This will auto-subscribe if granted
+      const result = await requestNotificationPermission(settings); // This will auto-subscribe if granted
       setPermissionState(result === 'granted' ? 'granted' : result === 'denied' ? 'denied' : 'default');
       if (result === 'granted') {
         update({ notificationsEnabled: true });
@@ -97,7 +107,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       }
     } else {
       // Already granted, but we still need to fetch the Web Push subscription from the server
-      await subscribeToPushNotifications();
+      await subscribeToPushNotifications(settings);
       update({ notificationsEnabled: true });
     }
   };
