@@ -420,6 +420,7 @@ function App() {
       if (document.visibilityState === 'visible') {
         void clearEventNotifications();
         clearAppBadge();
+        lastNotifiedMinuteRef.current = -1; // Reset throttle on focus
         
         // If they just clicked a notification (detected via flag/param)
         const params = new URLSearchParams(window.location.search);
@@ -457,7 +458,6 @@ function App() {
     }
 
     void clearEventNotifications();
-    lastNotifiedMinuteRef.current = -1; // Reset throttle on focus
     document.addEventListener('visibilitychange', handleVisibilityChange);
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.addEventListener('message', handleSWMessage);

@@ -117,4 +117,91 @@ test.describe('Alerting and Notification System', () => {
     expect(animation).toBe('pulse-travel');
   });
 
+  test('should handle navigation when notification is clicked', async ({ page }) => {
+    // 1. Mock the Service Worker postMessage capability
+    await page.evaluate(() => {
+      /* eslint-disable @typescript-eslint/no-explicit-any */
+      if ('serviceWorker' in navigator) {
+        // Create a mock controller if it doesn't exist
+        if (!navigator.serviceWorker.controller) {
+          (navigator.serviceWorker as any).controller = {
+            postMessage: (msg: any) => {
+              window.dispatchEvent(new MessageEvent('message', { data: msg }));
+            }
+          };
+        }
+      }
+      /* eslint-enable @typescript-eslint/no-explicit-any */
+    });
+
+    // 2. Simulate a notification click message from SW
+    await page.evaluate(() => {
+      navigator.serviceWorker.dispatchEvent(new MessageEvent('message', {
+        data: { type: 'NOTIFICATION_CLICK' }
+      }));
+    });
+
+    // 3. Verify that the app jumps to the current day
+    // We are at 12:00:00 on 2026-05-24 (from beforeEach)
+    // The jump should ensure the "active" slide is visible
+    await page.waitForTimeout(500);
+    const activeSlide = page.locator('.swipe-slide.active');
+    await expect(activeSlide).toBeVisible();
+  });
+
+  test('should only update background notification once per minute', async ({ page }) => {
+    // Set time to something that has a future event on May 24th
+    await page.goto('/?date=2026-05-24T05:50:00'); 
+    await page.waitForSelector('.activity-card');
+
+    await page.evaluate(() => {
+      /* eslint-disable @typescript-eslint/no-explicit-any */
+      (window as any).__notifyCount = 0;
+      
+      // Mock standard Notification
+      (window as any).Notification = class {
+        static permission = 'granted';
+        constructor() { (window as any).__notifyCount++; }
+        close() {}
+      };
+
+      // Mock ServiceWorkerRegistration.showNotification
+      if ('ServiceWorkerRegistration' in window) {
+        (ServiceWorkerRegistration.prototype as any).showNotification = async function() {
+          (window as any).__notifyCount++;
+        };
+      }
+      /* eslint-enable @typescript-eslint/no-explicit-any */
+    });
+
+    // 1. Set to hidden
+    await page.evaluate(() => {
+      Object.defineProperty(document, 'visibilityState', { value: 'hidden', writable: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+
+    // 2. Wait for a couple of seconds (ticker runs every sec)
+    await page.waitForTimeout(2500);
+
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    const count = await page.evaluate(() => (window as any).__notifyCount);
+    expect(count).toBe(1);
+
+    // 4. Set to visible and then back to hidden (should reset and fire again)
+    await page.evaluate(() => {
+      Object.defineProperty(document, 'visibilityState', { value: 'visible', writable: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await page.waitForTimeout(100);
+    await page.evaluate(() => {
+      Object.defineProperty(document, 'visibilityState', { value: 'hidden', writable: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await page.waitForTimeout(500);
+
+    const countAfterReset = await page.evaluate(() => (window as any).__notifyCount);
+    /* eslint-enable @typescript-eslint/no-explicit-any */
+    expect(countAfterReset).toBe(2);
+  });
+
 });

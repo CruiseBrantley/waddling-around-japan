@@ -1,4 +1,4 @@
-export const APP_VERSION = '1.3.2'; // Added silent notification fix
+export const APP_VERSION = '1.3.3'; // Fixed background update flicker
 
 export interface AppSettings {
   soundEnabled: boolean;
