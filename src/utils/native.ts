@@ -243,6 +243,24 @@ export const showLocalNotification = async (
   }
 };
 
+/**
+ * Clears any active itinerary notifications.
+ * Ensures the notification tray is clean when the user opens the app.
+ */
+export const clearEventNotifications = async () => {
+  if (!('serviceWorker' in navigator)) return;
+
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    if ('getNotifications' in registration) {
+      const notifications = await registration.getNotifications({ tag: 'itinerary-alert' });
+      notifications.forEach(n => n.close());
+    }
+  } catch (e) {
+    console.warn('Failed to clear notifications:', e);
+  }
+};
+
 // Expose to window for testing
 if (typeof window !== 'undefined') {
   (window as unknown as { showLocalNotification: unknown }).showLocalNotification = showLocalNotification;

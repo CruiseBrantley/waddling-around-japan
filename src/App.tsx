@@ -20,7 +20,7 @@ import { useScrollSync } from './hooks/useScrollSync'
 
 // Utils
 import { timeToMinutes } from './utils/time'
-import { setAppBadge, clearAppBadge, triggerHaptic, triggerTick, showLocalNotification, setHapticsEnabled } from './utils/native'
+import { setAppBadge, clearAppBadge, triggerHaptic, triggerTick, showLocalNotification, setHapticsEnabled, clearEventNotifications } from './utils/native'
 import heroImg from './assets/hero_optimized.jpg'
 
 function App() {
@@ -395,6 +395,22 @@ function App() {
       }, 1000);
       return () => clearTimeout(timer);
     }
+  }, []);
+
+  // Clear notifications when app is opened or resumed
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void clearEventNotifications();
+        clearAppBadge(); // Also clear badge when looking at the list
+      }
+    };
+
+    // Clear immediately on mount
+    void clearEventNotifications();
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
   // Automatic Notifications for upcoming activities
