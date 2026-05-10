@@ -183,9 +183,10 @@ export const showLocalNotification = async (
   body: string, 
   type: 'info' | 'urgent' = 'info',
   vibrate = true,
-  sound = true
+  sound = true,
+  renotify = true
 ) => {
-  console.log('Attempting notification:', title, body, type, 'vibrate:', vibrate, 'sound:', sound);
+  console.log('Attempting notification:', title, body, type, 'vibrate:', vibrate, 'sound:', sound, 'renotify:', renotify);
   
   if (!('Notification' in window)) {
     console.warn('Notifications not supported in this browser');
@@ -202,7 +203,7 @@ export const showLocalNotification = async (
     icon: '/icon.png',
     badge: '/icon.png',
     tag: 'itinerary-alert',
-    renotify: true,
+    renotify,
     vibrate: vibrate ? (type === 'urgent' ? [150, 50, 150, 50, 150] : [120, 40, 120]) : [],
     data: {
       url: window.location.origin

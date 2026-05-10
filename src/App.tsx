@@ -418,37 +418,53 @@ function App() {
     if (!activeEvents.next || !settings.notificationsEnabled) return;
 
     const { title, minutes } = activeEvents.next;
+    const isHidden = document.visibilityState === 'hidden';
     
-    // Notify at user-defined heads-up threshold
-    if (settings.notifyHeadsUpEnabled && minutes > 0 && minutes <= settings.notifyMinutesBefore) {
-      const eventId = `notify-heads-up-${title}`;
-      if (!notifiedEventsRef.current.has(eventId)) {
-        void showLocalNotification(
-          `Upcoming: ${title}`,
-          `Starting in ${Math.ceil(minutes)} minutes!`,
-          'info',
-          settings.notifyHeadsUpVibrate,
-          settings.notifyHeadsUpChime
-        );
-        notifiedEventsRef.current.add(eventId);
-      }
+    // 1. Check for threshold-based alerts (Always ping/vibrate)
+    const isHeadsUp = settings.notifyHeadsUpEnabled && minutes > 0 && minutes <= settings.notifyMinutesBefore;
+    const isUrgent = settings.notifyUrgentEnabled && minutes > 0 && minutes <= settings.notifyUrgentMinutesBefore;
+    
+    const headsUpId = `notify-heads-up-${title}`;
+    const urgentId = `notify-urgent-${title}`;
+
+    if (isUrgent && !notifiedEventsRef.current.has(urgentId)) {
+      void showLocalNotification(
+        `Starting Now: ${title}`,
+        `Time to head to ${title}!`,
+        'urgent',
+        settings.notifyUrgentVibrate,
+        settings.notifyUrgentChime,
+        true // renotify: ping the user
+      );
+      notifiedEventsRef.current.add(urgentId);
+      return;
     }
 
-    // Notify at user-defined urgent threshold
-    if (settings.notifyUrgentEnabled && minutes > 0 && minutes <= settings.notifyUrgentMinutesBefore) {
-      const eventId = `notify-urgent-${title}`;
-      if (!notifiedEventsRef.current.has(eventId)) {
-        void showLocalNotification(
-          `Starting Now: ${title}`,
-          `Time to head to ${title}!`,
-          'urgent',
-          settings.notifyUrgentVibrate,
-          settings.notifyUrgentChime
-        );
-        notifiedEventsRef.current.add(eventId);
-      }
+    if (isHeadsUp && !notifiedEventsRef.current.has(headsUpId)) {
+      void showLocalNotification(
+        `Upcoming: ${title}`,
+        `Starting in ${Math.ceil(minutes)} minutes!`,
+        'info',
+        settings.notifyHeadsUpVibrate,
+        settings.notifyHeadsUpChime,
+        true // renotify: ping the user
+      );
+      notifiedEventsRef.current.add(headsUpId);
+      return;
     }
-  }, [activeEvents.next, settings.notificationsEnabled, settings.notifyMinutesBefore, settings.notifyUrgentMinutesBefore]);
+
+    // 2. Perpetual Timer: If in background, keep the notification tray updated silently
+    if (isHidden && minutes > 0) {
+      void showLocalNotification(
+        `Next: ${title}`,
+        `Starting in ${Math.ceil(minutes)} minutes`,
+        'info',
+        false, // No vibrate for idle updates
+        false, // No sound for idle updates
+        false  // No renotify (silent update in tray)
+      );
+    }
+  }, [activeEvents.next, settings.notificationsEnabled, settings.notifyMinutesBefore, settings.notifyUrgentMinutesBefore, currentTime]); // Added currentTime to trigger updates every minute
 
   useEffect(() => {
     // Show remaining activities today as a badge
