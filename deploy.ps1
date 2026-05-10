@@ -1,36 +1,23 @@
 # deploy.ps1
 # Master deployment script for the whole "Waddling Around Japan" system
 
-$VERSION_TYPE = "patch" # Can be "patch", "minor", or "major"
+$VERSION_TYPE = "patch"
 
-Write-Host "🏷️ Bumping version ($VERSION_TYPE)..." -ForegroundColor Cyan
+Write-Host "Bumping version ($VERSION_TYPE)..."
 npm version $VERSION_TYPE --no-git-tag-version
 
-# Get the new version for the message
-$NEW_VERSION = (Get-Content package.json | ConvertFrom-Json).version
-Write-Host "🚀 Deploying Version $NEW_VERSION" -ForegroundColor Green -FontWeight Bold
+$package = Get-Content package.json | ConvertFrom-Json
+$NEW_VERSION = $package.version
+Write-Host "Deploying Version $NEW_VERSION"
 
 # 1. Deploy Backend to Raspberry Pi
-Write-Host "📡 Deploying Backend to Raspberry Pi..." -ForegroundColor Yellow
+Write-Host "Deploying Backend to Raspberry Pi..."
 powershell.exe -File .\deploy-server.ps1
 
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "❌ Backend deployment failed!" -ForegroundColor Red
-    exit $LASTEXITCODE
-}
-
 # 2. Build and Deploy Frontend to Firebase
-Write-Host "🎨 Building and Deploying Frontend to Firebase..." -ForegroundColor Yellow
+Write-Host "Building and Deploying Frontend to Firebase..."
 npm run build
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "❌ Frontend build failed!" -ForegroundColor Red
-    exit $LASTEXITCODE
-}
-
 npx firebase-tools deploy
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "❌ Firebase deployment failed!" -ForegroundColor Red
-    exit $LASTEXITCODE
-}
 
-Write-Host "🎊 All systems deployed successfully! Running version: $NEW_VERSION" -ForegroundColor Green
+Write-Host "All systems deployed successfully!"
+Write-Host "Version: $NEW_VERSION"
