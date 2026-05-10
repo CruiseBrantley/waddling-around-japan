@@ -397,21 +397,77 @@ function App() {
     }
   }, []);
 
-  // Clear notifications when app is opened or resumed
+  const [pendingJump, setPendingJump] = useState(false);
+
+  // Clear notifications and handle navigation when app is opened or resumed
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        void clearEventNotifications();
-        clearAppBadge(); // Also clear badge when looking at the list
+    const jumpToNow = () => {
+      // Find current day index
+      const nowDayIdx = filteredDays.findIndex(d => isSameDay(d.date, currentTime));
+      if (nowDayIdx !== -1) {
+        performSmartJump(nowDayIdx);
       }
     };
 
-    // Clear immediately on mount
-    void clearEventNotifications();
+    // If data is ready and we have a pending jump, do it now
+    if (!loading && itinerary && pendingJump) {
+      jumpToNow();
+      setTimeout(() => setPendingJump(false), 0);
+    }
 
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void clearEventNotifications();
+        clearAppBadge();
+        
+        // If they just clicked a notification (detected via flag/param)
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('from_notification')) {
+          if (loading) {
+            setTimeout(() => setPendingJump(true), 0);
+          } else {
+            jumpToNow();
+          }
+          // Clean up the URL
+          window.history.replaceState({}, '', window.location.pathname);
+        }
+      }
+    };
+
+    const handleSWMessage = (event: MessageEvent) => {
+      if (event.data && event.data.type === 'NOTIFICATION_CLICK') {
+        if (loading) {
+          setTimeout(() => setPendingJump(true), 0);
+        } else {
+          jumpToNow();
+        }
+      }
+    };
+
+    // Check immediately on mount for deep link
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('from_notification')) {
+      if (loading) {
+        setTimeout(() => setPendingJump(true), 0);
+      } else {
+        jumpToNow();
+      }
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+
+    void clearEventNotifications();
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, []);
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', handleSWMessage);
+    }
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.removeEventListener('message', handleSWMessage);
+      }
+    };
+  }, [filteredDays, currentTime, performSmartJump, loading, itinerary, pendingJump, isSameDay]);
 
   // Automatic Notifications for upcoming activities
   useEffect(() => {
@@ -464,7 +520,19 @@ function App() {
         false  // No renotify (silent update in tray)
       );
     }
-  }, [activeEvents.next, settings.notificationsEnabled, settings.notifyMinutesBefore, settings.notifyUrgentMinutesBefore, currentTime]); // Added currentTime to trigger updates every minute
+  }, [
+    activeEvents.next, 
+    settings.notificationsEnabled, 
+    settings.notifyMinutesBefore, 
+    settings.notifyUrgentMinutesBefore, 
+    settings.notifyHeadsUpChime,
+    settings.notifyHeadsUpVibrate,
+    settings.notifyHeadsUpEnabled,
+    settings.notifyUrgentChime,
+    settings.notifyUrgentVibrate,
+    settings.notifyUrgentEnabled,
+    currentTime
+  ]); // Added currentTime to trigger updates every minute
 
   useEffect(() => {
     // Show remaining activities today as a badge
