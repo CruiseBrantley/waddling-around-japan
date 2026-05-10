@@ -1,4 +1,5 @@
-export const APP_VERSION = '1.3.5'; // Refined notification lifecycle and tags
+declare const __APP_VERSION__: string;
+export const APP_VERSION = __APP_VERSION__; // Dynamically injected from package.json via Vite
 
 export interface AppSettings {
   soundEnabled: boolean;
