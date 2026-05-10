@@ -165,10 +165,73 @@ export const requestNotificationPermission = async () => {
   try {
     const permission = await Notification.requestPermission();
     console.log('Notification permission status:', permission);
+    
+    if (permission === 'granted') {
+      await subscribeToPushNotifications();
+    }
+    
     return permission;
   } catch (e) {
     console.error('Permission request failed', e);
     return 'denied';
+  }
+};
+
+/**
+ * Utility to convert the base64 VAPID public key into the format required by PushManager
+ */
+const urlBase64ToUint8Array = (base64String: string) => {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+};
+
+/**
+ * Subscribes the device to Web Push and sends the subscription to the backend.
+ */
+export const subscribeToPushNotifications = async () => {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    console.warn('Push messaging is not supported.');
+    return;
+  }
+
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    
+    const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+    if (!vapidPublicKey) {
+      console.error('Missing VITE_VAPID_PUBLIC_KEY in .env');
+      return;
+    }
+
+    const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
+
+    // Subscribe to push notifications
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: convertedVapidKey
+    });
+
+    console.log('Push subscription successful. Sending to backend...');
+
+    // Send the subscription to our backend server
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+    await fetch(`${apiUrl}/subscribe`, {
+      method: 'POST',
+      body: JSON.stringify(subscription),
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
+    console.log('Successfully registered with backend push server.');
+  } catch (e) {
+    console.error('Failed to subscribe to push notifications:', e);
   }
 };
 

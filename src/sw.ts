@@ -30,6 +30,37 @@ registerRoute(
   })
 )
 
+swSelf.addEventListener('push', (event: any) => {
+  let data = { title: 'New Alert', body: 'Open the app to see what\'s next.', type: 'info', tag: 'itinerary-alert' };
+  
+  if (event.data) {
+    try {
+      data = Object.assign(data, event.data.json());
+    } catch {
+      data.body = event.data.text();
+    }
+  }
+
+  const options: any = {
+    body: data.body,
+    icon: '/icon.png',
+    badge: '/icon.png',
+    tag: data.tag,
+    renotify: true,
+    data: { url: swSelf.location.origin }
+  };
+
+  if (data.type === 'urgent') {
+    options.vibrate = [150, 50, 150, 50, 150];
+  } else {
+    options.vibrate = [120, 40, 120];
+  }
+
+  event.waitUntil(
+    swSelf.registration.showNotification(data.title, options)
+  );
+});
+
 swSelf.addEventListener('notificationclick', (event: any) => {
   event.notification.close()
 

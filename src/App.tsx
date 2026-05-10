@@ -379,8 +379,6 @@ function App() {
   // 6. Native Integrations
   // --- Notifications ---
 
-  const notifiedEventsRef = useRef<Set<string>>(new Set());
-  const lastNotifiedKeyRef = useRef<string>('');
 
   // Handle Query Param Testing
   useEffect(() => {
@@ -420,7 +418,6 @@ function App() {
       if (document.visibilityState === 'visible') {
         void clearEventNotifications();
         clearAppBadge();
-        lastNotifiedKeyRef.current = ''; // Reset throttle on focus
         
         // If they just clicked a notification (detected via flag/param)
         const params = new URLSearchParams(window.location.search);
@@ -471,74 +468,8 @@ function App() {
     };
   }, [filteredDays, currentTime, performSmartJump, loading, itinerary, pendingJump, isSameDay]);
 
-  // Automatic Notifications for upcoming activities
-  useEffect(() => {
-    if (!activeEvents.next || !settings.notificationsEnabled) return;
-
-    const { title, minutes } = activeEvents.next;
-    const isHidden = document.visibilityState === 'hidden';
-    
-    // 1. Check for threshold-based alerts (Always ping/vibrate)
-    const isHeadsUp = settings.notifyHeadsUpEnabled && minutes > 0 && minutes <= settings.notifyMinutesBefore;
-    const isUrgent = settings.notifyUrgentEnabled && minutes > 0 && minutes <= settings.notifyUrgentMinutesBefore;
-    
-    const headsUpId = `notify-heads-up-${title}`;
-    const urgentId = `notify-urgent-${title}`;
-
-    if (isUrgent && !notifiedEventsRef.current.has(urgentId)) {
-      void showLocalNotification(
-        `Starting Now: ${title}`,
-        `Time to head to ${title}!`,
-        'urgent',
-        settings.notifyUrgentVibrate,
-        settings.notifyUrgentChime,
-        true // renotify: ping the user
-      );
-      notifiedEventsRef.current.add(urgentId);
-      return;
-    }
-
-    if (isHeadsUp && !notifiedEventsRef.current.has(headsUpId)) {
-      void showLocalNotification(
-        `Upcoming: ${title}`,
-        `Starting in ${Math.ceil(minutes)} minutes!`,
-        'info',
-        settings.notifyHeadsUpVibrate,
-        settings.notifyHeadsUpChime,
-        true // renotify: ping the user
-      );
-      notifiedEventsRef.current.add(headsUpId);
-      return;
-    }
-
-    // 2. Perpetual Timer: If in background, keep the notification tray updated silently
-    const roundedMinutes = Math.ceil(minutes);
-    const notifyKey = `${title}-${roundedMinutes}`;
-    if (isHidden && minutes > 0 && lastNotifiedKeyRef.current !== notifyKey) {
-      void showLocalNotification(
-        `Next: ${title}`,
-        `Starting in ${roundedMinutes} minutes`,
-        'info',
-        false, // No vibrate for idle updates
-        false, // No sound for idle updates
-        false, // No renotify (silent update in tray)
-        'itinerary-timer'
-      );
-      lastNotifiedKeyRef.current = notifyKey;
-    }
-  }, [
-    activeEvents.next, 
-    settings.notificationsEnabled, 
-    settings.notifyMinutesBefore, 
-    settings.notifyUrgentMinutesBefore, 
-    settings.notifyHeadsUpChime,
-    settings.notifyHeadsUpVibrate,
-    settings.notifyHeadsUpEnabled,
-    settings.notifyUrgentChime,
-    settings.notifyUrgentVibrate,
-    settings.notifyUrgentEnabled,
-    currentTime
-  ]); // Added currentTime to trigger updates every minute
+  // Automatic Notifications for upcoming activities removed!
+  // Notifications are now completely driven by the backend server via Web Push.
 
   useEffect(() => {
     // Show remaining activities today as a badge

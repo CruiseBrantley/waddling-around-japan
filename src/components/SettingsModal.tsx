@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { triggerHaptic, triggerTick, requestNotificationPermission, triggerAlertSound } from '../utils/native';
+import { triggerHaptic, triggerTick, requestNotificationPermission, triggerAlertSound, subscribeToPushNotifications } from '../utils/native';
 import { saveSettings, supportsNotifications, isIOS, isStandalone, supportsHaptics, supportsSound, APP_VERSION } from '../utils/settings';
 import type { AppSettings } from '../utils/settings';
 import './SettingsModal.css';
@@ -84,10 +84,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       return;
     }
 
-    // Turning on — request permission if needed
+    // Turning on
     if (Notification.permission !== 'granted') {
       if (settings.hapticsEnabled) triggerHaptic('medium');
-      const result = await requestNotificationPermission();
+      const result = await requestNotificationPermission(); // This will auto-subscribe if granted
       setPermissionState(result === 'granted' ? 'granted' : result === 'denied' ? 'denied' : 'default');
       if (result === 'granted') {
         update({ notificationsEnabled: true });
@@ -96,6 +96,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         return;
       }
     } else {
+      // Already granted, but we still need to fetch the Web Push subscription from the server
+      await subscribeToPushNotifications();
       update({ notificationsEnabled: true });
     }
   };
