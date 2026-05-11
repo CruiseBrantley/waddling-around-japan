@@ -1,6 +1,32 @@
 import React from 'react';
 import type { ItineraryActivity } from '../services/sheets';
 
+const getLinkText = (url: string, category: string) => {
+  const isFood = category?.toLowerCase().trim() === 'food';
+  
+  try {
+    const domain = new URL(url).hostname.toLowerCase();
+    
+    if (domain.includes('google.com/maps') || domain.includes('maps.app.goo.gl')) {
+      if (url.includes('/place/') || url.includes('/search/')) {
+        return isFood ? 'View Menu on Maps' : 'View Place';
+      }
+      return 'View Map';
+    }
+    
+    if (domain.includes('tabelog.com')) return 'View on Tabelog';
+    if (domain.includes('klook.com')) return 'View Tickets';
+    if (domain.includes('navitime.com')) return 'View Route';
+    if (domain.includes('instagram.com')) return 'View on Instagram';
+    if (domain.includes('gurunavi.com')) return 'View on Gurunavi';
+    if (domain.includes('hotpepper.jp')) return 'View on Hotpepper';
+  } catch {
+    // Fallback handled below
+  }
+  
+  return isFood ? 'View Menu' : 'View Website';
+};
+
 interface ActivityCardProps {
   activity: ItineraryActivity;
   isLive: boolean;
@@ -67,37 +93,41 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
       </div>
 
       <div className="activity-details">
-        {activity.location && (
-          <a
-            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.location)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="activity-location-link"
-          >
-            <span className="detail-icon">📍</span>
-            <span>{activity.location}</span>
-          </a>
-        )}
-        {activity.cost && (
-          <div className="detail-item">
-            <span className="detail-icon">💰</span>
-            <span className="detail-text">{activity.cost}</span>
-          </div>
-        )}
+        <div className="activity-metadata">
+          {activity.location && (
+            <a
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.location)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="metadata-item location-link"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+              <span>{activity.location}</span>
+            </a>
+          )}
+          {activity.cost && (
+            <div className="metadata-item">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+              <span>{activity.cost}</span>
+            </div>
+          )}
+        </div>
         {activity.notes && (
           <div className="activity-notes">
             <p>{activity.notes}</p>
           </div>
         )}
         {activity.link && (
-          <a
-            href={activity.link}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="activity-link"
-          >
-            View Trip Note
-          </a>
+          <div className="activity-action-links" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px' }}>
+            <a
+              href={activity.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="activity-link"
+            >
+              🔗 {getLinkText(activity.link, activity.category)}
+            </a>
+          </div>
         )}
       </div>
     </div>
