@@ -29,15 +29,15 @@ describe('Poller Logic Tests', () => {
         day: 1,
         date: '2026-05-24',
         activities: [
-          { id: '1', date: '2026-05-24', time: '10:00', title: 'Breakfast', location: '', notes: '', category: '', type: 'food' },
-          { id: '2', date: '2026-05-24', time: '14:00', title: 'Lunch', location: '', notes: '', category: '', type: 'food' }
+          { id: '1', date: '2026-05-24', time: '10:00', title: 'Breakfast', location: '', notes: '', category: 'event', type: 'food' },
+          { id: '2', date: '2026-05-24', time: '14:00', title: 'Lunch', location: '', notes: '', category: 'event', type: 'food' }
         ]
       },
       {
         day: 2,
         date: '2026-05-25',
         activities: [
-          { id: '3', date: '2026-05-25', time: '09:00', title: 'Train', location: '', notes: '', category: '', type: 'transport' }
+          { id: '3', date: '2026-05-25', time: '09:00', title: 'Train', location: '', notes: '', category: 'event', type: 'transport' }
         ]
       }
     ];
@@ -48,19 +48,22 @@ describe('Poller Logic Tests', () => {
     });
 
     it('should find the next event later today', () => {
-      const current = new Date('2026-05-24T11:00:00');
+      // 02:00 UTC is 11:00 AM Tokyo
+      const current = new Date('2026-05-24T02:00:00Z');
       const result = getNextEvent(mockDays, current);
-      expect(result).toEqual({ title: 'Lunch', minutes: 180, time: '14:00' });
+      expect(result).toEqual({ title: 'Lunch', minutes: 180, time: '14:00', category: 'event' });
     });
 
     it('should find the next event tomorrow if today is done', () => {
-      const current = new Date('2026-05-24T15:00:00');
+      // 06:00 UTC is 3:00 PM Tokyo
+      const current = new Date('2026-05-24T06:00:00Z');
       const result = getNextEvent(mockDays, current);
-      expect(result).toEqual({ title: 'Train', minutes: 1080, time: '09:00' });
+      expect(result).toEqual({ title: 'Train', minutes: 1080, time: '09:00', category: 'event' });
     });
 
     it('should return null if it is the last day and all events passed', () => {
-      const current = new Date('2026-05-25T15:00:00');
+      // 06:00 UTC is 3:00 PM Tokyo on 5/25
+      const current = new Date('2026-05-25T06:00:00Z');
       const result = getNextEvent(mockDays, current);
       expect(result).toBeNull();
     });

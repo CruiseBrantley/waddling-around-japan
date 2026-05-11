@@ -8,6 +8,7 @@ export interface ItineraryActivity {
   cost?: string;
   notes: string;
   category: string;
+  categoryBackgroundColor?: string;
   requiresReservation?: boolean;
   type: "sightseeing" | "food" | "transport" | "accommodation" | "shopping" | "other";
 }
@@ -115,10 +116,7 @@ export function transformFullSheetData(rowData: SheetRow[]): Itinerary {
     link: headerRow.findIndex((h: string) => h.toLowerCase() === 'link' || h.toLowerCase() === 'type' || h.toLowerCase() === 'url'),
     cost: headerRow.findIndex((h: string) => h.toLowerCase() === 'cost'),
     notes: headerRow.findIndex((h: string) => h.toLowerCase() === 'notes'),
-    category: headerRow.findIndex((h: string) => {
-      const l = h.toLowerCase();
-      return l === 'category' || l === 'type' || l === 'tag';
-    }),
+    category: headerRow.findIndex((h: string) => h.toLowerCase() === 'category'),
   };
 
   const daysMap = new Map<string, ItineraryActivity[]>();
@@ -141,14 +139,19 @@ export function transformFullSheetData(rowData: SheetRow[]): Itinerary {
 
     if (!activityDate) return;
 
-    const rawCategory = String(cells[colIndex.category]?.formattedValue || "").trim();
+    const rawCategory = (cells[colIndex.category]?.formattedValue || "").trim();
+
+    // Detect background colors
+    const bg = cells[colIndex.activity]?.userEnteredFormat?.backgroundColor;
+    const catBg = cells[colIndex.category]?.userEnteredFormat?.backgroundColor;
+    const categoryBackgroundColor = catBg ? `rgb(${Math.round((catBg.red || 0) * 255)}, ${Math.round((catBg.green || 0) * 255)}, ${Math.round((catBg.blue || 0) * 255)})` : undefined;
+
     const inferredCategory = inferCategory(activityTitle, rawCategory);
 
     const hyperLink = cells[colIndex.link]?.hyperlink;
     const formattedLink = String(cells[colIndex.link]?.formattedValue || "").trim();
     const cleanLink = hyperLink || extractUrl(formattedLink);
 
-    const bg = cells[colIndex.activity]?.userEnteredFormat?.backgroundColor;
     const isReservation = bg && (
       Math.abs((bg.red || 0) - 0.65) < 0.1 && 
       Math.abs((bg.green || 0) - 0.11) < 0.1 && 
@@ -164,7 +167,8 @@ export function transformFullSheetData(rowData: SheetRow[]): Itinerary {
       link: cleanLink || undefined,
       cost: String(cells[colIndex.cost]?.formattedValue || "").trim() || undefined,
       notes: String(cells[colIndex.notes]?.formattedValue || "").trim(),
-      category: inferredCategory.display,
+      category: rawCategory,
+      categoryBackgroundColor,
       requiresReservation: !!isReservation,
       type: inferredCategory.type
     };
@@ -213,12 +217,33 @@ export function transformFullSheetData(rowData: SheetRow[]): Itinerary {
 
 function inferCategory(title: string, category: string): { display: string, type: ItineraryActivity["type"] } {
   const combined = `${category} ${title}`.toLowerCase();
-  if (combined.includes('food') || combined.includes('eat') || combined.includes('drink') || combined.includes('dinner') || combined.includes('lunch') || combined.includes('snack') || combined.includes('ramen') || combined.includes('breakfast') || combined.includes('restaurant')) return { display: category || "Dining", type: "food" };
-  if (combined.includes('transport') || combined.includes('travel') || combined.includes('flight') || combined.includes('train') || combined.includes('bus') || combined.includes('shinkansen') || combined.includes('narita') || combined.includes('haneda') || combined.includes('limousine') || combined.includes('airport')) return { display: category || "Transport", type: "transport" };
-  if (combined.includes('hotel') || combined.includes('lodging') || combined.includes('stay') || combined.includes('airbnb') || combined.includes('accommodation') || combined.includes('check in') || combined.includes('check-in')) return { display: category || "Stay", type: "accommodation" };
-  if (combined.includes('shop') || combined.includes('mall') || combined.includes('store') || combined.includes('market') || combined.includes('don quijote') || combined.includes('pokemon')) return { display: category || "Shopping", type: "shopping" };
-  if (combined.includes('sight') || combined.includes('attraction') || combined.includes('shrine') || combined.includes('park') || combined.includes('castle') || combined.includes('museum') || combined.includes('temple') || combined.includes('pagoda') || combined.includes('tower') || combined.includes('garden')) return { display: category || "Sightseeing", type: "sightseeing" };
-  return { display: category || "Other", type: "other" };
+
+  // 1. Determine visual 'type' for styling (always inferred)
+  let type: ItineraryActivity["type"] = "other";
+  if (combined.includes('food') || combined.includes('eat') || combined.includes('drink') || combined.includes('dinner') || combined.includes('lunch') || combined.includes('snack') || combined.includes('ramen') || combined.includes('breakfast') || combined.includes('restaurant')) {
+    type = "food";
+  } else if (combined.includes('transport') || combined.includes('travel') || combined.includes('flight') || combined.includes('train') || combined.includes('bus') || combined.includes('shinkansen') || combined.includes('narita') || combined.includes('haneda') || combined.includes('limousine') || combined.includes('airport')) {
+    type = "transport";
+  } else if (combined.includes('hotel') || combined.includes('lodging') || combined.includes('stay') || combined.includes('airbnb') || combined.includes('accommodation') || combined.includes('check in') || combined.includes('check-in')) {
+    type = "accommodation";
+  } else if (combined.includes('shop') || combined.includes('mall') || combined.includes('store') || combined.includes('market') || combined.includes('don quijote') || combined.includes('pokemon')) {
+    type = "shopping";
+  } else if (combined.includes('sight') || combined.includes('attraction') || combined.includes('shrine') || combined.includes('park') || combined.includes('castle') || combined.includes('museum') || combined.includes('temple') || combined.includes('pagoda') || combined.includes('tower') || combined.includes('garden')) {
+    type = "sightseeing";
+  }
+
+  // 2. Determine display text: Prioritize explicit category, then fallback to inferred default
+  let display = category;
+  if (!display) {
+    if (type === "food") display = "Dining";
+    else if (type === "transport") display = "Transport";
+    else if (type === "accommodation") display = "Stay";
+    else if (type === "shopping") display = "Shopping";
+    else if (type === "sightseeing") display = "Sightseeing";
+    else display = "Other";
+  }
+  
+  return { display, type };
 }
 
 function extractUrl(value: string): string | null {

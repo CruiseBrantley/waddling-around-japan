@@ -10,6 +10,7 @@ interface ActivityListProps {
   activeCardRef: React.RefObject<HTMLDivElement | null>;
   timeToMinutes: (timeStr: string) => number;
   isToday: boolean;
+  categoryColors: Record<string, { bg: string, fg?: string }>;
 }
 
 export const ActivityList: React.FC<ActivityListProps> = ({ 
@@ -19,7 +20,8 @@ export const ActivityList: React.FC<ActivityListProps> = ({
   currentTime, 
   activeCardRef,
   timeToMinutes,
-  isToday
+  isToday,
+  categoryColors
 }) => {
   const currentMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();
 
@@ -66,7 +68,7 @@ export const ActivityList: React.FC<ActivityListProps> = ({
     <div className="container" style={{ paddingBottom: '40px' }}>
       <div className="day-header">
         <h2 className="date-display">{date}</h2>
-        <span className="activity-count">{activities.length} activities</span>
+        <span className="activity-count">{activities.filter(a => a.category.toLowerCase() === 'event').length} events</span>
       </div>
 
       <div className="timeline">
@@ -87,7 +89,7 @@ export const ActivityList: React.FC<ActivityListProps> = ({
           return (
             <div className="timeline-item" key={activity.id}>
               <div className="timeline-left">
-                <span className="activity-time">{activity.time}</span>
+                <span className="activity-time event-time">{activity.time}</span>
                 <div className={`timeline-dot type-${activity.type} ${isLive ? 'pulse-red' : ''}`}></div>
                 <div className="timeline-connector">
                   {isLive && (
@@ -102,6 +104,7 @@ export const ActivityList: React.FC<ActivityListProps> = ({
                 activity={activity} 
                 isLive={isLive} 
                 activeCardRef={activeCardRef} 
+                categoryColors={categoryColors}
               />
             </div>
           );

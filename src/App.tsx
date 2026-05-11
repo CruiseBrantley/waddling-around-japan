@@ -28,6 +28,9 @@ function App() {
   const [searchTerm, setSearchTerm] = useState(() => {
     return sessionStorage.getItem('itinerary_searchTerm') || '';
   });
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(() => {
+    return sessionStorage.getItem('itinerary_selectedCategory') || null;
+  });
 
   // 2. Settings & UI State
   const [settings, setSettings] = useState<AppSettings>(loadSettings);
@@ -47,7 +50,23 @@ function App() {
     getInitialTime
   } = useItinerary(settings.debugOffset);
 
-  const { needRefresh: [needRefresh], updateServiceWorker } = useRegisterSW();
+  const { needRefresh: [needRefresh], updateServiceWorker } = useRegisterSW({
+    onRegistered(r) {
+      if (r) {
+        console.log('SW Registered. Forcing update check...');
+        // Force a check on launch
+        void r.update();
+        // Check every hour
+        setInterval(() => {
+          console.log('Periodic SW update check...');
+          void r.update();
+        }, 3600000);
+      }
+    },
+    onRegisterError(error) {
+      console.error('SW registration error', error);
+    }
+  });
 
   const activeCardRef = useRef<HTMLDivElement | null>(null);
   const hasScrolledRef = useRef(false);
@@ -58,25 +77,55 @@ function App() {
   // 4. Derived Data
   const filteredDays = useMemo(() => {
     if (!itinerary) return [];
-    if (!searchTerm.trim()) return itinerary.days;
+    if (!searchTerm.trim() && !selectedCategory) return itinerary.days;
 
     const term = searchTerm.toLowerCase();
     return itinerary.days
       .map(day => {
-        const dateMatches = day.date.toLowerCase().includes(term);
-        const filteredActivities = day.activities.filter(act => 
-          act.title.toLowerCase().includes(term) ||
-          act.location.toLowerCase().includes(term) ||
-          act.notes.toLowerCase().includes(term)
-        );
+        const dateMatches = searchTerm.trim() && day.date.toLowerCase().includes(term);
+        const filteredActivities = day.activities.filter(act => {
+          const searchMatch = !searchTerm.trim() || 
+            act.title.toLowerCase().includes(term) ||
+            act.location.toLowerCase().includes(term) ||
+            act.notes.toLowerCase().includes(term);
+            
+          const categoryMatch = !selectedCategory || act.category === selectedCategory;
+          
+          return searchMatch && categoryMatch;
+        });
         
         return {
           ...day,
-          activities: dateMatches ? day.activities : filteredActivities
+          activities: (dateMatches && !selectedCategory) ? day.activities : filteredActivities
         };
       })
       .filter(day => day.activities.length > 0);
-  }, [itinerary, searchTerm]);
+  }, [itinerary, searchTerm, selectedCategory]);
+  
+  const categoryData = useMemo(() => {
+    if (!itinerary) return { names: [], colors: {} as Record<string, { bg: string, fg?: string }> };
+    const cats = new Set<string>();
+    const colorMap: Record<string, { bg: string, fg?: string }> = {};
+    
+    itinerary.days.forEach(day => {
+      day.activities.forEach(act => {
+        if (act.category) {
+          cats.add(act.category);
+          if (act.categoryBackgroundColor && !colorMap[act.category]) {
+            colorMap[act.category] = {
+              bg: act.categoryBackgroundColor,
+              fg: act.categoryForegroundColor
+            };
+          }
+        }
+      });
+    });
+    
+    return {
+      names: Array.from(cats).sort(),
+      colors: colorMap
+    };
+  }, [itinerary]);
 
   // 5. Scroll Hook
   const handleIndexChange = useCallback((index: number, type: 'manual' | 'programmatic' | 'daySelector' | 'void') => {
@@ -421,6 +470,16 @@ function App() {
         void clearEventNotifications();
         clearAppBadge();
         
+        // Check for SW updates whenever we become visible
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistration().then(r => {
+            if (r) {
+              console.log('Visibility check: Triggering SW update check...');
+              void r.update();
+            }
+          });
+        }
+
         // If they just clicked a notification (detected via flag/param)
         const params = new URLSearchParams(window.location.search);
         if (params.get('from_notification')) {
@@ -479,7 +538,7 @@ function App() {
     if (todayIdx !== -1) {
       const today = filteredDays[todayIdx];
       const nowMin = currentTime.getHours() * 60 + currentTime.getMinutes();
-      const remainingCount = today.activities.filter(act => timeToMinutes(act.time) > nowMin).length;
+      const remainingCount = today.activities.filter(act => act.category.toLowerCase() === 'event' && timeToMinutes(act.time) > nowMin).length;
       
       if (remainingCount > 0) {
         setAppBadge(remainingCount);
@@ -529,7 +588,14 @@ function App() {
         <aside className="sidebar">
           <Hero image={heroImg} />
           <div className="sidebar-header">
-            <SearchBar title={itinerary?.title || 'Japan Itinerary'} searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
+            <SearchBar 
+              searchTerm={searchTerm} 
+              setSearchTerm={setSearchTerm} 
+              categories={categoryData.names}
+              categoryColors={categoryData.colors}
+              selectedCategory={selectedCategory}
+              setSelectedCategory={setSelectedCategory}
+            />
             <div className="sidebar-meta">
               <span>Last sync: {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
               <div className="sidebar-meta-actions">
@@ -567,13 +633,14 @@ function App() {
                     activeCardRef={activeCardRef}
                     timeToMinutes={timeToMinutes}
                     isToday={isSameDay(day.date, currentTime)}
+                    categoryColors={categoryData.colors}
                   />
                 </div>
               ))
             ) : (
               <div className="no-results-container fade-in">
                 <div className="no-results-icon">🔍</div>
-                <h3>No activities found</h3>
+                <h3>No events found</h3>
                 <p>We couldn't find anything matching "<strong>{searchTerm}</strong>"</p>
                 <button className="btn btn-secondary" onClick={() => setSearchTerm('')}>
                   Clear Search
@@ -610,6 +677,8 @@ function App() {
         settings={settings}
         onSettingsChange={setSettings}
         currentTime={currentTime}
+        categories={categoryData.names}
+        categoryColors={categoryData.colors}
       />
     </div>
   );

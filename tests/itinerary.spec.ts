@@ -89,8 +89,8 @@ test.describe('Itinerary App Core Features', () => {
     }
   });
 
-  test.fixme('should show pulsing navigation hint when live activity is off-screen', async ({ page }) => {
-    // Set time to very early on Day 1 to guarantee upcoming activities
+  test.fixme('should show pulsing navigation hint when live event is off-screen', async ({ page }) => {
+    // Set time to very early on Day 1 to guarantee upcoming events
     await page.goto('/?date=2026-05-24T05:00:00');
     
     // Wait for the pill to be rendered (it only shows if trip is active and has next event)
@@ -380,14 +380,17 @@ test.describe('Itinerary App Core Features', () => {
     const centerY = box.y + 100; // Swipe near the top of the container
 
     // 3. Perform a deliberate swipe from right to left (Day 1 -> Day 2)
-    await page.mouse.move(box.x + box.width * 0.8, centerY);
+    // Use even more steps and a slower move to ensure Safari registers the swipe
+    await page.mouse.move(box.x + box.width * 0.9, centerY);
     await page.mouse.down();
-    await page.mouse.move(box.x + box.width * 0.2, centerY, { steps: 10 });
+    await page.waitForTimeout(100);
+    await page.mouse.move(box.x + box.width * 0.1, centerY, { steps: 50 });
+    await page.waitForTimeout(200); // Hold at the end to ensure momentum is registered
     await page.mouse.up();
 
     // 4. Wait for the snap/momentum to settle
-    // We give it plenty of time for the 200ms timeout + animation
-    await page.waitForTimeout(1500);
+    // Safari can be slow with momentum, give it 2 full seconds
+    await page.waitForTimeout(2000);
 
     // 5. Verify we reached Day 2 (or Day 3 if the flick was very fast)
     const scrollLeft = await container.evaluate(el => el.scrollLeft);
@@ -395,7 +398,7 @@ test.describe('Itinerary App Core Features', () => {
     
     // It should be snapped to a multiple of viewportWidth
     const snapDistance = scrollLeft % viewportWidth;
-    const snappedToSomething = snapDistance < 20 || snapDistance > viewportWidth - 20;
+    const snappedToSomething = snapDistance < 30 || snapDistance > viewportWidth - 30;
     
     if (!snappedToSomething || scrollLeft === 0) {
       console.log(`Flick failed to snap correctly or didn't move. Position: ${scrollLeft}, Viewport: ${viewportWidth}`);

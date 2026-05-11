@@ -93,6 +93,7 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
         
         if (isDesktop) {
           const scrollTop = container.scrollTop;
+          // Trigger when a day crosses the middle of the screen
           const triggerPoint = scrollTop + (container.clientHeight / 2); 
           
           slides.forEach((slide, i) => {

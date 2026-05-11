@@ -5,13 +5,20 @@ interface ActivityCardProps {
   activity: ItineraryActivity;
   isLive: boolean;
   activeCardRef: React.RefObject<HTMLDivElement | null>;
+  categoryColors: Record<string, { bg: string, fg?: string }>;
 }
 
 export const ActivityCard: React.FC<ActivityCardProps> = ({
   activity,
   isLive,
   activeCardRef,
+  categoryColors,
 }) => {
+  const safeCategoryColors = categoryColors || {};
+  const catColors = activity.category ? safeCategoryColors[activity.category] : null;
+  const finalBg = catColors?.bg || activity.categoryBackgroundColor;
+  const finalFg = catColors?.fg || activity.categoryForegroundColor;
+
   return (
   <div
     className={`activity-card glass ${isLive ? 'is-live' : ''} ${activity.requiresReservation ? 'is-reservation' : ''}`}
@@ -27,9 +34,23 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
             <span className="reservation-badge">🎟️ RESERVATION REQUIRED</span>
           )}
         </div>
-        <span className={`category-tag type-${activity.type}`}>
-          {activity.category}
-        </span>
+        {activity.category && (
+          <span 
+            className={`category-tag type-${activity.type}`}
+            style={{
+              ...(finalBg ? { 
+                backgroundColor: finalBg, 
+                border: 'none',
+                textShadow: '0 1px 2px rgba(0,0,0,0.3)' 
+              } : {}),
+              ...(finalFg ? { 
+                color: finalFg 
+              } : { color: 'white' }) // Fallback to white if no custom foreground but custom background is used
+            }}
+          >
+            {activity.category}
+          </span>
+        )}
       </div>
 
       <div className="activity-details">

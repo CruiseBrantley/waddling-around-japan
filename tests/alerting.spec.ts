@@ -137,7 +137,7 @@ test.describe('Alerting and Notification System', () => {
     await page.waitForSelector('.activity-card');
   });
 
-  test('should highlight activities requiring a reservation', async ({ page }) => {
+  test('should highlight events requiring a reservation', async ({ page }) => {
     const reservationCard = page.locator('.activity-card.is-reservation', { hasText: 'Dinner Yakiniku' }).first();
     await expect(reservationCard).toBeVisible();
     await expect(reservationCard.locator('.reservation-badge')).toContainText('RESERVATION REQUIRED');
@@ -150,14 +150,14 @@ test.describe('Alerting and Notification System', () => {
     await page.waitForTimeout(500); // Wait for slide-up animation
     
     // Toggle the notification switch
-    const toggle = page.locator('.settings-row', { hasText: 'Activity Alerts' }).locator('.settings-toggle');
+    const toggle = page.locator('.settings-row', { hasText: 'Event Alerts' }).locator('.settings-toggle');
     await toggle.click({ force: true });
 
     // Verify the toggle becomes active
     await expect(toggle).toHaveClass(/active/, { timeout: 8000 });
   });
 
-  test('should show correct progress on the countdown pill', async ({ page }) => {
+  test('should show correct progress on the event countdown pill', async ({ page }) => {
     // Set time to 2 minutes before event (05:58 for 06:00 event)
     await page.goto('/?date=2026-05-24T05:58:00');
     await page.waitForSelector('.upcoming-pill');

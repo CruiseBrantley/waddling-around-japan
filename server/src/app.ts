@@ -14,6 +14,7 @@ export interface SubscriptionData {
   settings: {
     notifyMinutesBefore: number;
     notifyUrgentMinutesBefore: number;
+    disabledCategories?: string[];
   };
   lastHeadsUpEvent?: string; // e.g. "Dinner-2024-05-15"
   lastUrgentEvent?: string;
@@ -61,7 +62,7 @@ app.post('/subscribe', (req, res) => {
   
   const newData: SubscriptionData = {
     subscription,
-    settings: settings || { notifyMinutesBefore: 10, notifyUrgentMinutesBefore: 1 },
+    settings: settings || { notifyMinutesBefore: 10, notifyUrgentMinutesBefore: 1, disabledCategories: [] },
     isDev: req.body.isDev === true
   };
 

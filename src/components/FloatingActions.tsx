@@ -23,7 +23,7 @@ export const FloatingActions: React.FC<FloatingActionsProps> = ({
         <button 
           className="jump-to-now-btn fade-in"
           onClick={jumpToNow}
-          aria-label="Jump to Current Activity"
+          aria-label="Jump to Current Event"
           style={{
             background: 'var(--primary)',
             color: 'white',

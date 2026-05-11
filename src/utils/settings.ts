@@ -23,6 +23,8 @@ export interface AppSettings {
   debugOffset: number | null;
   /** Developer mode for testing push notifications */
   devMode: boolean;
+  /** List of category names that should NOT trigger notifications */
+  disabledCategories: string[];
 }
 
 export const SETTINGS_DEFAULTS: AppSettings = {
@@ -41,6 +43,7 @@ export const SETTINGS_DEFAULTS: AppSettings = {
   debugDate: null,
   debugOffset: null,
   devMode: false,
+  disabledCategories: [],
 };
 
 export function loadSettings(): AppSettings {

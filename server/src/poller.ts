@@ -29,30 +29,51 @@ export interface AlertTarget {
   title: string;
   minutes: number;
   time: string;
+  category: string;
 }
 
+// Helper to get minutes from midnight in Japan time
+export const getJapanMinutes = (date: Date): number => {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Tokyo',
+    hour: 'numeric',
+    minute: 'numeric',
+    second: 'numeric',
+    hour12: false
+  }).formatToParts(date);
+  
+  const h = parseInt(parts.find(p => p.type === 'hour')!.value, 10);
+  const m = parseInt(parts.find(p => p.type === 'minute')!.value, 10);
+  const s = parseInt(parts.find(p => p.type === 'second')!.value, 10);
+  
+  return h * 60 + m + (s / 60);
+};
+
 export const getNextEvent = (days: ItineraryDay[], currentTime: Date): AlertTarget | null => {
-  const nowMin = currentTime.getHours() * 60 + currentTime.getMinutes() + (currentTime.getSeconds() / 60);
+  const nowMin = getJapanMinutes(currentTime);
   const todayIdx = days.findIndex(d => isSameDay(d.date, currentTime));
   if (todayIdx === -1) return null;
 
   const today = days[todayIdx];
   
   const upcomingToday = today.activities
+    .filter(act => act.category.toLowerCase() === 'event')
     .map(act => ({ ...act, minutes: timeToMinutes(act.time) - nowMin }))
     .filter(act => act.minutes > 0)
     .sort((a, b) => a.minutes - b.minutes);
 
   if (upcomingToday.length > 0) {
-    return { title: upcomingToday[0].title, minutes: upcomingToday[0].minutes, time: upcomingToday[0].time };
+    const act = upcomingToday[0];
+    return { title: act.title, minutes: act.minutes, time: act.time, category: act.category };
   } else {
     for (let i = todayIdx + 1; i < days.length; i++) {
       const nextDay = days[i];
-      if (nextDay.activities.length > 0) {
-        const firstActivity = nextDay.activities[0];
+      const nextDayEvents = nextDay.activities.filter(act => act.category.toLowerCase() === 'event');
+      if (nextDayEvents.length > 0) {
+        const firstActivity = nextDayEvents[0];
         const daysBetween = i - todayIdx;
         const minutesUntil = (daysBetween * 24 * 60) - nowMin + timeToMinutes(firstActivity.time);
-        return { title: firstActivity.title, minutes: minutesUntil, time: firstActivity.time };
+        return { title: firstActivity.title, minutes: minutesUntil, time: firstActivity.time, category: firstActivity.category };
       }
     }
   }
@@ -92,8 +113,13 @@ export const pollAndNotify = async () => {
     let updatedAny = false;
 
     for (const sub of subscriptions) {
-      const { title, minutes, time } = nextEvent;
+      const { title, minutes, time, category } = nextEvent;
       const eventKey = `${title}-${time}`;
+
+      // Skip if category is disabled for this user
+      if (sub.settings?.disabledCategories?.includes(category)) {
+        continue;
+      }
 
       // Check Urgent Threshold
       const urgentThreshold = sub.settings?.notifyUrgentMinutesBefore || 1;

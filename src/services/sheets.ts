@@ -8,6 +8,8 @@ export interface ItineraryActivity {
   cost?: string;
   notes: string;
   category: string;
+  categoryBackgroundColor?: string;
+  categoryForegroundColor?: string;
   requiresReservation?: boolean;
   type:
     | "sightseeing"
@@ -39,6 +41,20 @@ interface SheetRow {
   values?: Array<{
     formattedValue?: string;
     hyperlink?: string;
+    effectiveFormat?: {
+      backgroundColor?: {
+        red?: number;
+        green?: number;
+        blue?: number;
+      };
+      textFormat?: {
+        foregroundColor?: {
+          red?: number;
+          green?: number;
+          blue?: number;
+        };
+      };
+    };
     userEnteredFormat?: {
       backgroundColor?: {
         red?: number;
@@ -90,31 +106,63 @@ export async function fetchItinerary(): Promise<Itinerary> {
   }
 }
 
+type RGBColor = { red?: number; green?: number; blue?: number };
+
+/**
+ * Helper to ignore pure white and alternating light gray row colors
+ */
+function isSignificantColor(bg: RGBColor | null | undefined): boolean {
+  if (!bg) return false;
+  const r = bg.red ?? 0;
+  const g = bg.green ?? 0;
+  const b = bg.blue ?? 0;
+  // Ignore pure white
+  if (r === 1 && g === 1 && b === 1) return false;
+  // Ignore very light grays (e.g., alternating row colors like 0.95, 0.95, 0.95)
+  if (r > 0.92 && g > 0.92 && b > 0.92 && Math.abs(r - g) < 0.05 && Math.abs(g - b) < 0.05) return false;
+  return true;
+}
+
 /**
  * Transform Full Spreadsheet API response into structured itinerary
  */
 function transformFullSheetData(rowData: SheetRow[]): Itinerary {
-  if (!rowData || rowData.length < 5) {
+  if (!rowData || rowData.length < 2) {
     return { title: "Waddling Around Japan", days: [] };
   }
 
-  // Header row is index 2
-  const headerCells = rowData[2]?.values || [];
-  const headerRow = headerCells.map((c) => String(c?.formattedValue || "").trim());
-  const startRowIndex = 4;
+  // 1. Dynamic Header Detection: Scan first 10 rows for keywords
+  let headerRowIndex = -1;
+  let headerRow: string[] = [];
+  
+  for (let i = 0; i < Math.min(rowData.length, 10); i++) {
+    const cells = rowData[i]?.values || [];
+    const row = cells.map(c => String(c?.formattedValue || "").trim().toLowerCase());
+    if (row.includes('activity') || (row.includes('date') && row.includes('time'))) {
+      headerRowIndex = i;
+      headerRow = row;
+      break;
+    }
+  }
+
+  // Fallback to row 2 if not found (legacy behavior)
+  if (headerRowIndex === -1) {
+    headerRowIndex = 2;
+    const headerCells = rowData[2]?.values || [];
+    headerRow = headerCells.map(c => String(c?.formattedValue || "").trim().toLowerCase());
+  }
+
+  const startRowIndex = headerRowIndex + 1;
   
   const colIndex = {
-    date: headerRow.findIndex((h: string) => h.toLowerCase() === 'date'),
-    time: headerRow.findIndex((h: string) => h.toLowerCase() === 'time'),
-    activity: headerRow.findIndex((h: string) => h.toLowerCase() === 'activity'),
-    location: headerRow.findIndex((h: string) => h.toLowerCase() === 'location'),
-    link: headerRow.findIndex((h: string) => h.toLowerCase() === 'link' || h.toLowerCase() === 'type' || h.toLowerCase() === 'url'), // Flexible link name
-    cost: headerRow.findIndex((h: string) => h.toLowerCase() === 'cost'),
-    notes: headerRow.findIndex((h: string) => h.toLowerCase() === 'notes'),
-    category: headerRow.findIndex((h: string) => {
-      const l = h.toLowerCase();
-      return l === 'category' || l === 'type' || l === 'tag';
-    }),
+    date: headerRow.findIndex(h => h === 'date'),
+    time: headerRow.findIndex(h => h === 'time'),
+    activity: headerRow.findIndex(h => h === 'activity' || h === 'event' || h === 'description' || h === 'name'),
+    location: headerRow.findIndex(h => h === 'location' || h === 'place' || h === 'address'),
+    link: headerRow.findIndex(h => h === 'link' || h === 'url' || h === 'website'),
+    cost: headerRow.findIndex(h => h === 'cost' || h === 'price'),
+    notes: headerRow.findIndex(h => h === 'notes' || h === 'comments' || h === 'info'),
+    category: headerRow.findIndex(h => h === 'category' || h === 'type' || h === 'tag' || h === 'label'),
   };
 
   const daysMap = new Map<string, ItineraryActivity[]>();
@@ -122,12 +170,15 @@ function transformFullSheetData(rowData: SheetRow[]): Itinerary {
 
   rowData.slice(startRowIndex).forEach((rowObj, index) => {
     const cells = rowObj.values || [];
-    if (cells.length <= Math.max(colIndex.activity, colIndex.date)) return;
+    if (cells.length === 0) return;
 
-    const activityTitle = String(cells[colIndex.activity]?.formattedValue || "").trim();
-    if (!activityTitle) return;
+    // Must have at least one significant column
+    const activityTitle = colIndex.activity !== -1 ? String(cells[colIndex.activity]?.formattedValue || "").trim() : "";
+    const rawCategory = colIndex.category !== -1 ? (cells[colIndex.category]?.formattedValue || "").trim() : "";
+    
+    if (!activityTitle && !rawCategory) return;
 
-    let activityDate = String(cells[colIndex.date]?.formattedValue || "").trim();
+    let activityDate = colIndex.date !== -1 ? String(cells[colIndex.date]?.formattedValue || "").trim() : "";
     
     if (!activityDate && lastValidDate) {
       activityDate = lastValidDate;
@@ -137,34 +188,71 @@ function transformFullSheetData(rowData: SheetRow[]): Itinerary {
 
     if (!activityDate) return;
 
-    // Use category column if available, otherwise infer from title
-    const rawCategory = String(cells[colIndex.category]?.formattedValue || "").trim();
+    // COLOR EXTRACTION LOGIC
+    let finalBg: RGBColor | null | undefined = null;
+    let finalFg: RGBColor | null | undefined = null;
+
+    // 1. Try Category cell first
+    const catFormat = colIndex.category !== -1 ? cells[colIndex.category]?.effectiveFormat : null;
+    const catBg = catFormat?.backgroundColor;
+    if (isSignificantColor(catBg)) {
+      finalBg = catBg;
+      finalFg = catFormat?.textFormat?.foregroundColor;
+    }
+
+    // 2. Try Activity cell second
+    if (!finalBg) {
+      const actFormat = colIndex.activity !== -1 ? cells[colIndex.activity]?.effectiveFormat : null;
+      const actBg = actFormat?.backgroundColor;
+      if (isSignificantColor(actBg)) {
+        finalBg = actBg;
+        finalFg = actFormat?.textFormat?.foregroundColor;
+      }
+    }
+
+    // 3. ROW-WIDE FALLBACK: Scan all cells in the row for ANY non-white color
+    if (!finalBg) {
+      for (const cell of cells) {
+        const bg = cell?.effectiveFormat?.backgroundColor;
+        if (isSignificantColor(bg)) {
+          finalBg = bg;
+          finalFg = cell?.effectiveFormat?.textFormat?.foregroundColor;
+          break;
+        }
+      }
+    }
+
+    const categoryBackgroundColor = finalBg ? `rgb(${Math.round((finalBg.red || 0) * 255)}, ${Math.round((finalBg.green || 0) * 255)}, ${Math.round((finalBg.blue || 0) * 255)})` : undefined;
+    const categoryForegroundColor = finalFg ? `rgb(${Math.round((finalFg.red || 0) * 255)}, ${Math.round((finalFg.green || 0) * 255)}, ${Math.round((finalFg.blue || 0) * 255)})` : undefined;
+
     const inferredCategory = inferCategory(activityTitle, rawCategory);
 
     // Get Link: prioritized raw hyperlink property, then formatted formula text
-    const hyperLink = cells[colIndex.link]?.hyperlink;
-    const formattedLink = String(cells[colIndex.link]?.formattedValue || "").trim();
+    const cellWithLink = colIndex.link !== -1 ? cells[colIndex.link] : null;
+    const hyperLink = cellWithLink?.hyperlink;
+    const formattedLink = String(cellWithLink?.formattedValue || "").trim();
     const cleanLink = hyperLink || extractUrl(formattedLink);
 
-    // Detect if activity has a background color (Reservation)
-    const bg = cells[colIndex.activity]?.userEnteredFormat?.backgroundColor;
     // Target specific reservation color (Maroon/Dark Red: ~0.65, 0.11, 0.0)
-    const isReservation = bg && (
-      Math.abs((bg.red || 0) - 0.65) < 0.1 && 
-      Math.abs((bg.green || 0) - 0.11) < 0.1 && 
-      (bg.blue || 0) < 0.1
+    // Always check activity cell or any cell in row
+    const isReservation = finalBg && (
+      Math.abs((finalBg.red || 0) - 0.65) < 0.1 && 
+      Math.abs((finalBg.green || 0) - 0.11) < 0.1 && 
+      (finalBg.blue || 0) < 0.1
     );
 
     const activity: ItineraryActivity = {
       id: `act-${index}`,
       date: activityDate,
-      time: String(cells[colIndex.time]?.formattedValue || "").trim(),
+      time: colIndex.time !== -1 ? String(cells[colIndex.time]?.formattedValue || "").trim() : "",
       title: activityTitle,
-      location: String(cells[colIndex.location]?.formattedValue || "").trim(),
+      location: colIndex.location !== -1 ? String(cells[colIndex.location]?.formattedValue || "").trim() : "",
       link: cleanLink || undefined,
-      cost: String(cells[colIndex.cost]?.formattedValue || "").trim() || undefined,
-      notes: String(cells[colIndex.notes]?.formattedValue || "").trim(),
-      category: inferredCategory.display,
+      cost: colIndex.cost !== -1 ? String(cells[colIndex.cost]?.formattedValue || "").trim() || undefined : undefined,
+      notes: colIndex.notes !== -1 ? String(cells[colIndex.notes]?.formattedValue || "").trim() : "",
+      category: rawCategory,
+      categoryBackgroundColor,
+      categoryForegroundColor,
       requiresReservation: !!isReservation,
       type: inferredCategory.type
     };
@@ -220,23 +308,33 @@ function transformFullSheetData(rowData: SheetRow[]): Itinerary {
 function inferCategory(title: string, category: string): { display: string, type: ItineraryActivity["type"] } {
   const combined = `${category} ${title}`.toLowerCase();
   
-  if (combined.includes('food') || combined.includes('eat') || combined.includes('drink') || combined.includes('dinner') || combined.includes('lunch') || combined.includes('snack') || combined.includes('ramen') || combined.includes('breakfast') || combined.includes('restaurant')) {
-    return { display: category || "Dining", type: "food" };
+  // 1. Determine visual 'type' for styling (always inferred)
+  // Re-ordered to prioritize transport/travel as they often overlap with destinations
+  let type: ItineraryActivity["type"] = "other";
+  if (combined.includes('transport') || combined.includes('travel') || combined.includes('flight') || combined.includes('train') || combined.includes('bus') || combined.includes('shinkansen') || combined.includes('narita') || combined.includes('haneda') || combined.includes('limousine') || combined.includes('airport') || combined.includes('head to') || combined.includes('walk to')) {
+    type = "transport";
+  } else if (combined.includes('food') || combined.includes('eat') || combined.includes('drink') || combined.includes('dinner') || combined.includes('lunch') || combined.includes('snack') || combined.includes('ramen') || combined.includes('breakfast') || combined.includes('restaurant')) {
+    type = "food";
+  } else if (combined.includes('hotel') || combined.includes('lodging') || combined.includes('stay') || combined.includes('airbnb') || combined.includes('accommodation') || combined.includes('check in') || combined.includes('check-in')) {
+    type = "accommodation";
+  } else if (combined.includes('shop') || combined.includes('mall') || combined.includes('store') || combined.includes('market') || combined.includes('don quijote') || combined.includes('pokemon')) {
+    type = "shopping";
+  } else if (combined.includes('sight') || combined.includes('attraction') || combined.includes('shrine') || combined.includes('park') || combined.includes('castle') || combined.includes('museum') || combined.includes('temple') || combined.includes('pagoda') || combined.includes('tower') || combined.includes('garden')) {
+    type = "sightseeing";
   }
-  if (combined.includes('transport') || combined.includes('travel') || combined.includes('flight') || combined.includes('train') || combined.includes('bus') || combined.includes('shinkansen') || combined.includes('narita') || combined.includes('haneda') || combined.includes('limousine') || combined.includes('airport')) {
-    return { display: category || "Transport", type: "transport" };
-  }
-  if (combined.includes('hotel') || combined.includes('lodging') || combined.includes('stay') || combined.includes('airbnb') || combined.includes('accommodation') || combined.includes('check in') || combined.includes('check-in')) {
-    return { display: category || "Stay", type: "accommodation" };
-  }
-  if (combined.includes('shop') || combined.includes('mall') || combined.includes('store') || combined.includes('market') || combined.includes('don quijote') || combined.includes('pokemon')) {
-    return { display: category || "Shopping", type: "shopping" };
-  }
-  if (combined.includes('sight') || combined.includes('attraction') || combined.includes('shrine') || combined.includes('park') || combined.includes('castle') || combined.includes('museum') || combined.includes('temple') || combined.includes('pagoda') || combined.includes('tower') || combined.includes('garden')) {
-    return { display: category || "Sightseeing", type: "sightseeing" };
+
+  // 2. Determine display text: Prioritize explicit category, then fallback to inferred default
+  let display = category;
+  if (!display) {
+    if (type === "food") display = "Dining";
+    else if (type === "transport") display = "Transport";
+    else if (type === "accommodation") display = "Stay";
+    else if (type === "shopping") display = "Shopping";
+    else if (type === "sightseeing") display = "Sightseeing";
+    else display = "Other";
   }
   
-  return { display: category || "Other", type: "other" };
+  return { display, type };
 }
 
 /**

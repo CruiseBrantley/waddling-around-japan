@@ -159,7 +159,7 @@ export const triggerAlertSound = (type: 'info' | 'urgent' = 'info') => {
 /**
  * Requests notification permission.
  */
-export const requestNotificationPermission = async (settings: { notifyMinutesBefore: number, notifyUrgentMinutesBefore: number, devMode: boolean }) => {
+export const requestNotificationPermission = async (settings: { notifyMinutesBefore: number, notifyUrgentMinutesBefore: number, devMode: boolean, disabledCategories: string[] }) => {
   if (!('Notification' in window)) return 'unsupported';
   
   try {
@@ -194,7 +194,7 @@ const urlBase64ToUint8Array = (base64String: string) => {
 /**
  * Subscribes the device to Web Push and sends the subscription to the backend.
  */
-export const subscribeToPushNotifications = async (settings: { notifyMinutesBefore: number, notifyUrgentMinutesBefore: number, devMode: boolean }) => {
+export const subscribeToPushNotifications = async (settings: { notifyMinutesBefore: number, notifyUrgentMinutesBefore: number, devMode: boolean, disabledCategories: string[] }) => {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
     console.warn('Push messaging is not supported.');
     return;
@@ -227,7 +227,8 @@ export const subscribeToPushNotifications = async (settings: { notifyMinutesBefo
         subscription, 
         settings: {
           notifyMinutesBefore: settings.notifyMinutesBefore,
-          notifyUrgentMinutesBefore: settings.notifyUrgentMinutesBefore
+          notifyUrgentMinutesBefore: settings.notifyUrgentMinutesBefore,
+          disabledCategories: settings.disabledCategories
         },
         isDev: settings.devMode
       }),

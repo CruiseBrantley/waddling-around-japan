@@ -25,10 +25,12 @@ interface SettingsModalProps {
   settings: AppSettings;
   onSettingsChange: (settings: AppSettings) => void;
   currentTime: Date;
+  categories: string[];
+  categoryColors: Record<string, { bg: string, fg?: string }>;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ 
-  isOpen, onClose, settings, onSettingsChange, currentTime 
+  isOpen, onClose, settings, onSettingsChange, currentTime, categories, categoryColors 
 }) => {
   const [permissionState, setPermissionState] = useState<NotificationPermission | 'unsupported'>(() => {
     if (!supportsNotifications()) return 'unsupported';
@@ -81,6 +83,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     const syncRequired = 
       (partial.notifyMinutesBefore !== undefined && partial.notifyMinutesBefore !== settings.notifyMinutesBefore) ||
       (partial.notifyUrgentMinutesBefore !== undefined && partial.notifyUrgentMinutesBefore !== settings.notifyUrgentMinutesBefore) ||
+      (partial.disabledCategories !== undefined) ||
       (partial.devMode !== undefined && partial.devMode !== settings.devMode);
       
     if (next.notificationsEnabled && syncRequired) {
@@ -190,13 +193,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="settings-row-info">
                   <span className="settings-icon">🔔</span>
                   <div>
-                    <div className="settings-label">Activity Alerts</div>
+                    <div className="settings-label">Event Alerts</div>
                     <div className="settings-hint">
                       {iosAndNotStandalone 
                         ? 'Requires "Add to Home Screen"' 
                         : (permissionState === 'denied' 
                             ? 'Blocked — enable in browser settings' 
-                            : 'Get notified before upcoming activities')}
+                            : 'Get notified before upcoming events')}
                     </div>
                   </div>
                 </div>
@@ -322,6 +325,38 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       ))}
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* Category Toggles — only shown when notifications are on */}
+              {settings.notificationsEnabled && categories.length > 0 && (
+                <div className="settings-categories-section">
+                  <div className="settings-divider-mini" />
+                  <div className="settings-timing-label">Mute categories</div>
+                  <div className="settings-chip-group">
+                    {categories.map(cat => {
+                      const isDisabled = settings.disabledCategories.includes(cat);
+                      return (
+                        <button
+                          key={cat}
+                          className={`settings-chip category-chip ${!isDisabled ? 'active' : ''}`}
+                          onClick={() => {
+                            const nextDisabled = isDisabled
+                              ? settings.disabledCategories.filter(c => c !== cat)
+                              : [...settings.disabledCategories, cat];
+                            update({ disabledCategories: nextDisabled });
+                          }}
+                        >
+                          <span 
+                            className="chip-indicator" 
+                            style={(!isDisabled && categoryColors[cat]) ? { backgroundColor: categoryColors[cat].bg, boxShadow: `0 0 6px ${categoryColors[cat].bg}66` } : {}}
+                          ></span>
+                          {cat}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="settings-hint">Tap to enable/disable alerts for these types of events.</div>
                 </div>
               )}
             </>

@@ -28,7 +28,7 @@ describe('Smart Polling Tests', () => {
         day: 1,
         date: '2026-05-24', // We will simulate Japan time as this date
         activities: [
-          { id: '1', date: '2026-05-24', time: '10:00', title: 'Breakfast' }
+          { id: '1', date: '2026-05-24', time: '10:00', title: 'Breakfast', category: 'event', type: 'food' }
         ]
       }
     ]
@@ -39,7 +39,8 @@ describe('Smart Polling Tests', () => {
     (sheets.fetchItinerary as jest.Mock).mockResolvedValue(mockItinerary);
 
     // 2. Setup Japan time to 09:48 (12 mins before event)
-    const japanTime = new Date('2026-05-24T09:48:00');
+    // 00:48 UTC is 09:48 AM Tokyo
+    const japanTime = new Date('2026-05-24T00:48:00Z');
     // We mock the Date.toLocaleString or the getJapanTime helper. 
     // Since getJapanTime uses toLocaleString, we can mock it.
     jest.spyOn(poller, 'getJapanTime').mockReturnValue(japanTime);
@@ -70,7 +71,8 @@ describe('Smart Polling Tests', () => {
 
   it('should deduplicate notifications per user', async () => {
     (sheets.fetchItinerary as jest.Mock).mockResolvedValue(mockItinerary);
-    const japanTime = new Date('2026-05-24T09:55:00'); // 5 mins before
+    // 00:55 UTC is 09:55 AM Tokyo
+    const japanTime = new Date('2026-05-24T00:55:00Z');
     jest.spyOn(poller, 'getJapanTime').mockReturnValue(japanTime);
 
     // User already notified for this event
@@ -91,7 +93,8 @@ describe('Smart Polling Tests', () => {
 
   it('should send urgent notification and track it separately', async () => {
     (sheets.fetchItinerary as jest.Mock).mockResolvedValue(mockItinerary);
-    const japanTime = new Date('2026-05-24T09:59:30'); // 30 secs before
+    // 00:59:30 UTC is 09:59:30 AM Tokyo
+    const japanTime = new Date('2026-05-24T00:59:30Z');
     jest.spyOn(poller, 'getJapanTime').mockReturnValue(japanTime);
 
     const subs = [

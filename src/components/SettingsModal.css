@@ -300,6 +300,43 @@
   gap: 8px;
 }
 
+.settings-categories-section {
+  margin-top: 16px;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.settings-divider-mini {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.05);
+  margin-bottom: 12px;
+}
+
+.settings-chip.category-chip {
+  padding-left: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: unset;
+}
+
+.chip-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  transition: background 0.2s, box-shadow 0.2s;
+}
+
+.settings-chip.category-chip.active .chip-indicator {
+  background: #4ade80; /* Success Green */
+  box-shadow: 0 0 6px rgba(74, 222, 128, 0.4);
+}
+
+.settings-chip.category-chip:not(.active) {
+  opacity: 0.5;
+  background: rgba(255, 255, 255, 0.03);
+}
+
 .settings-dev-container {
   padding: 0 4px;
   margin-top: 8px;
