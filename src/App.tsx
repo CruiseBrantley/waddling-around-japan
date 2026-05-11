@@ -634,13 +634,18 @@ function App() {
                     timeToMinutes={timeToMinutes}
                     isToday={isSameDay(day.date, currentTime)}
                     categoryColors={categoryData.colors}
+                    onCardClick={() => {
+                      if (window.innerWidth >= 800) {
+                        handleDayClick(index);
+                      }
+                    }}
                   />
                 </div>
               ))
             ) : (
               <div className="no-results-container fade-in">
                 <div className="no-results-icon">🔍</div>
-                <h3>No events found</h3>
+                <h3>No activities found</h3>
                 <p>We couldn't find anything matching "<strong>{searchTerm}</strong>"</p>
                 <button className="btn btn-secondary" onClick={() => setSearchTerm('')}>
                   Clear Search

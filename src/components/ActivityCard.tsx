@@ -6,6 +6,7 @@ interface ActivityCardProps {
   isLive: boolean;
   activeCardRef: React.RefObject<HTMLDivElement | null>;
   categoryColors: Record<string, { bg: string, fg?: string }>;
+  onClick?: () => void;
 }
 
 export const ActivityCard: React.FC<ActivityCardProps> = ({
@@ -13,16 +14,28 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
   isLive,
   activeCardRef,
   categoryColors,
+  onClick,
 }) => {
   const safeCategoryColors = categoryColors || {};
   const catColors = activity.category ? safeCategoryColors[activity.category] : null;
   const finalBg = catColors?.bg || activity.categoryBackgroundColor;
   const finalFg = catColors?.fg || activity.categoryForegroundColor;
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest('a') || (e.target as HTMLElement).closest('button')) {
+      return; // Do not trigger card click if clicking a link or button
+    }
+    if (onClick) {
+      onClick();
+    }
+  };
+
   return (
   <div
     className={`activity-card glass ${isLive ? 'is-live' : ''} ${activity.requiresReservation ? 'is-reservation' : ''}`}
     ref={isLive ? activeCardRef : undefined}
+    onClick={handleCardClick}
+    style={onClick ? { cursor: 'pointer' } : undefined}
   >
       <div className="card-header">
         <div className="title-row">

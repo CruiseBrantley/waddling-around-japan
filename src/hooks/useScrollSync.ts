@@ -92,9 +92,21 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
         let minDistance = Infinity;
         
         if (isDesktop) {
+          const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
+          
+          if (maxScroll <= 0) {
+            // Container doesn't scroll because all content fits on screen.
+            // Do not override active index with scroll events.
+            return;
+          }
+
           const scrollTop = container.scrollTop;
-          // Trigger when a day crosses the middle of the screen
-          const triggerPoint = scrollTop + (container.clientHeight / 2); 
+          
+          // The trigger point dynamically glides from the top to the bottom of the viewport
+          // based on the overall scroll percentage. This perfectly maintains middle-focus 
+          // normally, while naturally handling short items at the top and bottom bounds.
+          const scrollPercentage = maxScroll > 0 ? scrollTop / maxScroll : 0;
+          const triggerPoint = scrollTop + 40 + scrollPercentage * (container.clientHeight - 80); 
           
           slides.forEach((slide, i) => {
             const el = slide as HTMLElement;
@@ -253,8 +265,10 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
     let targetY = 0;
     
     if (isDesktop) {
+      const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
       const targetSlide = container.querySelectorAll('.swipe-slide')[index] as HTMLElement;
-      if (targetSlide) targetY = targetSlide.offsetTop;
+      // Bound the target to maxScroll so the proximity lock releases correctly when hitting the bottom
+      if (targetSlide) targetY = Math.max(0, Math.min(maxScroll, targetSlide.offsetTop - 20));
     }
     
     // 1. Commit to the target
@@ -285,10 +299,11 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
         });
       }
     } else {
+      const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
       const targetSlide = container.querySelectorAll('.swipe-slide')[index] as HTMLElement;
       if (targetSlide) {
-        // If we want it sticky at the top, we might need to account for padding
-        const scrollTarget = targetSlide.offsetTop - 20; // Small margin
+        // Use the exact same calculation as targetY so the proximity lock safely disengages
+        const scrollTarget = Math.max(0, Math.min(maxScroll, targetSlide.offsetTop - 20)); 
         container.scrollTo({
           top: scrollTarget,
           behavior: isInstant ? 'auto' : 'smooth'

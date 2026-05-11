@@ -11,6 +11,7 @@ interface ActivityListProps {
   timeToMinutes: (timeStr: string) => number;
   isToday: boolean;
   categoryColors: Record<string, { bg: string, fg?: string }>;
+  onCardClick?: () => void;
 }
 
 export const ActivityList: React.FC<ActivityListProps> = ({ 
@@ -21,7 +22,8 @@ export const ActivityList: React.FC<ActivityListProps> = ({
   activeCardRef,
   timeToMinutes,
   isToday,
-  categoryColors
+  categoryColors,
+  onCardClick
 }) => {
   const currentMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();
 
@@ -68,7 +70,12 @@ export const ActivityList: React.FC<ActivityListProps> = ({
     <div className="container" style={{ paddingBottom: '40px' }}>
       <div className="day-header">
         <h2 className="date-display">{date}</h2>
-        <span className="activity-count">{activities.filter(a => a.category.toLowerCase() === 'event').length} events</span>
+        <span className="activity-count">
+          {activities.filter(a => {
+            const cat = a.category?.toLowerCase().trim() || '';
+            return ['event', 'food', 'shopping'].includes(cat);
+          }).length} activities
+        </span>
       </div>
 
       <div className="timeline">
@@ -105,6 +112,7 @@ export const ActivityList: React.FC<ActivityListProps> = ({
                 isLive={isLive} 
                 activeCardRef={activeCardRef} 
                 categoryColors={categoryColors}
+                onClick={onCardClick}
               />
             </div>
           );
