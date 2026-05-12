@@ -3,7 +3,9 @@ export interface ItineraryActivity {
   date: string;
   time: string;
   title: string;
+  smartChip?: string;
   location: string;
+  locationLink?: string;
   link?: string;
   cost?: string;
   notes: string;
@@ -62,6 +64,22 @@ interface SheetRow {
         blue?: number;
       };
     };
+    textFormatRuns?: Array<{
+      startIndex?: number;
+      format?: {
+        link?: {
+          uri?: string;
+        };
+      };
+    }>;
+    chipRuns?: Array<{
+      startIndex?: number;
+      chip?: {
+        richLinkProperties?: {
+          uri?: string;
+        };
+      };
+    }>;
   }>;
 }
 
@@ -173,7 +191,27 @@ function transformFullSheetData(rowData: SheetRow[]): Itinerary {
     if (cells.length === 0) return;
 
     // Must have at least one significant column
-    const activityTitle = colIndex.activity !== -1 ? String(cells[colIndex.activity]?.formattedValue || "").trim() : "";
+    const activityCell = colIndex.activity !== -1 ? cells[colIndex.activity] : null;
+    let activityTitle = activityCell ? String(activityCell.formattedValue || "").trim() : "";
+    let smartChip: string | undefined = undefined;
+
+    // Isolate Smart Chips using formatting runs!
+    if (activityCell?.chipRuns && activityCell.chipRuns.length > 0) {
+      const linkRun = activityCell.chipRuns.find(run => run.chip?.richLinkProperties?.uri);
+      if (linkRun) {
+        const startIndex = linkRun.startIndex || 0;
+        smartChip = activityTitle.substring(startIndex).trim();
+        activityTitle = activityTitle.substring(0, startIndex).trim();
+      }
+    } else if (activityCell?.textFormatRuns && activityCell.textFormatRuns.length > 1) {
+      const linkRun = activityCell.textFormatRuns.find(run => run.format?.link?.uri);
+      if (linkRun) {
+        const startIndex = linkRun.startIndex || 0;
+        smartChip = activityTitle.substring(startIndex).trim();
+        activityTitle = activityTitle.substring(0, startIndex).trim();
+      }
+    }
+
     const rawCategory = colIndex.category !== -1 ? (cells[colIndex.category]?.formattedValue || "").trim() : "";
     
     if (!activityTitle && !rawCategory) return;
@@ -241,12 +279,23 @@ function transformFullSheetData(rowData: SheetRow[]): Itinerary {
       (finalBg.blue || 0) < 0.1
     );
 
+    // Extract Location & its precise link if available (hyperlink or Maps chip)
+    const locationCell = colIndex.location !== -1 ? cells[colIndex.location] : null;
+    const locationValue = String(locationCell?.formattedValue || "").trim();
+    let locationLink = locationCell?.hyperlink || extractUrl(locationValue) || undefined;
+    
+    if (!locationLink && locationCell?.chipRuns && locationCell.chipRuns.length > 0) {
+      locationLink = locationCell.chipRuns.find(run => run.chip?.richLinkProperties?.uri)?.chip?.richLinkProperties?.uri || locationLink;
+    }
+
     const activity: ItineraryActivity = {
       id: `act-${index}`,
       date: activityDate,
       time: colIndex.time !== -1 ? String(cells[colIndex.time]?.formattedValue || "").trim() : "",
       title: activityTitle,
-      location: colIndex.location !== -1 ? String(cells[colIndex.location]?.formattedValue || "").trim() : "",
+      smartChip: smartChip,
+      location: locationValue,
+      locationLink: locationLink,
       link: cleanLink || undefined,
       cost: colIndex.cost !== -1 ? String(cells[colIndex.cost]?.formattedValue || "").trim() || undefined : undefined,
       notes: colIndex.notes !== -1 ? String(cells[colIndex.notes]?.formattedValue || "").trim() : "",

@@ -9,9 +9,11 @@ Write-Host "🚀 Starting deployment to $PI_HOST..." -ForegroundColor Cyan
 
 # 1. Sync files (excluding noise)
 Write-Host "📦 Syncing files..." -ForegroundColor Yellow
-# We use a temporary exclude list for scp-like behavior with robocopy or just explicit scp
-# Since we want to be clean, we'll scp the src, package.json, and tsconfig.json
-scp -r server/src server/package.json server/package-lock.json server/tsconfig.json "${PI_USER}@${PI_HOST}:${DEST_DIR}/"
+# On Windows, scp multiple targets in one command can be flaky. Copying individually for reliability.
+scp -r server/src "${PI_USER}@${PI_HOST}:${DEST_DIR}/"
+scp server/package.json "${PI_USER}@${PI_HOST}:${DEST_DIR}/"
+scp server/package-lock.json "${PI_USER}@${PI_HOST}:${DEST_DIR}/"
+scp server/tsconfig.json "${PI_USER}@${PI_HOST}:${DEST_DIR}/"
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "❌ Sync failed!" -ForegroundColor Red

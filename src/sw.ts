@@ -47,6 +47,7 @@ swSelf.addEventListener('push', (event: any) => {
     badge: '/icon.png',
     tag: data.tag,
     renotify: true,
+    requireInteraction: true,
     data: { url: swSelf.location.origin }
   };
 

@@ -1,13 +1,16 @@
 import express from 'express';
 import cors from 'cors';
-import bodyParser from 'body-parser';
 import webPush from 'web-push';
 import fs from 'fs';
 import path from 'path';
 
 export const app = express();
-app.use(cors());
-app.use(bodyParser.json());
+
+app.use(cors({
+  allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning']
+}));
+
+app.use(express.json());
 
 export interface SubscriptionData {
   subscription: webPush.PushSubscription;
@@ -52,13 +55,14 @@ app.post('/subscribe', (req, res) => {
   const { subscription, settings } = req.body;
   
   if (!subscription || !subscription.endpoint) {
-    return res.status(400).json({ error: 'Invalid subscription object' });
+    console.error('Received invalid subscription payload:', req.body);
+    return res.status(400).json({ error: 'Invalid subscription object: missing endpoint' });
   }
 
   const subscriptions = loadSubscriptions();
   
   // Find index to update or add
-  const index = subscriptions.findIndex(s => s.subscription.endpoint === subscription.endpoint);
+  const index = subscriptions.findIndex(s => s.subscription && s.subscription.endpoint === subscription.endpoint);
   
   const newData: SubscriptionData = {
     subscription,
@@ -76,6 +80,26 @@ app.post('/subscribe', (req, res) => {
   
   saveSubscriptions(subscriptions);
   res.status(201).json({ success: true });
+});
+
+// Endpoint to remove an existing Push Subscription when a user opts out
+app.post('/unsubscribe', (req, res) => {
+  const { endpoint } = req.body;
+  
+  if (!endpoint) {
+    return res.status(400).json({ error: 'Invalid endpoint' });
+  }
+
+  const subscriptions = loadSubscriptions();
+  const index = subscriptions.findIndex(s => s.subscription && s.subscription.endpoint === endpoint);
+  
+  if (index !== -1) {
+    subscriptions.splice(index, 1);
+    saveSubscriptions(subscriptions);
+    console.log('Subscription removed. Total:', subscriptions.length);
+  }
+  
+  res.status(200).json({ success: true });
 });
 
 // A simple test endpoint to manually trigger a push to all subscribers

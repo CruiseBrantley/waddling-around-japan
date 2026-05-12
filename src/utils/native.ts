@@ -221,10 +221,10 @@ export const subscribeToPushNotifications = async (settings: { notifyMinutesBefo
 
     // Send the subscription to our backend server
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
-    await fetch(`${apiUrl}/subscribe`, {
+    const response = await fetch(`${apiUrl}/subscribe`, {
       method: 'POST',
       body: JSON.stringify({ 
-        subscription, 
+        subscription: subscription.toJSON(), 
         settings: {
           notifyMinutesBefore: settings.notifyMinutesBefore,
           notifyUrgentMinutesBefore: settings.notifyUrgentMinutesBefore,
@@ -233,13 +233,64 @@ export const subscribeToPushNotifications = async (settings: { notifyMinutesBefo
         isDev: settings.devMode
       }),
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': 'true'
       }
     });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Server error (${response.status}): ${errorText}`);
+    }
 
     console.log('Successfully registered with backend push server.');
   } catch (e) {
     console.error('Failed to subscribe to push notifications:', e);
+    throw e;
+  }
+};
+
+/**
+ * Unsubscribes the device from Web Push and removes it from the backend.
+ */
+export const unsubscribeFromPushNotifications = async () => {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.getSubscription();
+    
+    if (subscription) {
+      console.log('Unsubscribing device from push...');
+      
+      // 1. Try to tell backend to delete, but don't let a network failure block local cleanup
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+      try {
+        const response = await fetch(`${apiUrl}/unsubscribe`, {
+          method: 'POST',
+          body: JSON.stringify({ endpoint: subscription.endpoint }),
+          headers: {
+            'Content-Type': 'application/json',
+            'ngrok-skip-browser-warning': 'true'
+          }
+        });
+        
+        if (response.ok) {
+          console.log('Backend unsubscribed successfully.');
+        } else {
+          console.warn(`Backend unsubscribe returned status ${response.status}`);
+        }
+      } catch (netError) {
+        console.warn('Backend unsubscribe failed (likely offline). Proceeding with local cleanup anyway.', netError);
+      }
+
+      // 2. Always unsubscribe locally so the browser state and UI are consistent
+      await subscription.unsubscribe();
+      console.log('Local browser subscription cleared.');
+    }
+  } catch (e) {
+    console.error('Failed to unsubscribe from push notifications:', e);
+    throw e; // Rethrow so the UI knows it failed
   }
 };
 
@@ -276,6 +327,7 @@ export const showLocalNotification = async (
     badge: '/icon.png',
     tag,
     renotify,
+    requireInteraction: true,
     silent: !sound,
     vibrate: vibrate ? (type === 'urgent' ? [150, 50, 150, 50, 150] : [120, 40, 120]) : [],
     data: {

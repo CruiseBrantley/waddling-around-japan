@@ -43,6 +43,8 @@ test.describe('Settings Synchronization', () => {
       // Intercept fetch calls to track syncs
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (window as any).__lastSyncPayload = null;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (window as any).__lastUnsubscribePayload = null;
       const originalFetch = window.fetch;
       window.fetch = async (...args) => {
         const [url, options] = args;
@@ -53,6 +55,13 @@ test.describe('Settings Synchronization', () => {
           (window as any).__lastSyncPayload = JSON.parse(options?.body as string);
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return { ok: true, status: 201, json: async () => ({ success: true }) } as any;
+        }
+
+        if (urlStr.includes('/unsubscribe')) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (window as any).__lastUnsubscribePayload = JSON.parse(options?.body as string);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return { ok: true, status: 200, json: async () => ({ success: true }) } as any;
         }
 
         // Catch-all for any other remote fetches to prevent crashes
@@ -133,5 +142,51 @@ test.describe('Settings Synchronization', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const payload = await page.evaluate(() => (window as any).__lastSyncPayload);
     expect(payload.settings.notifyMinutesBefore).toBe(15);
+  });
+
+  test('should send unsubscribe request when notifications are turned off', async ({ page }) => {
+    await page.click('.settings-toggle-btn');
+    await page.waitForSelector('.settings-modal');
+
+    // 1. Enable notifications
+    const toggle = page.locator('button[aria-label="Toggle notifications"]');
+    await toggle.click();
+    await expect(toggle).toHaveClass(/active/);
+    
+    // Set up mock subscription for getSubscription so that the "Turning off" path can find it
+    await page.evaluate(() => {
+      const mockServiceWorker = {
+        ready: Promise.resolve({
+          pushManager: {
+            // This is used by subscribe
+            subscribe: async () => ({
+              endpoint: 'https://mock-push-service.com/123',
+              keys: { auth: 'mock-auth', p256dh: 'mock-p256dh' },
+              toJSON: () => ({ endpoint: 'https://mock-push-service.com/123' })
+            }),
+            // This is used by unsubscribe
+            getSubscription: async () => ({
+              endpoint: 'https://mock-push-service.com/123',
+              unsubscribe: async () => true
+            })
+          }
+        }),
+        getRegistrations: async () => [],
+        addEventListener: () => {},
+        removeEventListener: () => {}
+      };
+      Object.defineProperty(navigator, 'serviceWorker', { value: mockServiceWorker, writable: true });
+    });
+
+    // 2. Disable notifications
+    await toggle.click();
+    await expect(toggle).not.toHaveClass(/active/);
+
+    // 3. Verify the unsubscribe payload was sent to the backend
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await page.waitForFunction(() => (window as any).__lastUnsubscribePayload !== null);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const payload = await page.evaluate(() => (window as any).__lastUnsubscribePayload);
+    expect(payload.endpoint).toBe('https://mock-push-service.com/123');
   });
 });

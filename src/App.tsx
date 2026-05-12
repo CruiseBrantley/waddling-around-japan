@@ -68,6 +68,14 @@ function App() {
     }
   });
 
+  // Automatically apply PWA updates the moment they are detected
+  useEffect(() => {
+    if (needRefresh) {
+      console.log('PWA update detected. Applying immediately...');
+      void updateServiceWorker(true);
+    }
+  }, [needRefresh, updateServiceWorker]);
+
   const activeCardRef = useRef<HTMLDivElement | null>(null);
   const hasScrolledRef = useRef(false);
   const prevSearchTerm = useRef(searchTerm);
@@ -355,10 +363,18 @@ function App() {
     for (let i = 0; i < today.activities.length; i++) {
       const act = today.activities[i];
       const startMin = timeToMinutes(act.time);
-      const nextAct = today.activities[i + 1];
-      // Realistic Logic: End at next activity start OR after a max duration of 2.5 hours (150 mins)
-      const maxDuration = 150; 
-      const endMin = nextAct ? Math.min(timeToMinutes(nextAct.time), startMin + maxDuration) : startMin + maxDuration;
+      if (startMin === 0) continue;
+
+      let nextValidMin = 0;
+      for (let j = i + 1; j < today.activities.length; j++) {
+        const t = timeToMinutes(today.activities[j].time);
+        if (t > startMin) {
+          nextValidMin = t;
+          break;
+        }
+      }
+      
+      const endMin = nextValidMin > 0 ? nextValidMin : startMin + 150;
       
       if (nowMin >= startMin && nowMin < endMin) {
         current = { ...act, dayIdx: todayIdx };
@@ -449,6 +465,12 @@ function App() {
 
   const [pendingJump, setPendingJump] = useState(false);
 
+  // Clear notifications on initial launch
+  useEffect(() => {
+    void clearEventNotifications();
+    clearAppBadge();
+  }, []);
+
   // Clear notifications and handle navigation when app is opened or resumed
   useEffect(() => {
     const jumpToNow = () => {
@@ -515,7 +537,6 @@ function App() {
       window.history.replaceState({}, '', window.location.pathname);
     }
 
-    void clearEventNotifications();
     document.addEventListener('visibilitychange', handleVisibilityChange);
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.addEventListener('message', handleSWMessage);

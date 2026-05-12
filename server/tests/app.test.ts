@@ -36,7 +36,7 @@ describe('Express Server API Tests', () => {
       .send({ invalidData: true });
 
     expect(response.status).toBe(400);
-    expect(response.body).toEqual({ error: 'Invalid subscription object' });
+    expect(response.body).toEqual({ error: 'Invalid subscription object: missing endpoint' });
   });
 
   it('should accept valid subscriptions on /subscribe and save to file', async () => {

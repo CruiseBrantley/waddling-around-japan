@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { triggerHaptic, triggerTick, requestNotificationPermission, triggerAlertSound, subscribeToPushNotifications } from '../utils/native';
+import { triggerHaptic, triggerTick, requestNotificationPermission, triggerAlertSound, subscribeToPushNotifications, unsubscribeFromPushNotifications } from '../utils/native';
 import { saveSettings, supportsNotifications, isIOS, isStandalone, supportsHaptics, supportsSound, APP_VERSION } from '../utils/settings';
 import type { AppSettings } from '../utils/settings';
 import './SettingsModal.css';
@@ -93,28 +93,35 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   const handleNotificationToggle = async () => {
-    if (settings.notificationsEnabled) {
-      // Turning off
-      update({ notificationsEnabled: false });
-      return;
-    }
-
-    // Turning on
-    if (Notification.permission !== 'granted') {
-      if (settings.hapticsEnabled) triggerHaptic('medium');
-      // Requesting for the first time
-      const result = await requestNotificationPermission(settings); // This will auto-subscribe if granted
-      setPermissionState(result === 'granted' ? 'granted' : result === 'denied' ? 'denied' : 'default');
-      if (result === 'granted') {
-        update({ notificationsEnabled: true });
-      } else if (result === 'denied') {
-        // Permission denied, can't enable
+    try {
+      if (settings.notificationsEnabled) {
+        // Turning off
+        await unsubscribeFromPushNotifications();
+        update({ notificationsEnabled: false });
         return;
       }
-    } else {
-      // Already granted, but we still need to fetch the Web Push subscription from the server
-      await subscribeToPushNotifications(settings);
-      update({ notificationsEnabled: true });
+
+      // Turning on
+      if (Notification.permission !== 'granted') {
+        if (settings.hapticsEnabled) triggerHaptic('medium');
+        // Requesting for the first time
+        const result = await requestNotificationPermission(settings); // This will auto-subscribe if granted
+        setPermissionState(result === 'granted' ? 'granted' : result === 'denied' ? 'denied' : 'default');
+        if (result === 'granted') {
+          update({ notificationsEnabled: true });
+        } else if (result === 'denied') {
+          // Permission denied, can't enable
+          return;
+        }
+      } else {
+        // Already granted, but we still need to fetch the Web Push subscription from the server
+        await subscribeToPushNotifications(settings);
+        update({ notificationsEnabled: true });
+      }
+    } catch (err: unknown) {
+      console.error('Failed to toggle notifications:', err);
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      alert(`Failed to update notification settings: ${message}. Please check your network connection.`);
     }
   };
 

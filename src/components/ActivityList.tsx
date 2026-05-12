@@ -39,10 +39,18 @@ export const ActivityList: React.FC<ActivityListProps> = ({
 
     for (let i = 0; i < allActivities.length; i++) {
       const activityMinutes = timeToMinutes(allActivities[i].time);
-      const nextActivity = allActivities[i + 1];
-      // Realistic Logic: End at next activity start OR after a max duration of 2.5 hours (150 mins)
-      const maxDuration = 150;
-      const endMins = nextActivity ? Math.min(timeToMinutes(nextActivity.time), activityMinutes + maxDuration) : activityMinutes + maxDuration;
+      if (activityMinutes === 0) continue;
+
+      let nextValidMin = 0;
+      for (let j = i + 1; j < allActivities.length; j++) {
+        const t = timeToMinutes(allActivities[j].time);
+        if (t > activityMinutes) {
+          nextValidMin = t;
+          break;
+        }
+      }
+      
+      const endMins = nextValidMin > 0 ? nextValidMin : activityMinutes + 150;
       
       if (currentMinutes >= activityMinutes && currentMinutes < endMins) {
         return allActivities[i].id;
@@ -86,10 +94,17 @@ export const ActivityList: React.FC<ActivityListProps> = ({
           if (isLive) {
             const startMins = timeToMinutes(activity.time);
             const actualIndex = allActivities.findIndex(a => a.id === activity.id);
-            const nextActivity = allActivities[actualIndex + 1];
-            // Realistic Logic: Match the duration logic in getLiveActivityId
-            const maxDuration = 150;
-            const endMins = nextActivity ? Math.min(timeToMinutes(nextActivity.time), startMins + maxDuration) : startMins + maxDuration;
+            
+            let nextValidMin = 0;
+            for (let i = actualIndex + 1; i < allActivities.length; i++) {
+              const t = timeToMinutes(allActivities[i].time);
+              if (t > startMins) {
+                nextValidMin = t;
+                break;
+              }
+            }
+            
+            const endMins = nextValidMin > 0 ? nextValidMin : startMins + 150;
             progress = Math.min(100, Math.max(0, ((currentMinutes - startMins) / (endMins - startMins)) * 100));
           }
 
