@@ -315,14 +315,15 @@ function App() {
     }, 50);
   }, [scrollToDay, scrollRef, filteredDays, parseSheetDate]);
 
-  const performSmartJump = useCallback((index: number, targetActivity?: { title?: string; id?: string } | string | null | undefined) => {
+  const performSmartJump = useCallback((index: number, targetActivity?: { title?: string; id?: string } | string | null | undefined, isInitial: boolean = false) => {
     if (index === -1) return;
     
     const isAlreadyOnDay = activeIndex === index;
     scrollToDay(index);
 
     // If same day: jump INSTANTLY. If different day: wait for horizontal slide (500ms)
-    const verticalDelay = isAlreadyOnDay ? 0 : 600;
+    // On initial load, always wait at least 500ms to allow DOM/layout/swiper to fully settle.
+    const verticalDelay = isAlreadyOnDay ? (isInitial ? 500 : 0) : 600;
 
     setTimeout(() => {
       // 1. Try to find the specific target activity if provided
@@ -470,22 +471,21 @@ function App() {
       // Use the same activeEvents logic as the pill click for consistency
       const target = activeEvents.currentEvent || activeEvents.nextEvent;
       if (target && typeof target.dayIdx === 'number') {
-        setTimeout(() => performSmartJump(target.dayIdx, { title: target.fullTitle || target.title, id: target.id }), 100);
+        setTimeout(() => performSmartJump(target.dayIdx, { title: target.fullTitle || target.title, id: target.id }, true), 300);
       }
     }
   }, [loading, itinerary, activeEvents, performSmartJump]);
 
 
   
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const jumpToNow = useCallback((_force: boolean = false) => {
+  const jumpToNow = useCallback((isInitial: boolean = false) => {
     const target = activeEvents.currentEvent || activeEvents.nextEvent;
     if (target && typeof target.dayIdx === 'number') {
       // Pass full activity object with fullTitle for precise matching
-      performSmartJump(target.dayIdx, { title: target.fullTitle || target.title, id: target.id });
+      performSmartJump(target.dayIdx, { title: target.fullTitle || target.title, id: target.id }, isInitial);
     } else {
       const todayIdx = filteredDays.findIndex(d => isSameDay(d.date, currentTime));
-      if (todayIdx !== -1) performSmartJump(todayIdx);
+      if (todayIdx !== -1) performSmartJump(todayIdx, null, isInitial);
     }
   }, [activeEvents, filteredDays, isSameDay, currentTime, performSmartJump]);
 
@@ -547,7 +547,7 @@ function App() {
   useEffect(() => {
     // If data is ready and we have a pending jump, do it now
     if (!loading && itinerary && pendingJump) {
-      jumpToNow();
+      jumpToNow(true);
       setTimeout(() => setPendingJump(false), 0);
     }
 
@@ -572,7 +572,7 @@ function App() {
           if (loading) {
             setTimeout(() => setPendingJump(true), 0);
           } else {
-            jumpToNow();
+            jumpToNow(true);
           }
           // Clean up the URL
           window.history.replaceState({}, '', window.location.pathname);
@@ -585,7 +585,7 @@ function App() {
         if (loading) {
           setTimeout(() => setPendingJump(true), 0);
         } else {
-          jumpToNow();
+          jumpToNow(true);
         }
       }
     };
@@ -596,7 +596,7 @@ function App() {
       if (loading) {
         setTimeout(() => setPendingJump(true), 0);
       } else {
-        jumpToNow();
+        jumpToNow(true);
       }
       window.history.replaceState({}, '', window.location.pathname);
     }
