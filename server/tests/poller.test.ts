@@ -1,4 +1,4 @@
-import { timeToMinutes, isSameDay, getNextEvent } from '../src/poller';
+import { timeToMinutes, isSameDay, getNextEvent, getJapanTime } from '../src/poller';
 import { ItineraryDay } from '../src/sheets';
 
 describe('Poller Logic Tests', () => {
@@ -66,6 +66,14 @@ describe('Poller Logic Tests', () => {
       const current = new Date('2026-05-25T06:00:00Z');
       const result = getNextEvent(mockDays, current);
       expect(result).toBeNull();
+    });
+  });
+
+  describe('getJapanTime Timezone Independence', () => {
+    it('should return a valid Date representing the absolute current instant', () => {
+      const now = getJapanTime();
+      expect(now).toBeInstanceOf(Date);
+      expect(Math.abs(now.getTime() - Date.now())).toBeLessThan(1000);
     });
   });
 

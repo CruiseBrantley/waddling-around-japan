@@ -81,11 +81,9 @@ export const getNextEvent = (days: ItineraryDay[], currentTime: Date): AlertTarg
 };
 
 export const getJapanTime = (): Date => {
-  // Get current time in Tokyo as a Date object
-  // Note: new Date(toLocaleString) is generally safe for simple comparisons
-  // but we should be careful. This is the current pattern in the project.
-  const japanTimeStr = new Date().toLocaleString("en-US", { timeZone: "Asia/Tokyo" });
-  return new Date(japanTimeStr);
+  // Return the absolute current time. Timezone conversions are safely handled
+  // down the line in getJapanMinutes and isSameDay using Intl.DateTimeFormat.
+  return new Date();
 };
 
 let subscriptionsFile = path.join(__dirname, '..', 'subscriptions.json');
