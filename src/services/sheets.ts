@@ -446,6 +446,10 @@ function rgbToCssColor(rgb: { red?: number; green?: number; blue?: number } | nu
   const r = Math.round((rgb.red ?? 0) * 255);
   const g = Math.round((rgb.green ?? 0) * 255);
   const b = Math.round((rgb.blue ?? 0) * 255);
+  
+  // If the color is flat black, ignore it so it inherits high-contrast white text color!
+  if (r === 0 && g === 0 && b === 0) return null;
+  
   return `rgb(${r}, ${g}, ${b})`;
 }
 
