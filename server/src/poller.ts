@@ -14,15 +14,15 @@ export const timeToMinutes = (timeStr: string): number => {
   return (hours * 60) + minutes;
 };
 
-// Helper to check if a date string matches a Date object (in Japan timezone)
-export const isSameDay = (dateStr: string, dateObj: Date) => {
+// Helper to check if a date string matches a Date object (in local/Japan timezone)
+export const isSameDay = (dateStr: string, dateObj: Date, timeZone: string = 'Asia/Tokyo') => {
   // Use en-CA locale as it gives YYYY-MM-DD
-  const japanDateStr = new Intl.DateTimeFormat('en-CA', { 
-    timeZone: 'Asia/Tokyo' 
+  const localDateStr = new Intl.DateTimeFormat('en-CA', { 
+    timeZone 
   }).format(dateObj);
   
   const cleanDateStr = dateStr.replace(/\//g, '-').split('T')[0];
-  return japanDateStr === cleanDateStr;
+  return localDateStr === cleanDateStr;
 };
 
 export interface AlertTarget {
@@ -32,10 +32,10 @@ export interface AlertTarget {
   category: string;
 }
 
-// Helper to get minutes from midnight in Japan time
-export const getJapanMinutes = (date: Date): number => {
+// Helper to get minutes from midnight in local/Japan time
+export const getJapanMinutes = (date: Date, timeZone: string = 'Asia/Tokyo'): number => {
   const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'Asia/Tokyo',
+    timeZone,
     hour: 'numeric',
     minute: 'numeric',
     second: 'numeric',
@@ -49,9 +49,9 @@ export const getJapanMinutes = (date: Date): number => {
   return h * 60 + m + (s / 60);
 };
 
-export const getNextEvent = (days: ItineraryDay[], currentTime: Date): AlertTarget | null => {
-  const nowMin = getJapanMinutes(currentTime);
-  const todayIdx = days.findIndex(d => isSameDay(d.date, currentTime));
+export const getNextEvent = (days: ItineraryDay[], currentTime: Date, timeZone: string = 'Asia/Tokyo'): AlertTarget | null => {
+  const nowMin = getJapanMinutes(currentTime, timeZone);
+  const todayIdx = days.findIndex(d => isSameDay(d.date, currentTime, timeZone));
   if (todayIdx === -1) return null;
 
   const today = days[todayIdx];
@@ -100,17 +100,18 @@ export const pollAndNotify = async () => {
     const itinerary = await fetchItinerary();
     if (!itinerary || !itinerary.days || itinerary.days.length === 0) return;
 
-    const currentTime = getJapanTime();
-    const nextEvent = getNextEvent(itinerary.days, currentTime);
-    if (!nextEvent) return;
-
     const data = fs.readFileSync(subscriptionsFile, 'utf8');
     const subscriptions: SubscriptionData[] = JSON.parse(data);
     if (subscriptions.length === 0) return;
 
+    const currentTime = getJapanTime();
     let updatedAny = false;
 
     for (const sub of subscriptions) {
+      const userTimezone = sub.settings?.timezone || 'Asia/Tokyo';
+      const nextEvent = getNextEvent(itinerary.days, currentTime, userTimezone);
+      if (!nextEvent) continue;
+
       const { title, minutes, time, category } = nextEvent;
       const eventKey = `${title}-${time}`;
 

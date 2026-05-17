@@ -228,7 +228,8 @@ export const subscribeToPushNotifications = async (settings: { notifyMinutesBefo
         settings: {
           notifyMinutesBefore: settings.notifyMinutesBefore,
           notifyUrgentMinutesBefore: settings.notifyUrgentMinutesBefore,
-          disabledCategories: settings.disabledCategories
+          disabledCategories: settings.disabledCategories,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
         },
         isDev: settings.devMode
       }),

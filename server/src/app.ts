@@ -18,6 +18,7 @@ export interface SubscriptionData {
     notifyMinutesBefore: number;
     notifyUrgentMinutesBefore: number;
     disabledCategories?: string[];
+    timezone?: string; // Persistent local timezone uploaded by the device
   };
   lastHeadsUpEvent?: string; // e.g. "Dinner-2024-05-15"
   lastUrgentEvent?: string;

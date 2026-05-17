@@ -20,7 +20,7 @@ import { useScrollSync } from './hooks/useScrollSync'
 
 // Utils
 import { timeToMinutes } from './utils/time'
-import { setAppBadge, clearAppBadge, triggerHaptic, triggerTick, showLocalNotification, setHapticsEnabled, clearEventNotifications } from './utils/native'
+import { setAppBadge, clearAppBadge, triggerHaptic, triggerTick, showLocalNotification, setHapticsEnabled, clearEventNotifications, subscribeToPushNotifications } from './utils/native'
 import heroImg from './assets/hero_optimized.jpg'
 import type { ItineraryActivity } from './services/sheets'
 
@@ -106,6 +106,31 @@ function App() {
       void updateServiceWorker(true);
     }
   }, [needRefresh, updateServiceWorker]);
+
+  // Synchronize dynamic device timezone with push notification server in the background
+  useEffect(() => {
+    if (
+      settings.notificationsEnabled && 
+      'Notification' in window && 
+      Notification.permission === 'granted'
+    ) {
+      console.log('Synchronizing device timezone with push server...');
+      subscribeToPushNotifications({
+        notifyMinutesBefore: settings.notifyMinutesBefore,
+        notifyUrgentMinutesBefore: settings.notifyUrgentMinutesBefore,
+        disabledCategories: settings.disabledCategories,
+        devMode: settings.devMode
+      }).catch(err => {
+        console.warn('Failed to background sync timezone with push server:', err);
+      });
+    }
+  }, [
+    settings.notificationsEnabled,
+    settings.notifyMinutesBefore,
+    settings.notifyUrgentMinutesBefore,
+    settings.disabledCategories,
+    settings.devMode
+  ]);
 
   const activeCardRef = useRef<HTMLDivElement | null>(null);
   const hasInitialJumpFiredRef = useRef(false);
