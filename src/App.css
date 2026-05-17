@@ -276,6 +276,10 @@
 .timeline-item {
   display: flex;
   gap: 16px;
+  width: 100%;
+  min-width: 0;
+  position: relative;
+  z-index: 1;
 }
 
 .timeline-left {
@@ -283,7 +287,16 @@
   flex-direction: column;
   align-items: center;
   width: 48px;
-  padding-top: 20px;
+  padding-top: 16px;
+  margin-bottom: 24px; /* Match activity-card margin-bottom so connector ends flush */
+  position: relative;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* Sub-items have no dot/time — connector must start flush at top */
+.untimed-item .timeline-left {
+  padding-top: 0;
 }
 
 .activity-time {
@@ -291,7 +304,7 @@
   font-weight: 700;
   color: var(--text-muted);
   text-align: center;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .timeline-dot {
@@ -302,17 +315,109 @@
   z-index: 2;
   border: 3px solid var(--bg-main);
   box-shadow: 0 0 0 1px var(--border);
+  flex-shrink: 0;
 }
 
+/* Line below the dot, grows downward */
 .timeline-connector {
   flex: 1;
   width: 2px;
   background: var(--border);
-  margin-top: 4px;
+  position: relative;
+  min-height: 16px;
 }
 
-.timeline-item:last-child .timeline-connector {
-  display: none;
+.timeline-progress-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--primary);
+  box-shadow: 0 0 10px var(--primary-glow);
+  z-index: 2;
+  transform-origin: top center;
+  transform: scaleY(0);
+  transition: transform 1s linear;
+}
+
+.timeline-progress-fill.instant {
+  transition: none;
+}
+
+.timeline-session {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border-radius: 24px;
+  transition: all 0.5s ease;
+  padding: 8px 0;
+}
+
+.timeline-session.is-group.is-live {
+  background: rgba(255, 255, 255, 0.02);
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+
+.session-progress-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  background: linear-gradient(to bottom, 
+    rgba(255, 59, 63, 0.06), 
+    rgba(255, 59, 63, 0.03));
+  border-radius: 24px;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  transition: height 60s linear;
+}
+
+.session-bg-flow {
+  position: absolute;
+  inset: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle at 30% 30%, rgba(255, 59, 63, 0.15) 0%, transparent 50%),
+              radial-gradient(circle at 70% 70%, rgba(112, 0, 255, 0.1) 0%, transparent 50%),
+              radial-gradient(circle at 50% 50%, rgba(255, 59, 63, 0.05) 0%, transparent 70%);
+  filter: blur(60px);
+  animation: lava-lamp 20s infinite alternate ease-in-out;
+  opacity: 0.6;
+}
+
+@keyframes lava-lamp {
+  0% { transform: translate(0, 0) rotate(0deg) scale(1); }
+  33% { transform: translate(-5%, 10%) rotate(120deg) scale(1.1); }
+  66% { transform: translate(10%, -5%) rotate(240deg) scale(0.9); }
+  100% { transform: translate(0, 0) rotate(360deg) scale(1); }
+}
+
+.untimed-item {
+  margin-top: -16px; /* Pull untimed items closer to previous item for a tighter grouping */
+}
+
+.untimed-item .timeline-left {
+  padding-top: 0;
+}
+
+.timeline-dot-small {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--border);
+  z-index: 2;
+  flex-shrink: 0;
+  transition: all 0.3s ease;
+}
+
+.timeline-dot-small.is-active {
+  background: var(--primary);
+  box-shadow: 0 0 8px var(--primary-glow);
+  transform: scale(1.2);
 }
 
 .timeline-content {
@@ -333,6 +438,9 @@
 .activity-title {
   font-size: 17px;
   line-height: 1.3;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word;
 }
 
 .smart-chip {
@@ -562,6 +670,8 @@
   padding: 0 20px;
   max-width: 600px;
   margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .main-layout,
@@ -580,11 +690,17 @@
 .itinerary-column {
   position: relative;
   width: 100%;
-  flex: 1; /* Stretch to fill space on mobile */
-  min-height: 100%; /* Ensure height for absolute blobs */
+  flex: 1;
+  min-height: 100%;
   display: flex;
   flex-direction: column;
-  overflow: hidden; /* Contain the blobs */
+}
+
+@media (max-width: 799px) {
+  .itinerary-column {
+    height: auto;
+    flex: none;
+  }
 }
 
 .info-panel {
@@ -623,6 +739,10 @@
   margin-bottom: 24px;
   transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   border: 1px solid rgba(255, 255, 255, 0.05); /* Baseline border */
+  min-width: 0; /* Allow shrinking in flex container */
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-wrap: break-word;
 }
 
 .activity-card:hover {
@@ -638,16 +758,32 @@
 
 .activity-card.is-live {
   border-color: var(--primary) !important;
-  background: rgba(28, 29, 36, 0.92) !important; /* Solid plate feel */
+  backdrop-filter: blur(20px) saturate(140%);
+  box-shadow: 
+    0 10px 30px rgba(0, 0, 0, 0.3),
+    0 0 20px rgba(255, 61, 113, 0.15);
+  transform: scale(1.01);
+  z-index: 2;
+  position: relative;
+}
+
+.activity-card.is-live.is-header {
+  background: rgba(28, 29, 36, 0.9) !important; /* Dark plate for legibility */
   backdrop-filter: blur(16px) saturate(110%);
+  transform: scale(1.02); /* Slightly larger header */
   box-shadow: 
     0 20px 50px rgba(0, 0, 0, 0.5),
     0 0 35px rgba(255, 61, 113, 0.25);
-  transform: scale(1.02);
-  z-index: 2;
-  position: relative;
   animation: active-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
+
+
+/* Only the live header card gets the red border treatment */
+.activity-card.is-group-active.is-live.is-header {
+  border-color: var(--primary) !important;
+  background: rgba(28, 29, 36, 0.9) !important;
+}
+
 
 @keyframes active-pop {
   0% { transform: scale(1); box-shadow: 0 0 0 rgba(255, 61, 113, 0); }
@@ -814,23 +950,34 @@
   display: flex;
   align-items: flex-start;
   overflow-x: auto;
-  overflow-y: hidden; /* Force clipping so container height dictates document height */
+  overflow-y: hidden;
   scroll-snap-type: x mandatory;
   scrollbar-width: none;
   -ms-overflow-style: none;
   width: 100%;
   max-width: 100vw;
-  position: relative; /* Anchor for contained blobs */
+  position: relative;
   z-index: 1;
+}
+
+@media (max-width: 799px) {
+  .swipe-container-outer {
+    height: auto;
+    flex: none;
+  }
 }
 
 .swipe-slide {
   flex: 0 0 100%;
   width: 100%;
+  min-width: 0; /* Important for flex children width containment */
+  max-width: 100%;
+  overflow-x: hidden;
   scroll-snap-align: start;
   scroll-snap-stop: always;
   height: auto;
   visibility: visible;
+  padding-bottom: 80vh; /* Add runway for centering (universal) */
 }
 
 .floating-now-btn {
@@ -1264,7 +1411,8 @@
     flex: none;
     width: 100%;
     max-width: 800px;
-    margin: 0 auto 80px;
+    margin: 0 auto;
+    padding-bottom: 80vh; /* Maintain runway on desktop */
     opacity: 0.3;
     transition: opacity 0.5s ease;
     scroll-snap-align: none;
@@ -1575,26 +1723,6 @@
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Timeline Progress Fill */
-.timeline-connector {
-  position: relative;
-}
-
-.timeline-progress-fill {
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 2px;
-  background: var(--primary);
-  box-shadow: 0 0 8px var(--primary-glow);
-  z-index: 1;
-  transition: height 60s linear; /* Constant crawl */
-}
-
-.timeline-progress-fill.instant {
-  transition: height 0s !important;
-}
 
 /* Reservation Specific Styling */
 .activity-card.is-reservation {

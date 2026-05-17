@@ -30,6 +30,9 @@ const getLinkText = (url: string, category: string) => {
 interface ActivityCardProps {
   activity: ItineraryActivity;
   isLive: boolean;
+  isGroupActive?: boolean;
+  isHeader?: boolean;
+  showOngoingBadge?: boolean;
   activeCardRef: React.RefObject<HTMLDivElement | null>;
   categoryColors: Record<string, { bg: string, fg?: string }>;
   onClick?: () => void;
@@ -38,6 +41,9 @@ interface ActivityCardProps {
 export const ActivityCard: React.FC<ActivityCardProps> = ({
   activity,
   isLive,
+  isGroupActive,
+  isHeader,
+  showOngoingBadge,
   activeCardRef,
   categoryColors,
   onClick,
@@ -58,9 +64,11 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
 
   return (
   <div
-    className={`activity-card glass ${isLive ? 'is-live' : ''} ${activity.requiresReservation ? 'is-reservation' : ''}`}
+    className={`activity-card glass ${isLive ? 'is-live' : ''} ${isHeader ? 'is-header' : ''} ${isGroupActive ? 'is-group-active' : ''} ${activity.requiresReservation ? 'is-reservation' : ''}`}
     ref={isLive ? activeCardRef : undefined}
     onClick={handleCardClick}
+    data-title={activity.fullTitle}
+    data-id={activity.id}
     style={onClick ? { cursor: 'pointer' } : undefined}
   >
       <div className="card-header">
@@ -73,7 +81,7 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
                 {activity.smartChip}
               </span>
             )}
-            {isLive && <span className="live-badge">● ONGOING</span>}
+            {showOngoingBadge && isLive && <span className="live-badge">● ONGOING</span>}
           </h3>
           {activity.requiresReservation && (
             <span className="reservation-badge">🎟️ RESERVATION REQUIRED</span>

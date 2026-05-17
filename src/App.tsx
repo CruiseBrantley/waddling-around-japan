@@ -22,6 +22,38 @@ import { useScrollSync } from './hooks/useScrollSync'
 import { timeToMinutes } from './utils/time'
 import { setAppBadge, clearAppBadge, triggerHaptic, triggerTick, showLocalNotification, setHapticsEnabled, clearEventNotifications } from './utils/native'
 import heroImg from './assets/hero_optimized.jpg'
+import type { ItineraryActivity } from './services/sheets'
+
+
+const findActivityAtTime = (activities: ItineraryActivity[], nowMin: number): ItineraryActivity | null => {
+  if (activities.length === 0) return null;
+
+  // No buffer: activities go live at exact start time
+
+  for (let i = 0; i < activities.length; i++) {
+    const act = activities[i];
+    const startMin = timeToMinutes(act.time);
+    if (startMin === 0) continue;
+
+    let nextValidMin = 0;
+    for (let j = i + 1; j < activities.length; j++) {
+      const t = timeToMinutes(activities[j].time);
+      if (t > startMin) {
+        nextValidMin = t;
+        break;
+      }
+    }
+    
+    const endMin = nextValidMin > 0 
+      ? Math.min(nextValidMin, startMin + 150) 
+      : startMin + 150;
+    
+    if (nowMin >= startMin && nowMin < endMin) {
+      return act;
+    }
+  }
+  return null;
+};
 
 function App() {
   // 1. Core State
@@ -47,7 +79,6 @@ function App() {
     lastUpdated,
     currentTime,
     isTripActive,
-    getInitialTime
   } = useItinerary(settings.debugOffset);
 
   const { needRefresh: [needRefresh], updateServiceWorker } = useRegisterSW({
@@ -77,7 +108,7 @@ function App() {
   }, [needRefresh, updateServiceWorker]);
 
   const activeCardRef = useRef<HTMLDivElement | null>(null);
-  const hasScrolledRef = useRef(false);
+  const hasInitialJumpFiredRef = useRef(false);
   const prevSearchTerm = useRef(searchTerm);
   const scrollRef = useRef<HTMLDivElement>(null);
   const daySelectorRef = useRef<HTMLDivElement>(null);
@@ -151,10 +182,34 @@ function App() {
     }
 
     // 3. Initialization: Enable haptics after the first interaction
-    if (type !== 'void' && !hasScrolledRef.current) {
-      hasScrolledRef.current = true;
+    if (type !== 'void' && !hasInitialJumpFiredRef.current) {
+      // We don't set it to true here anymore, we let the useEffect or handleDayClick do it.
+      // But if they just manually scrolled without clicking anything, we should probably set it.
+      if (type === 'manual') hasInitialJumpFiredRef.current = true;
     }
-  }, [daySelectorRef]);
+
+    // 4. Vertical alignment when dragging DaySelector (same as clicking a day)
+    const isDesktop = window.innerWidth >= 800;
+    if (!isDesktop && (type === 'daySelector' || type === 'manual')) {
+      setTimeout(() => {
+        const container = scrollRef.current;
+        if (!container) return;
+
+        const rect = container.getBoundingClientRect();
+        const stickyPoint = rect.top + window.scrollY;
+        const safeAreaOffset = window.innerWidth < 768 ? 96 : 0;
+        const finalPoint = Math.max(0, stickyPoint - safeAreaOffset);
+
+        // Only scroll UP to the sticky point.
+        // If we are already above it (near the hero), don't force a scroll down.
+        if (window.scrollY > finalPoint + 5) {
+          window.scrollTo({ top: finalPoint, behavior: 'smooth' });
+        } else if (window.scrollY < 10) {
+          window.scrollTo({ top: 0, behavior: 'auto' });
+        }
+      }, 50);
+    }
+  }, [daySelectorRef, scrollRef]);
 
   const { 
     activeIndex, 
@@ -204,7 +259,7 @@ function App() {
     scrollToDay(index, true); 
     
     // Enable haptics for subsequent interactions if not already enabled
-    hasScrolledRef.current = true;
+    hasInitialJumpFiredRef.current = true;
 
     // 2. Debug Sync: If we have ?debug=1, jump the clock to this day via settings
     const params = new URLSearchParams(window.location.search);
@@ -218,9 +273,8 @@ function App() {
         const m = totalMinutes % 60;
         
         if (!isNaN(h) && !isNaN(m) && !isNaN(dayDate.getTime())) {
-          // Calculate 10 mins before
           const targetTime = new Date(dayDate);
-          targetTime.setHours(h, m - 10, 0);
+          targetTime.setHours(h, m, 0);
           
           const debugDate = targetTime.toISOString().split('T')[0];
           const debugTime = `${String(targetTime.getHours()).padStart(2, '0')}:${String(targetTime.getMinutes()).padStart(2, '0')}`;
@@ -261,27 +315,61 @@ function App() {
     }, 50);
   }, [scrollToDay, scrollRef, filteredDays, parseSheetDate]);
 
-  const performSmartJump = useCallback((index: number, targetTitle?: string) => {
+  const performSmartJump = useCallback((index: number, targetActivity?: { title?: string; id?: string } | string | null | undefined) => {
     if (index === -1) return;
     
     const isAlreadyOnDay = activeIndex === index;
     scrollToDay(index);
 
-    // If same day: jump INSTANTLY. If different day: wait for horizontal slide (400ms)
-    const verticalDelay = isAlreadyOnDay ? 0 : 450;
+    // If same day: jump INSTANTLY. If different day: wait for horizontal slide (500ms)
+    const verticalDelay = isAlreadyOnDay ? 0 : 600;
 
     setTimeout(() => {
       // 1. Try to find the specific target activity if provided
       let targetCard: HTMLElement | null = null;
-      if (targetTitle) {
+      
+      // Support both old signature (targetTitle: string) and new (targetActivity: { title, id })
+      let targetTitle: string | undefined;
+      let targetId: string | undefined;
+      if (typeof targetActivity === 'string') {
+        targetTitle = targetActivity;
+      } else if (targetActivity && typeof targetActivity === 'object') {
+        targetTitle = targetActivity.title;
+        targetId = targetActivity.id;
+      }
+      
+      if (targetTitle || targetId) {
         const activeSlide = document.querySelector(`.swipe-slide[data-index="${index}"]`);
         if (activeSlide) {
-          const cards = activeSlide.querySelectorAll('.activity-card');
-          for (const card of Array.from(cards)) {
-            const titleEl = card.querySelector('.activity-title');
-            if (titleEl && titleEl.textContent?.includes(targetTitle)) {
-              targetCard = card as HTMLElement;
-              break;
+          // First try exact ID match (most precise)
+          if (targetId) {
+            targetCard = activeSlide.querySelector(`.activity-card[data-id="${targetId}"]`) as HTMLElement;
+          }
+          
+          // Try exact title match
+          if (!targetCard && targetTitle) {
+            targetCard = activeSlide.querySelector(`.activity-card[data-title="${targetTitle}"]`) as HTMLElement;
+          }
+          
+          // Fallback: if title match failed, try to find the best match by comparing full titles
+          if (!targetCard && targetTitle) {
+            const candidates = activeSlide.querySelectorAll('.activity-card');
+            // First, try to find the exact match by finding the activity that starts with the same prefix
+            // but has additional distinguishing information
+            for (const card of candidates) {
+              const cardTitle = card.getAttribute('data-title') || '';
+              // Check if one title is a prefix of the other (e.g., "Activity - " is common)
+              if (targetTitle.startsWith(cardTitle) || cardTitle.startsWith(targetTitle)) {
+                // If they share the same prefix, prefer the one that is closest in length
+                // (the more specific one should be longer)
+                const targetLen = targetTitle.length;
+                const cardLen = cardTitle.length;
+                // Only use if the difference is significant (at least 5 chars difference)
+                if (Math.abs(targetLen - cardLen) >= 5) {
+                  targetCard = card as HTMLElement;
+                  break;
+                }
+              }
             }
           }
         }
@@ -297,18 +385,17 @@ function App() {
       const scroller = isDesktop ? scrollRef.current : window;
 
       if (targetCard) {
-        const rect = targetCard.getBoundingClientRect();
-        const absoluteTop = rect.top + window.scrollY;
+        const scrollerRect = isDesktop ? scrollRef.current?.getBoundingClientRect() : document.documentElement.getBoundingClientRect();
+        const cardRect = targetCard.getBoundingClientRect();
+        const absoluteTop = cardRect.top - (scrollerRect?.top || 0) + (isDesktop ? (scrollRef.current?.scrollTop || 0) : 0);
         
-        // On desktop, we are scrolling an internal container, so we need to account for its position
-        const scrollerRect = isDesktop ? scrollRef.current?.getBoundingClientRect() : null;
-        const relativeTop = isDesktop && scrollerRect ? (absoluteTop - scrollerRect.top + (scrollRef.current?.scrollTop || 0)) : absoluteTop;
-
-        const viewHeight = isDesktop ? (scrollRef.current?.offsetHeight || window.innerHeight) : window.innerHeight;
-        const targetY = Math.max(0, relativeTop - (viewHeight / 2) + (targetCard.offsetHeight / 2));
-
+        const viewportHeight = isDesktop ? (scrollRef.current?.offsetHeight || window.innerHeight) : window.innerHeight;
+        const headerEl = document.querySelector('.day-selector');
+        const headerHeight = isDesktop ? 0 : (headerEl?.getBoundingClientRect().height || 96);
+        const targetY = absoluteTop - headerHeight - (viewportHeight * 0.15);
+        
         scroller?.scrollTo({ 
-          top: targetY, 
+          top: Math.max(0, targetY), 
           behavior: 'smooth' 
         });
       }
@@ -337,50 +424,18 @@ function App() {
     }
   }, [searchTerm, setActiveIndex, scrollRef, daySelectorRef]);
 
-  // One-time initialization
-  useEffect(() => {
-    if (!loading && itinerary && !hasScrolledRef.current) {
-      const now = getInitialTime();
-      const todayIdx = filteredDays.findIndex(day => isSameDay(day.date, now));
-      if (todayIdx !== -1) {
-        hasScrolledRef.current = true;
-        setTimeout(() => performSmartJump(todayIdx), 50);
-      }
-    }
-  }, [loading, itinerary, filteredDays, getInitialTime, isSameDay, performSmartJump]);
-
   // Live Pill Tracking
   const activeEvents = useMemo(() => {
-    if (!itinerary) return { current: null, next: null };
-    const nowMin = currentTime.getHours() * 60 + currentTime.getMinutes() + (currentTime.getSeconds() / 60);
+    if (!itinerary) return { currentEvent: null, nextEvent: null };
+    const nowMin = currentTime.getHours() * 60 + currentTime.getMinutes();
     const todayIdx = filteredDays.findIndex(d => isSameDay(d.date, currentTime));
-    if (todayIdx === -1) return { current: null, next: null };
+    if (todayIdx === -1) return { currentEvent: null, nextEvent: null };
 
     const today = filteredDays[todayIdx];
     
-    // 1. Find CURRENT
-    let current = null;
-    for (let i = 0; i < today.activities.length; i++) {
-      const act = today.activities[i];
-      const startMin = timeToMinutes(act.time);
-      if (startMin === 0) continue;
-
-      let nextValidMin = 0;
-      for (let j = i + 1; j < today.activities.length; j++) {
-        const t = timeToMinutes(today.activities[j].time);
-        if (t > startMin) {
-          nextValidMin = t;
-          break;
-        }
-      }
-      
-      const endMin = nextValidMin > 0 ? nextValidMin : startMin + 150;
-      
-      if (nowMin >= startMin && nowMin < endMin) {
-        current = { ...act, dayIdx: todayIdx };
-        break;
-      }
-    }
+    // 1. Find CURRENT (Unified Logic)
+    const currentAct = findActivityAtTime(today.activities, nowMin);
+    const current = currentAct ? { ...currentAct, dayIdx: todayIdx } : null;
 
     // 2. Find NEXT
     let next = null;
@@ -404,18 +459,35 @@ function App() {
       }
     }
 
-    return { current, next };
+    return { currentEvent: current, nextEvent: next };
   }, [itinerary, filteredDays, currentTime, isSameDay]);
+
+  // One-time initialization - reuse activeEvents logic for consistency with pill click
+  useEffect(() => {
+    if (!loading && itinerary && !hasInitialJumpFiredRef.current) {
+      hasInitialJumpFiredRef.current = true;
+      
+      // Use the same activeEvents logic as the pill click for consistency
+      const target = activeEvents.currentEvent || activeEvents.nextEvent;
+      if (target && typeof target.dayIdx === 'number') {
+        setTimeout(() => performSmartJump(target.dayIdx, { title: target.fullTitle || target.title, id: target.id }), 100);
+      }
+    }
+  }, [loading, itinerary, activeEvents, performSmartJump]);
+
+
   
-  const jumpToNow = () => {
-    const target = activeEvents.current || activeEvents.next;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const jumpToNow = useCallback((_force: boolean = false) => {
+    const target = activeEvents.currentEvent || activeEvents.nextEvent;
     if (target && typeof target.dayIdx === 'number') {
-      performSmartJump(target.dayIdx, target.title);
+      // Pass full activity object with fullTitle for precise matching
+      performSmartJump(target.dayIdx, { title: target.fullTitle || target.title, id: target.id });
     } else {
       const todayIdx = filteredDays.findIndex(d => isSameDay(d.date, currentTime));
       if (todayIdx !== -1) performSmartJump(todayIdx);
     }
-  };
+  }, [activeEvents, filteredDays, isSameDay, currentTime, performSmartJump]);
 
   useEffect(() => {
     if (!activeCardRef.current) {
@@ -473,14 +545,6 @@ function App() {
 
   // Clear notifications and handle navigation when app is opened or resumed
   useEffect(() => {
-    const jumpToNow = () => {
-      // Find current day index
-      const nowDayIdx = filteredDays.findIndex(d => isSameDay(d.date, currentTime));
-      if (nowDayIdx !== -1) {
-        performSmartJump(nowDayIdx);
-      }
-    };
-
     // If data is ready and we have a pending jump, do it now
     if (!loading && itinerary && pendingJump) {
       jumpToNow();
@@ -548,7 +612,7 @@ function App() {
         navigator.serviceWorker.removeEventListener('message', handleSWMessage);
       }
     };
-  }, [filteredDays, currentTime, performSmartJump, loading, itinerary, pendingJump, isSameDay]);
+  }, [filteredDays, currentTime, performSmartJump, loading, itinerary, pendingJump, isSameDay, jumpToNow]);
 
   // Automatic Notifications for upcoming activities removed!
   // Notifications are now completely driven by the backend server via Web Push.
@@ -686,9 +750,9 @@ function App() {
 
       <FloatingActions 
         isTripActive={isTripActive} 
-        nextEvent={activeEvents.next} 
+        nextEvent={activeEvents.nextEvent} 
         isLiveCardInView={isLiveCardInView} 
-        jumpToNow={jumpToNow} 
+        jumpToNow={() => jumpToNow(true)} 
       />
 
       <ShareModal 

@@ -10,7 +10,7 @@
   /* DEFAULT THEME (Dark) */
   --bg-main: #0F1014;
   --bg-card: #1C1D24;
-  --bg-glass: rgba(28, 29, 36, 0.55);
+  --bg-glass: rgba(28, 29, 36, 0.85);
   --text-main: #E9ECEF;
   --text-heading: #FFFFFF;
   --text-muted: #ADB5BD;
@@ -33,7 +33,7 @@
   :root {
     --bg-main: #F8F9FA;
     --bg-card: #FFFFFF;
-    --bg-glass: rgba(255, 255, 255, 0.75);
+    --bg-glass: rgba(255, 255, 255, 0.92);
     --text-main: #2D3436;
     --text-heading: #1A1A1A;
     --text-muted: #636E72;
@@ -192,7 +192,7 @@ h1, h2, h3, h4 {
 /* Utility Layouts */
 .container {
   width: 100%;
-  max-width: 480px; /* Mobile focused */
+  max-width: 100%; /* Ensure container doesn't exceed slide width */
   margin: 0 auto;
   padding: 0 20px;
 }

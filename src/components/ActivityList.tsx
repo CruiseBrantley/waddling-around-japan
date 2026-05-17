@@ -27,52 +27,74 @@ export const ActivityList: React.FC<ActivityListProps> = ({
 }) => {
   const currentMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();
 
-  // Find which activity should be live based on time ranges
-  const getLiveActivityId = () => {
-    if (allActivities.length === 0) return null;
-
-    // Special case: if before the first activity, but within 30 mins, make first live
-    const firstMins = timeToMinutes(allActivities[0].time);
-    if (currentMinutes < firstMins && currentMinutes >= firstMins - 30) {
-      return allActivities[0].id;
+  // Group activities into "Sessions"
+  const sessions = React.useMemo(() => {
+    const results: { isGroup: boolean; activities: ItineraryActivity[] }[] = [];
+    let currentGroup: ItineraryActivity[] = [];
+    
+    activities.forEach((act) => {
+      if (act.time) {
+        if (currentGroup.length > 0) {
+          results.push({ isGroup: currentGroup.length > 1, activities: [...currentGroup] });
+        }
+        currentGroup = [act];
+      } else {
+        currentGroup.push(act);
+      }
+    });
+    
+    if (currentGroup.length > 0) {
+      results.push({ isGroup: currentGroup.length > 1, activities: [...currentGroup] });
     }
+    
+    return results;
+  }, [activities]);
+
+  const getLiveInfo = () => {
+    if (!isToday || allActivities.length === 0) return null;
 
     for (let i = 0; i < allActivities.length; i++) {
       const activityMinutes = timeToMinutes(allActivities[i].time);
       if (activityMinutes === 0) continue;
 
-      let nextValidMin = 0;
+      let nextTimedMin = 0;
       for (let j = i + 1; j < allActivities.length; j++) {
-        const t = timeToMinutes(allActivities[j].time);
-        if (t > activityMinutes) {
-          nextValidMin = t;
+        if (allActivities[j].time) {
+          nextTimedMin = timeToMinutes(allActivities[j].time);
           break;
         }
       }
       
-      const endMins = nextValidMin > 0 ? nextValidMin : activityMinutes + 150;
+      const endMins = nextTimedMin > 0 
+        ? Math.min(nextTimedMin, activityMinutes + 150) 
+        : activityMinutes + 150;
       
       if (currentMinutes >= activityMinutes && currentMinutes < endMins) {
-        return allActivities[i].id;
+        return {
+          timedActivityId: allActivities[i].id,
+          startMins: activityMinutes,
+          endMins: endMins
+        };
       }
     }
     return null;
   };
 
-  const liveActivityId = isToday ? getLiveActivityId() : null;
+  const liveInfo = getLiveInfo();
+  const liveTimedId = liveInfo?.timedActivityId;
   
   // Logic to handle "Instant Snap" on first load or activity change
   const lastLiveIdRef = React.useRef<string | null>(null);
   const [isInstant, setIsInstant] = React.useState(true);
 
   React.useEffect(() => {
-    if (liveActivityId !== lastLiveIdRef.current) {
+    if (liveTimedId !== lastLiveIdRef.current) {
       setIsInstant(true);
-      lastLiveIdRef.current = liveActivityId;
+      lastLiveIdRef.current = liveTimedId || null;
       const timer = setTimeout(() => setIsInstant(false), 50);
       return () => clearTimeout(timer);
     }
-  }, [liveActivityId]);
+  }, [liveTimedId]);
 
   return (
     <div className="container" style={{ paddingBottom: '40px' }}>
@@ -87,48 +109,73 @@ export const ActivityList: React.FC<ActivityListProps> = ({
       </div>
 
       <div className="timeline">
-        {activities.map((activity) => {
-          const isLive = liveActivityId === activity.id;
-          let progress = 0;
-
-          if (isLive) {
-            const startMins = timeToMinutes(activity.time);
-            const actualIndex = allActivities.findIndex(a => a.id === activity.id);
-            
-            let nextValidMin = 0;
-            for (let i = actualIndex + 1; i < allActivities.length; i++) {
-              const t = timeToMinutes(allActivities[i].time);
-              if (t > startMins) {
-                nextValidMin = t;
-                break;
-              }
-            }
-            
-            const endMins = nextValidMin > 0 ? nextValidMin : startMins + 150;
-            progress = Math.min(100, Math.max(0, ((currentMinutes - startMins) / (endMins - startMins)) * 100));
+        {sessions.map((session, sIdx) => {
+          const firstAct = session.activities[0];
+          const isGroupLive = liveTimedId === firstAct.id;
+          const isLastSession = sIdx === sessions.length - 1;
+          
+          let totalProgress = 0;
+          if (isGroupLive && liveInfo) {
+            totalProgress = Math.min(100, Math.max(0, ((currentMinutes - liveInfo.startMins) / (liveInfo.endMins - liveInfo.startMins)) * 100));
           }
 
           return (
-            <div className="timeline-item" key={activity.id}>
-              <div className="timeline-left">
-                <span className="activity-time event-time">{activity.time}</span>
-                <div className={`timeline-dot type-${activity.type} ${isLive ? 'pulse-red' : ''}`}></div>
-                <div className="timeline-connector">
-                  {isLive && (
-                    <div 
-                      className={`timeline-progress-fill ${isInstant ? 'instant' : ''}`} 
-                      style={{ height: `${progress}%` }}
-                    ></div>
-                  )}
+            <div 
+              key={`session-${firstAct.id}`} 
+              className={`timeline-session ${session.isGroup ? 'is-group' : ''} ${isGroupLive ? 'is-live' : ''}`}
+            >
+              {session.isGroup && isGroupLive && (
+                <div 
+                  className="session-progress-bg" 
+                  style={{ height: `${totalProgress}%` }}
+                >
+                  <div className="session-bg-flow"></div>
                 </div>
-              </div>
-              <ActivityCard 
-                activity={activity} 
-                isLive={isLive} 
-                activeCardRef={activeCardRef} 
-                categoryColors={categoryColors}
-                onClick={onCardClick}
-              />
+              )}
+              
+              {session.activities.map((activity, aIdx) => {
+                const isFirstInGroup = aIdx === 0;
+                const isLastItem = isLastSession && aIdx === session.activities.length - 1;
+                const localProgress = isGroupLive ? Math.min(100, Math.max(0, (totalProgress * session.activities.length) - (aIdx * 100))) : 0;
+                const isCurrentlyFilling = isGroupLive && localProgress > 0 && localProgress < 100;
+
+                return (
+                  <div className={`timeline-item ${!isFirstInGroup ? 'untimed-item' : ''}`} key={activity.id}>
+                    <div className="timeline-left">
+                      {isFirstInGroup ? (
+                        <>
+                          <span className="activity-time event-time">{activity.time}</span>
+                          <div className={`timeline-dot type-${activity.type} ${isGroupLive ? 'pulse-red' : ''}`}></div>
+                        </>
+                      ) : (
+                        <div className={`timeline-dot-small ${isGroupLive ? 'is-active' : ''}`}></div>
+                      )}
+                      
+                      {/* Connector below dot — only when there's a next item */}
+                      {!isLastItem && (
+                        <div className="timeline-connector">
+                          {isGroupLive && (
+                            <div
+                              className={`timeline-progress-fill ${isInstant ? 'instant' : ''}`}
+                              style={{ transform: `scaleY(${localProgress / 100})` }}
+                            ></div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <ActivityCard 
+                      activity={activity} 
+                      isLive={isGroupLive && isFirstInGroup}
+                      isHeader={isFirstInGroup}
+                      showOngoingBadge={isFirstInGroup}
+                      isGroupActive={isGroupLive}
+                      activeCardRef={isCurrentlyFilling ? activeCardRef : { current: null }} 
+                      categoryColors={categoryColors}
+                      onClick={onCardClick}
+                    />
+                  </div>
+                );
+              })}
             </div>
           );
         })}

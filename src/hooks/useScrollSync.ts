@@ -62,7 +62,6 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
 
 
     const onMainScroll = () => {
-      requestAnimationFrame(() => {
         const isDesktop = window.innerWidth >= 800;
         
         // PROXIMITY LOCK: If we have a target, don't sync until we are close.
@@ -76,7 +75,7 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
           } else {
             if (activeScrollerRef.current === 'day' || activeScrollerRef.current === 'programmatic') return;
           }
-        } else if (activeScrollerRef.current === 'day' || activeScrollerRef.current === 'programmatic') {
+        } else if ((activeScrollerRef.current === 'day' || activeScrollerRef.current === 'programmatic') && !isDesktop) {
           return;
         }
 
@@ -106,7 +105,11 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
           // based on the overall scroll percentage. This perfectly maintains middle-focus 
           // normally, while naturally handling short items at the top and bottom bounds.
           const scrollPercentage = maxScroll > 0 ? scrollTop / maxScroll : 0;
-          const triggerPoint = scrollTop + 40 + scrollPercentage * (container.clientHeight - 80); 
+          // Desktop: use a more stable trigger point (fixed 20% down the viewport)
+          // Mobile: use the gliding trigger point
+          const triggerPoint = isDesktop 
+            ? scrollTop + 40 
+            : scrollTop + 40 + scrollPercentage * (container.clientHeight - 80); 
           
           slides.forEach((slide, i) => {
             const el = slide as HTMLElement;
@@ -143,7 +146,6 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
           // Sync container height to new active slide (prevents stranding on short days)
           updateContainerHeight();
         }
-      });
     };
 
     const onDayScroll = () => {
@@ -271,8 +273,19 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
       if (targetSlide) targetY = Math.max(0, Math.min(maxScroll, targetSlide.offsetTop - 20));
     }
     
+    const targetValue = isDesktop ? targetY : targetX;
+    const currentPos = isDesktop ? container.scrollTop : container.scrollLeft;
+    
+    if (Math.abs(currentPos - targetValue) < 2) {
+      // Already there, just update state and return
+      setActiveIndex(index);
+      onIndexChange?.(index, 'programmatic');
+      activeIndexRef.current = index;
+      return;
+    }
+
     // 1. Commit to the target
-    targetMainScrollRef.current = isDesktop ? targetY : targetX;
+    targetMainScrollRef.current = targetValue;
     activeScrollerRef.current = 'programmatic';
     activeIndexRef.current = index; 
     
@@ -315,7 +328,7 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
     scrollEndTimeoutRef.current = setTimeout(() => {
       activeScrollerRef.current = null;
       targetMainScrollRef.current = null;
-    }, isInstant ? 50 : 10000);
+    }, isInstant ? 100 : 1000);
   }, [onIndexChange]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return {

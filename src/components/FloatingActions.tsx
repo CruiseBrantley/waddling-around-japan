@@ -120,15 +120,17 @@ export const FloatingActions: React.FC<FloatingActionsProps> = ({
             />
           </svg>
 
-          <span className="upcoming-label">NEXT: {nextEvent.title}</span>
+          <span className="upcoming-label">{nextEvent.isLive ? 'LIVE NOW' : 'NEXT'}: {nextEvent.title}</span>
           <span className="upcoming-time">
-            {isImminent 
-              ? (nextEvent.minutes < 1 
-                  ? `in ${Math.max(1, Math.round(nextEvent.minutes * 60))}s`
-                  : `in ${Math.ceil(nextEvent.minutes)}m`)
-              : (nextEvent.minutes >= 60 
-                  ? `in ${Math.floor(nextEvent.minutes / 60)}h ${Math.floor(nextEvent.minutes % 60)}m` 
-                  : `in ${Math.floor(nextEvent.minutes)}m`)}
+            {nextEvent.isLive 
+              ? 'Ongoing'
+              : (isImminent 
+                  ? (nextEvent.minutes < 1 
+                      ? `in ${Math.max(1, Math.round(nextEvent.minutes * 60))}s`
+                      : `in ${Math.ceil(nextEvent.minutes)}m`)
+                  : (nextEvent.minutes >= 60 
+                      ? `in ${Math.floor(nextEvent.minutes / 60)}h ${Math.floor(nextEvent.minutes % 60)}m` 
+                      : `in ${Math.floor(nextEvent.minutes)}m`))}
           </span>
         </button>
       </div>

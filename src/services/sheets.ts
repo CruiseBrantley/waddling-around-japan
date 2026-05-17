@@ -3,6 +3,7 @@ export interface ItineraryActivity {
   date: string;
   time: string;
   title: string;
+  fullTitle: string;
   smartChip?: string;
   location: string;
   locationLink?: string;
@@ -195,6 +196,7 @@ function transformFullSheetData(rowData: SheetRow[]): Itinerary {
     let activityTitle = activityCell ? String(activityCell.formattedValue || "").trim() : "";
     let smartChip: string | undefined = undefined;
 
+    const fullTitle = activityTitle;
     // Isolate Smart Chips using formatting runs!
     if (activityCell?.chipRuns && activityCell.chipRuns.length > 0) {
       const linkRun = activityCell.chipRuns.find(run => run.chip?.richLinkProperties?.uri);
@@ -293,6 +295,7 @@ function transformFullSheetData(rowData: SheetRow[]): Itinerary {
       date: activityDate,
       time: colIndex.time !== -1 ? String(cells[colIndex.time]?.formattedValue || "").trim() : "",
       title: activityTitle,
+      fullTitle: fullTitle,
       smartChip: smartChip,
       location: locationValue,
       locationLink: locationLink,

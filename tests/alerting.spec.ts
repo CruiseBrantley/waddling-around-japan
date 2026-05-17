@@ -47,7 +47,7 @@ test.describe('Alerting and Notification System', () => {
                   { formattedValue: '19:00' }, 
                   { 
                     formattedValue: 'Dinner Yakiniku', 
-                    userEnteredFormat: { backgroundColor: { red: 0.65, green: 0.11, blue: 0.0 } } 
+                    effectiveFormat: { backgroundColor: { red: 0.65, green: 0.11, blue: 0.0 } } 
                   }, 
                   { formattedValue: 'Tokyo' }, 
                   { formattedValue: 'Dining' }
