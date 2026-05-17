@@ -3,6 +3,7 @@ export interface ItineraryActivity {
   date: string;
   time: string;
   title: string;
+  titleHtml?: string;
   fullTitle: string;
   smartChip?: string;
   location: string;
@@ -56,6 +57,8 @@ interface SheetRow {
           green?: number;
           blue?: number;
         };
+        bold?: boolean;
+        italic?: boolean;
       };
     };
     userEnteredFormat?: {
@@ -68,6 +71,15 @@ interface SheetRow {
     textFormatRuns?: Array<{
       startIndex?: number;
       format?: {
+        foregroundColor?: {
+          red?: number;
+          green?: number;
+          blue?: number;
+        };
+        bold?: boolean;
+        italic?: boolean;
+        underline?: boolean;
+        strikethrough?: boolean;
         link?: {
           uri?: string;
         };
@@ -290,11 +302,19 @@ function transformFullSheetData(rowData: SheetRow[]): Itinerary {
       locationLink = locationCell.chipRuns.find(run => run.chip?.richLinkProperties?.uri)?.chip?.richLinkProperties?.uri || locationLink;
     }
 
+    const titleHtml = activityCell ? renderRichTextToHtml(
+      activityCell.formattedValue || "",
+      activityCell.textFormatRuns,
+      activityCell.effectiveFormat,
+      activityTitle.length
+    ) : "";
+
     const activity: ItineraryActivity = {
       id: `act-${index}`,
       date: activityDate,
       time: colIndex.time !== -1 ? String(cells[colIndex.time]?.formattedValue || "").trim() : "",
       title: activityTitle,
+      titleHtml: titleHtml || undefined,
       fullTitle: fullTitle,
       smartChip: smartChip,
       location: locationValue,
@@ -416,6 +436,128 @@ function extractUrl(value: string): string | null {
   }
 
   return null;
+}
+
+/**
+ * Convert RGB color from Sheets API (0-1 float) to CSS rgb/rgba format.
+ */
+function rgbToCssColor(rgb: { red?: number; green?: number; blue?: number } | null | undefined): string | null {
+  if (!rgb) return null;
+  const r = Math.round((rgb.red ?? 0) * 255);
+  const g = Math.round((rgb.green ?? 0) * 255);
+  const b = Math.round((rgb.blue ?? 0) * 255);
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
+/**
+ * Escapes special characters to prevent HTML injection while preserving structural tags.
+ */
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+/**
+ * Processes cell formatting runs and generates rich HTML to preserve exact Google Sheets cell typography and colors.
+ */
+function renderRichTextToHtml(
+  text: string,
+  runs: Array<{
+    startIndex?: number;
+    format?: {
+      foregroundColor?: { red?: number; green?: number; blue?: number };
+      bold?: boolean;
+      italic?: boolean;
+      underline?: boolean;
+      strikethrough?: boolean;
+    };
+  }> | undefined,
+  defaultFormat?: {
+    textFormat?: {
+      foregroundColor?: { red?: number; green?: number; blue?: number };
+      bold?: boolean;
+      italic?: boolean;
+    };
+  },
+  maxLength?: number
+): string {
+  const fullText = maxLength !== undefined ? text.substring(0, maxLength) : text;
+  if (!fullText) return "";
+
+  // 1. Fallback if no runs: use cell-wide formatting
+  if (!runs || runs.length === 0) {
+    const fg = defaultFormat?.textFormat?.foregroundColor;
+    const isBold = defaultFormat?.textFormat?.bold;
+    const isItalic = defaultFormat?.textFormat?.italic;
+    const cssColor = rgbToCssColor(fg);
+
+    if (cssColor || isBold || isItalic) {
+      const styles: string[] = [];
+      if (cssColor) styles.push(`color: ${cssColor}`);
+      if (isBold) styles.push(`font-weight: bold`);
+      if (isItalic) styles.push(`font-style: italic`);
+      return `<span style="${styles.join('; ')}">${escapeHtml(fullText)}</span>`;
+    }
+    return escapeHtml(fullText);
+  }
+
+  // 2. Filter and sort runs within bounds
+  const validRuns = runs
+    .map(r => ({
+      startIndex: r.startIndex ?? 0,
+      format: r.format
+    }))
+    .filter(r => r.startIndex < fullText.length)
+    .sort((a, b) => a.startIndex - b.startIndex);
+
+  if (validRuns.length === 0 || validRuns[0].startIndex > 0) {
+    validRuns.unshift({
+      startIndex: 0,
+      format: defaultFormat?.textFormat
+    });
+  }
+
+  let html = "";
+  for (let i = 0; i < validRuns.length; i++) {
+    const currentRun = validRuns[i];
+    const start = currentRun.startIndex;
+    const end = (i + 1 < validRuns.length) ? validRuns[i + 1].startIndex : fullText.length;
+
+    const slice = fullText.substring(start, end);
+    if (!slice) continue;
+
+    const styles: string[] = [];
+    const fg = currentRun.format?.foregroundColor || defaultFormat?.textFormat?.foregroundColor;
+    const cssColor = rgbToCssColor(fg);
+    if (cssColor) styles.push(`color: ${cssColor}`);
+
+    const isBold = currentRun.format?.bold !== undefined ? currentRun.format.bold : defaultFormat?.textFormat?.bold;
+    if (isBold) styles.push(`font-weight: bold`);
+
+    const isItalic = currentRun.format?.italic !== undefined ? currentRun.format.italic : defaultFormat?.textFormat?.italic;
+    if (isItalic) styles.push(`font-style: italic`);
+
+    const isUnderline = currentRun.format?.underline;
+    const isStrikethrough = currentRun.format?.strikethrough;
+    const textDeco: string[] = [];
+    if (isUnderline) textDeco.push("underline");
+    if (isStrikethrough) textDeco.push("line-through");
+    if (textDeco.length > 0) {
+      styles.push(`text-decoration: ${textDeco.join(" ")}`);
+    }
+
+    if (styles.length > 0) {
+      html += `<span style="${styles.join('; ')}">${escapeHtml(slice)}</span>`;
+    } else {
+      html += escapeHtml(slice);
+    }
+  }
+
+  return html;
 }
 
 
