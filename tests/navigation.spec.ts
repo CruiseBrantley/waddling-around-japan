@@ -5,6 +5,9 @@ test.use({ viewport: { width: 390, height: 844 }, isMobile: true });
 
 test.describe('Navigation Jumps', () => {
   test.beforeEach(async ({ page }) => {
+    // Forward browser console logs to CLI output
+    page.on('console', msg => console.log(`[Browser Console] ${msg.type()}: ${msg.text()}`));
+
     // Mock PWA environment
     await page.addInitScript(() => {
       Object.defineProperty(window.navigator, 'standalone', { value: true });
@@ -13,7 +16,7 @@ test.describe('Navigation Jumps', () => {
       // Force instant scroll and remove safe areas for deterministic testing
       const style = document.createElement('style');
       style.textContent = `
-        html, body, .swipe-container-outer { 
+        html, body, .swipe-container-outer, .day-scroll-container { 
           scroll-behavior: auto !important; 
           scroll-snap-type: none !important;
         }
@@ -21,6 +24,19 @@ test.describe('Navigation Jumps', () => {
       `;
       document.head.appendChild(style);
       
+      // Intercept fetch calls to prevent real network hits and force local cache fallback
+      const originalFetch = window.fetch;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      window.fetch = async (...args: any[]) => {
+        const [url] = args;
+        const urlStr = typeof url === 'string' ? url : (url as unknown as Request).url;
+        if (urlStr.includes('sheets.googleapis.com')) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return { ok: false, status: 404, statusText: 'Mocked Sheets Error for Test Isolation' } as any;
+        }
+        return originalFetch(...args);
+      };
+
       // Mock many activities for Day 1
       const activities = [];
       for (let i = 0; i < 50; i++) {
@@ -75,14 +91,10 @@ test.describe('Navigation Jumps', () => {
     const headerBox = await daySelector.boundingBox();
 
     if (box && viewport && headerBox) {
-      const effectiveViewportTop = headerBox.height;
-      const effectiveViewportBottom = viewport.height;
-      const effectiveViewportCenter = effectiveViewportTop + (effectiveViewportBottom - effectiveViewportTop) / 2;
-      
-      const cardCenter = box.y + box.height / 2;
+      const expectedTop = headerBox.height + (viewport.height * 0.15);
       
       // Allow for small margin of error (smooth scroll might be slightly off)
-      expect(Math.abs(cardCenter - effectiveViewportCenter)).toBeLessThan(50);
+      expect(Math.abs(box.y - expectedTop)).toBeLessThan(50);
     }
   });
 
@@ -91,12 +103,11 @@ test.describe('Navigation Jumps', () => {
     await page.goto('/?date=2026-05-24T08:00:00');
     await page.waitForSelector('.activity-card');
     
-    // 2. Manually navigate to Day 2
-    await page.evaluate(() => {
-      const btn = document.querySelectorAll('.day-btn')[1] as HTMLElement;
-      btn.click();
-    });
+    // Wait for initial jump timeout to fire and settle
     await page.waitForTimeout(500);
+    
+    // 2. Manually navigate to Day 2
+    await page.locator('.day-btn').nth(1).click();
     
     // 3. Verify we are on Day 2
     await expect(page.locator('.swipe-slide.active')).toHaveAttribute('data-index', '1');
@@ -115,9 +126,8 @@ test.describe('Navigation Jumps', () => {
     const headerBox = await page.locator('.day-selector').boundingBox();
 
     if (box && viewport && headerBox) {
-      const effectiveViewportCenter = headerBox.height + (viewport.height - headerBox.height) / 2;
-      const cardCenter = box.y + box.height / 2;
-      expect(Math.abs(cardCenter - effectiveViewportCenter)).toBeLessThan(50);
+      const expectedTop = headerBox.height + (viewport.height * 0.15);
+      expect(Math.abs(box.y - expectedTop)).toBeLessThan(50);
     }
   });
 });

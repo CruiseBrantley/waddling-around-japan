@@ -194,7 +194,7 @@ const urlBase64ToUint8Array = (base64String: string) => {
 /**
  * Subscribes the device to Web Push and sends the subscription to the backend.
  */
-export const subscribeToPushNotifications = async (settings: { notifyMinutesBefore: number, notifyUrgentMinutesBefore: number, devMode: boolean, disabledCategories: string[] }) => {
+export const subscribeToPushNotifications = async (settings: { notifyMinutesBefore: number, notifyUrgentMinutesBefore: number, devMode: boolean, disabledCategories: string[], debugOffset?: number | null }) => {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
     console.warn('Push messaging is not supported.');
     return;
@@ -229,7 +229,8 @@ export const subscribeToPushNotifications = async (settings: { notifyMinutesBefo
           notifyMinutesBefore: settings.notifyMinutesBefore,
           notifyUrgentMinutesBefore: settings.notifyUrgentMinutesBefore,
           disabledCategories: settings.disabledCategories,
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          debugOffset: settings.debugOffset
         },
         isDev: settings.devMode
       }),

@@ -7,6 +7,12 @@ test.describe('Settings Synchronization', () => {
   test.beforeEach(async ({ page }) => {
     // Setup: Mock PWA environment and permissions
     await page.addInitScript(() => {
+      // Mock Intl resolvedOptions for timezone consistency in tests
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (Intl.DateTimeFormat as any).prototype.resolvedOptions = () => ({
+        timeZone: 'Europe/Paris'
+      });
+
       // Mock standalone mode
       Object.defineProperty(window.navigator, 'standalone', { value: true });
       
@@ -188,5 +194,23 @@ test.describe('Settings Synchronization', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const payload = await page.evaluate(() => (window as any).__lastUnsubscribePayload);
     expect(payload.endpoint).toBe('https://mock-push-service.com/123');
+  });
+
+  test('should sync local timezone to backend on subscription', async ({ page }) => {
+    // 1. Open settings
+    await page.click('.settings-toggle-btn');
+    await page.waitForSelector('.settings-modal');
+
+    // 2. Enable notifications
+    const toggle = page.locator('button[aria-label="Toggle notifications"]');
+    await toggle.click();
+    await expect(toggle).toHaveClass(/active/);
+
+    // 3. Verify that the correct timezone resolved is sent in the settings payload
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await page.waitForFunction(() => (window as any).__lastSyncPayload !== null);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const payload = await page.evaluate(() => (window as any).__lastSyncPayload);
+    expect(payload.settings.timezone).toBe('Europe/Paris');
   });
 });

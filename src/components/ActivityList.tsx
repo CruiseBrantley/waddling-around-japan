@@ -60,8 +60,11 @@ export const ActivityList: React.FC<ActivityListProps> = ({
       let nextTimedMin = 0;
       for (let j = i + 1; j < allActivities.length; j++) {
         if (allActivities[j].time) {
-          nextTimedMin = timeToMinutes(allActivities[j].time);
-          break;
+          const t = timeToMinutes(allActivities[j].time);
+          if (t > activityMinutes) {
+            nextTimedMin = t;
+            break;
+          }
         }
       }
       

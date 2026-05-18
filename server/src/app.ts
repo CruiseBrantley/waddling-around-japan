@@ -3,6 +3,7 @@ import cors from 'cors';
 import webPush from 'web-push';
 import fs from 'fs';
 import path from 'path';
+import { pollAndNotify } from './poller';
 
 export const app = express();
 
@@ -19,6 +20,7 @@ export interface SubscriptionData {
     notifyUrgentMinutesBefore: number;
     disabledCategories?: string[];
     timezone?: string; // Persistent local timezone uploaded by the device
+    debugOffset?: number | null; // Milliseconds offset from real system time for mocking
   };
   lastHeadsUpEvent?: string; // e.g. "Dinner-2024-05-15"
   lastUrgentEvent?: string;
@@ -136,5 +138,32 @@ app.post('/test-broadcast', async (req, res) => {
   } catch (error) {
     console.error('Test broadcast failed:', error);
     res.status(500).json({ error: 'Internal server error during broadcast' });
+  }
+});
+
+// Endpoint to trigger a manual polling cycle (optionally with a mock time payload)
+app.post('/poll', async (req, res) => {
+  try {
+    const { mockTime } = req.body || {};
+    let parsedMockTime: Date | undefined;
+
+    if (mockTime) {
+      parsedMockTime = new Date(mockTime);
+      if (isNaN(parsedMockTime.getTime())) {
+        return res.status(400).json({ error: 'Invalid mockTime format. Must be a valid ISO 8601 absolute date string.' });
+      }
+    }
+
+    console.log(`Triggering manual polling cycle. MockTime = ${parsedMockTime ? parsedMockTime.toISOString() : 'system time'}`);
+    await pollAndNotify(parsedMockTime);
+
+    res.status(200).json({
+      success: true,
+      message: 'Polling run triggered successfully.',
+      mockTimeUsed: parsedMockTime ? parsedMockTime.toISOString() : 'system time'
+    });
+  } catch (error) {
+    console.error('Triggered polling failed:', error);
+    res.status(500).json({ error: 'Internal server error during polling run.' });
   }
 });

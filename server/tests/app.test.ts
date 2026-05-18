@@ -8,6 +8,11 @@ jest.mock('web-push', () => ({
   sendNotification: jest.fn().mockResolvedValue({})
 }));
 
+// Mock sheets to prevent network hits during poll testing
+jest.mock('../src/sheets', () => ({
+  fetchItinerary: jest.fn().mockResolvedValue({ days: [] })
+}));
+
 describe('Express Server API Tests', () => {
   const TEST_SUBS_FILE = path.join(__dirname, 'test-subs.json');
 
@@ -101,5 +106,24 @@ describe('Express Server API Tests', () => {
     expect(response.status).toBe(200);
     expect(response.body.sent).toBe(1);
     expect(response.body.total).toBe(1);
+  });
+
+  it('should trigger manual polling on /poll and accept mockTime', async () => {
+    const response = await request(app)
+      .post('/poll')
+      .send({ mockTime: '2026-05-24T12:00:00Z' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.mockTimeUsed).toBe('2026-05-24T12:00:00.000Z');
+  });
+
+  it('should reject invalid mockTime format on /poll', async () => {
+    const response = await request(app)
+      .post('/poll')
+      .send({ mockTime: 'not-a-date' });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toContain('Invalid mockTime format');
   });
 });

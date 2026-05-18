@@ -110,26 +110,44 @@ function App() {
   // Synchronize dynamic device timezone with push notification server in the background
   useEffect(() => {
     if (
-      settings.notificationsEnabled && 
-      'Notification' in window && 
-      Notification.permission === 'granted'
+      !settings.notificationsEnabled || 
+      !('Notification' in window) || 
+      Notification.permission !== 'granted'
     ) {
+      return;
+    }
+
+    const syncTimezone = () => {
       console.log('Synchronizing device timezone with push server...');
       subscribeToPushNotifications({
         notifyMinutesBefore: settings.notifyMinutesBefore,
         notifyUrgentMinutesBefore: settings.notifyUrgentMinutesBefore,
         disabledCategories: settings.disabledCategories,
-        devMode: settings.devMode
+        devMode: settings.devMode,
+        debugOffset: settings.debugOffset
       }).catch(err => {
         console.warn('Failed to background sync timezone with push server:', err);
       });
-    }
+    };
+
+    // Sync on mount or when dependencies change
+    syncTimezone();
+
+    // Listen for visibility/focus changes to sync immediately when user wakes the app in a new timezone
+    window.addEventListener('focus', syncTimezone);
+    document.addEventListener('visibilitychange', syncTimezone);
+
+    return () => {
+      window.removeEventListener('focus', syncTimezone);
+      document.removeEventListener('visibilitychange', syncTimezone);
+    };
   }, [
     settings.notificationsEnabled,
     settings.notifyMinutesBefore,
     settings.notifyUrgentMinutesBefore,
     settings.disabledCategories,
-    settings.devMode
+    settings.devMode,
+    settings.debugOffset
   ]);
 
   const activeCardRef = useRef<HTMLDivElement | null>(null);

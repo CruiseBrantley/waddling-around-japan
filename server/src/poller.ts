@@ -4,25 +4,62 @@ import fs from 'fs';
 import path from 'path';
 import { SubscriptionData } from './app';
 
-// Helper to convert "HH:MM" to minutes from midnight
+// Helper to convert "HH:MM" to minutes from midnight (handles both 24h and 12h AM/PM formats)
 export const timeToMinutes = (timeStr: string): number => {
   if (!timeStr) return 0;
-  const match = timeStr.match(/(\d+):(\d+)/);
+  const match = timeStr.match(/(\d+):(\d+)(?:\s*(am|pm))?/i);
   if (!match) return 0;
-  const hours = parseInt(match[1], 10);
+  let hours = parseInt(match[1], 10);
   const minutes = parseInt(match[2], 10);
+  const ampm = match[3]?.toLowerCase();
+  
+  if (ampm === 'pm' && hours < 12) {
+    hours += 12;
+  } else if (ampm === 'am' && hours === 12) {
+    hours = 0;
+  }
   return (hours * 60) + minutes;
 };
 
 // Helper to check if a date string matches a Date object (in local/Japan timezone)
 export const isSameDay = (dateStr: string, dateObj: Date, timeZone: string = 'Asia/Tokyo') => {
-  // Use en-CA locale as it gives YYYY-MM-DD
-  const localDateStr = new Intl.DateTimeFormat('en-CA', { 
-    timeZone 
-  }).format(dateObj);
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric'
+  }).formatToParts(dateObj);
   
-  const cleanDateStr = dateStr.replace(/\//g, '-').split('T')[0];
-  return localDateStr === cleanDateStr;
+  const targetYear = parseInt(parts.find(p => p.type === 'year')!.value, 10);
+  const targetMonth = parseInt(parts.find(p => p.type === 'month')!.value, 10);
+  const targetDay = parseInt(parts.find(p => p.type === 'day')!.value, 10);
+
+  let cleanDateStr = dateStr;
+  const match = dateStr.match(/\d/);
+  if (match) cleanDateStr = dateStr.substring(match.index!);
+
+  if (/^\d{4}[-/]\d{2}[-/]\d{2}/.test(cleanDateStr)) {
+    const parts = cleanDateStr.split('T')[0].split(/[-/]/).map(s => parseInt(s, 10));
+    return parts[0] === targetYear && parts[1] === targetMonth && parts[2] === targetDay;
+  }
+
+  const slashParts = cleanDateStr.split('/');
+  if (slashParts.length >= 3) {
+    const m = parseInt(slashParts[0], 10);
+    const d = parseInt(slashParts[1], 10);
+    let y = parseInt(slashParts[2], 10);
+    if (y < 100) y += 2000;
+    return y === targetYear && m === targetMonth && d === targetDay;
+  }
+
+  const parsedDate = new Date(cleanDateStr);
+  if (!isNaN(parsedDate.getTime())) {
+    return parsedDate.getFullYear() === targetYear &&
+           (parsedDate.getMonth() + 1) === targetMonth &&
+           parsedDate.getDate() === targetDay;
+  }
+
+  return false;
 };
 
 export interface AlertTarget {
@@ -92,8 +129,8 @@ export const setSubscriptionsFile = (filePath: string) => {
   subscriptionsFile = filePath;
 };
 
-// Main polling function called by the cron job
-export const pollAndNotify = async () => {
+// Main polling function called by the cron job or the API endpoint
+export const pollAndNotify = async (mockTime?: Date) => {
   if (!fs.existsSync(subscriptionsFile)) return;
 
   try {
@@ -104,12 +141,19 @@ export const pollAndNotify = async () => {
     const subscriptions: SubscriptionData[] = JSON.parse(data);
     if (subscriptions.length === 0) return;
 
-    const currentTime = getJapanTime();
+    const currentTime = mockTime || getJapanTime();
     let updatedAny = false;
 
     for (const sub of subscriptions) {
       const userTimezone = sub.settings?.timezone || 'Asia/Tokyo';
-      const nextEvent = getNextEvent(itinerary.days, currentTime, userTimezone);
+      
+      // Support frontend mock debug time/date offset if devMode is active
+      let userTime = currentTime;
+      if (sub.isDev && typeof sub.settings?.debugOffset === 'number') {
+        userTime = new Date(currentTime.getTime() + sub.settings.debugOffset);
+      }
+
+      const nextEvent = getNextEvent(itinerary.days, userTime, userTimezone);
       if (!nextEvent) continue;
 
       const { title, minutes, time, category } = nextEvent;
@@ -162,7 +206,10 @@ const sendPush = async (subData: SubscriptionData, payloadObj: Record<string, un
   try {
     const payload = JSON.stringify(payloadObj);
     console.log(`Sending Web Push to device: ${String(payloadObj.title)}`);
-    await webPush.sendNotification(subData.subscription, payload);
+    await webPush.sendNotification(subData.subscription, payload, {
+      urgency: 'high',
+      TTL: 3600 // 1 hour Time-to-Live
+    });
   } catch (e) {
     console.error('Individual push failed:', e);
   }
