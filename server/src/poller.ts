@@ -123,6 +123,49 @@ export const getJapanTime = (): Date => {
   return new Date();
 };
 
+// Get all active and upcoming events within our evaluation window
+export const getActiveEvents = (days: ItineraryDay[], currentTime: Date, timeZone: string = 'Asia/Tokyo'): AlertTarget[] => {
+  const nowMin = getJapanMinutes(currentTime, timeZone);
+  const todayIdx = days.findIndex(d => isSameDay(d.date, currentTime, timeZone));
+  if (todayIdx === -1) return [];
+
+  const today = days[todayIdx];
+  
+  // 1. Get all events today that are either upcoming or started very recently (5 min grace window)
+  const activeToday = today.activities
+    .filter(act => act.time)
+    .map(act => ({
+      title: act.title,
+      minutes: timeToMinutes(act.time) - nowMin,
+      time: act.time,
+      category: act.category
+    }))
+    .filter(act => act.minutes >= -5); // Grace period prevents missing start notifications due to polling latency
+
+  // 2. Also look at tomorrow's first event if there are no more upcoming events today
+  const upcomingTodayCount = activeToday.filter(act => act.minutes > 0).length;
+  if (upcomingTodayCount === 0) {
+    for (let i = todayIdx + 1; i < days.length; i++) {
+      const nextDay = days[i];
+      const nextDayEvents = nextDay.activities.filter(act => act.time);
+      if (nextDayEvents.length > 0) {
+        const firstActivity = nextDayEvents[0];
+        const daysBetween = i - todayIdx;
+        const minutesUntil = (daysBetween * 24 * 60) - nowMin + timeToMinutes(firstActivity.time);
+        activeToday.push({
+          title: firstActivity.title,
+          minutes: minutesUntil,
+          time: firstActivity.time,
+          category: firstActivity.category
+        });
+        break;
+      }
+    }
+  }
+
+  return activeToday;
+};
+
 let subscriptionsFile = path.join(__dirname, '..', 'subscriptions.json');
 
 export const setSubscriptionsFile = (filePath: string) => {
@@ -153,43 +196,48 @@ export const pollAndNotify = async (mockTime?: Date) => {
         userTime = new Date(currentTime.getTime() + sub.settings.debugOffset);
       }
 
-      const nextEvent = getNextEvent(itinerary.days, userTime, userTimezone);
-      if (!nextEvent) continue;
+      const activeEvents = getActiveEvents(itinerary.days, userTime, userTimezone);
+      if (activeEvents.length === 0) continue;
 
-      const { title, minutes, time, category } = nextEvent;
-      const eventKey = `${title}-${time}`;
+      for (const event of activeEvents) {
+        const { title, minutes, time, category } = event;
+        const eventKey = `${title}-${time}`;
 
-      // Skip if category is disabled for this user
-      if (sub.settings?.disabledCategories?.includes(category)) {
-        continue;
-      }
+        // Skip if category is disabled for this user
+        if (sub.settings?.disabledCategories?.includes(category)) {
+          continue;
+        }
 
-      // Check Urgent Threshold
-      const urgentThreshold = sub.settings?.notifyUrgentMinutesBefore || 1;
-      // We notify if it's within the threshold but NOT yet started (minutes > 0)
-      if (minutes > 0 && minutes <= urgentThreshold && sub.lastUrgentEvent !== eventKey) {
-        await sendPush(sub, {
-          title: `Starting Now: ${title}`,
-          body: `Time to head out! (${time})`,
-          type: 'urgent',
-          tag: 'itinerary-alert'
-        });
-        sub.lastUrgentEvent = eventKey;
-        updatedAny = true;
-        continue; // Don't send both at once
-      }
+        // Check Urgent Threshold (Starting Now)
+        const urgentThreshold = sub.settings?.notifyUrgentMinutesBefore || 1;
+        // Check Heads-up Threshold (Upcoming heads-up alert)
+        const headsUpThreshold = sub.settings?.notifyMinutesBefore || 10;
 
-      // Check Heads-up Threshold
-      const headsUpThreshold = sub.settings?.notifyMinutesBefore || 10;
-      if (minutes > 0 && minutes <= headsUpThreshold && sub.lastHeadsUpEvent !== eventKey) {
-        await sendPush(sub, {
-          title: `Upcoming: ${title}`,
-          body: `Starting in ${Math.ceil(minutes)} minutes (${time})`,
-          type: 'info',
-          tag: 'itinerary-alert'
-        });
-        sub.lastHeadsUpEvent = eventKey;
-        updatedAny = true;
+        if (minutes >= -5 && minutes <= urgentThreshold) {
+          // Urgent Window: Only evaluate and send the urgent notification
+          if (sub.lastUrgentEvent !== eventKey) {
+            await sendPush(sub, {
+              title: `Starting Now: ${title}`,
+              body: `Time to head out! (${time})`,
+              type: 'urgent',
+              tag: 'itinerary-alert'
+            });
+            sub.lastUrgentEvent = eventKey;
+            updatedAny = true;
+          }
+        } else if (minutes > urgentThreshold && minutes <= headsUpThreshold) {
+          // Heads-up Window: Only evaluate and send the upcoming notification
+          if (sub.lastHeadsUpEvent !== eventKey) {
+            await sendPush(sub, {
+              title: `Upcoming: ${title}`,
+              body: `Starting in ${Math.ceil(minutes)} minutes (${time})`,
+              type: 'info',
+              tag: 'itinerary-alert'
+            });
+            sub.lastHeadsUpEvent = eventKey;
+            updatedAny = true;
+          }
+        }
       }
     }
 

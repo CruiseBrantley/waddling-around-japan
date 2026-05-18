@@ -202,4 +202,85 @@ describe('Smart Polling Tests', () => {
       expect.objectContaining({ urgency: 'high', TTL: 3600 })
     );
   });
+
+  it('should deliver "Starting Now" notification within the 5-minute polling latency grace period', async () => {
+    (sheets.fetchItinerary as jest.Mock).mockResolvedValue(mockItinerary);
+    
+    // Server time is 10:02 AM Tokyo time (event started 2 minutes ago)
+    // 01:02 UTC is 10:02 AM Tokyo
+    const japanTime = new Date('2026-05-24T01:02:00Z');
+    jest.spyOn(poller, 'getJapanTime').mockReturnValue(japanTime);
+
+    const subs = [
+      {
+        subscription: { endpoint: 'user-latency' },
+        settings: { notifyMinutesBefore: 10, notifyUrgentMinutesBefore: 1 }
+      }
+    ];
+    fs.writeFileSync(TEST_SUBS_FILE, JSON.stringify(subs));
+
+    await pollAndNotify();
+
+    // Even though it is 2 minutes past the start time, we should STILL get the Starting Now alert!
+    expect(webPush.sendNotification).toHaveBeenCalledWith(
+      expect.objectContaining({ endpoint: 'user-latency' }),
+      expect.stringContaining('Starting Now: Breakfast'),
+      expect.objectContaining({ urgency: 'high', TTL: 3600 })
+    );
+
+    // Verify file updated with lastUrgentEvent
+    const updated = JSON.parse(fs.readFileSync(TEST_SUBS_FILE, 'utf8'));
+    expect(updated[0].lastUrgentEvent).toBe('Breakfast-10:00');
+  });
+
+  it('should process multiple overlapping/concurrent events without mutual blockage', async () => {
+    const multiEventItinerary = {
+      days: [
+        {
+          day: 1,
+          date: '2026-05-24',
+          activities: [
+            { id: '1', date: '2026-05-24', time: '10:00', title: 'Breakfast', category: 'event', type: 'food' },
+            { id: '2', date: '2026-05-24', time: '10:02', title: 'Morning Meeting', category: 'event', type: 'work' }
+          ]
+        }
+      ]
+    };
+    (sheets.fetchItinerary as jest.Mock).mockResolvedValue(multiEventItinerary);
+
+    // Server time is 10:01 AM Tokyo time (01:01 UTC)
+    // - Breakfast started 1 minute ago (minutes = -1, within grace period)
+    // - Morning Meeting starts in 1 minute (minutes = 1, within urgent threshold)
+    const japanTime = new Date('2026-05-24T01:01:00Z');
+    jest.spyOn(poller, 'getJapanTime').mockReturnValue(japanTime);
+
+    const subs = [
+      {
+        subscription: { endpoint: 'user-concurrency' },
+        settings: { notifyMinutesBefore: 10, notifyUrgentMinutesBefore: 1 }
+      }
+    ];
+    fs.writeFileSync(TEST_SUBS_FILE, JSON.stringify(subs));
+
+    await pollAndNotify();
+
+    // Verify BOTH push notifications were triggered in parallel!
+    expect(webPush.sendNotification).toHaveBeenCalledTimes(2);
+
+    expect(webPush.sendNotification).toHaveBeenCalledWith(
+      expect.objectContaining({ endpoint: 'user-concurrency' }),
+      expect.stringContaining('Starting Now: Breakfast'),
+      expect.any(Object)
+    );
+
+    expect(webPush.sendNotification).toHaveBeenCalledWith(
+      expect.objectContaining({ endpoint: 'user-concurrency' }),
+      expect.stringContaining('Starting Now: Morning Meeting'),
+      expect.any(Object)
+    );
+
+    // Verify state was correctly updated for both events
+    const updated = JSON.parse(fs.readFileSync(TEST_SUBS_FILE, 'utf8'));
+    expect(updated[0].lastUrgentEvent).toBe('Morning Meeting-10:02'); // Last urgent event updated
+  });
 });
