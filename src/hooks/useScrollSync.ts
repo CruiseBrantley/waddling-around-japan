@@ -1,13 +1,23 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { triggerHaptic, triggerTick } from '../utils/native';
 
 interface ScrollSyncProps {
   dayCount: number;
   onIndexChange?: (index: number, type: 'manual' | 'programmatic' | 'daySelector' | 'void') => void;
   scrollRef?: React.RefObject<HTMLDivElement | null>;
   daySelectorRef?: React.RefObject<HTMLDivElement | null>;
+  hapticsEnabled?: boolean;
+  soundEnabled?: boolean;
 }
 
-export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScrollRef, daySelectorRef: externalDaySelectorRef }: ScrollSyncProps) {
+export function useScrollSync({ 
+  dayCount, 
+  onIndexChange, 
+  scrollRef: externalScrollRef, 
+  daySelectorRef: externalDaySelectorRef,
+  hapticsEnabled = true,
+  soundEnabled = true
+}: ScrollSyncProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const activeIndexRef = useRef(0);
   
@@ -109,6 +119,12 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
           setActiveIndex(bestIndex);
           onIndexChange?.(bestIndex, type);
           updateContainerHeight();
+
+          // Sync haptics and ticks inside the active scroll user-dragging gesture
+          if (isDraggingRef.current) {
+            if (hapticsEnabled) triggerHaptic('light');
+            if (soundEnabled) triggerTick();
+          }
         }
     };
 
@@ -145,6 +161,12 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
             activeIndexRef.current = bestIndex;
             setActiveIndex(bestIndex);
             onIndexChange?.(bestIndex, 'daySelector');
+            
+            // Sync haptics and ticks inside the active day selector user-dragging gesture
+            if (isDraggingRef.current) {
+              if (hapticsEnabled) triggerHaptic('light');
+              if (soundEnabled) triggerTick();
+            }
             
             container.scrollTo({
               left: targetX,
@@ -205,7 +227,7 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
       window.removeEventListener('mouseup', onInteractionEnd);
       daySelector.removeEventListener('scroll', onDayScroll);
     };
-  }, [dayCount, onIndexChange, scrollRef, daySelectorRef]); 
+  }, [dayCount, onIndexChange, scrollRef, daySelectorRef, hapticsEnabled, soundEnabled]); 
 
   const scrollToDay = useCallback((index: number) => {
     if (!scrollRef.current) return;

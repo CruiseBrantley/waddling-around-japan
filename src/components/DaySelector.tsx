@@ -1,18 +1,23 @@
 import React from 'react';
 import type { ItineraryDay } from '../services/sheets';
+import { triggerHaptic, triggerTick } from '../utils/native';
 
 interface DaySelectorProps {
   days: ItineraryDay[];
   searchTerm: string;
   activeIndex: number;
   onDayClick: (index: number) => void;
+  hapticsEnabled?: boolean;
+  soundEnabled?: boolean;
 }
 
 const DaySelectorComponent = React.forwardRef<HTMLDivElement, DaySelectorProps>(({ 
   days, 
   searchTerm,
   activeIndex,
-  onDayClick
+  onDayClick,
+  hapticsEnabled = true,
+  soundEnabled = true
 }, ref) => {
 
   // Desktop sidebar sync: ensures the active day button is always visible in the sidebar
@@ -60,6 +65,8 @@ const DaySelectorComponent = React.forwardRef<HTMLDivElement, DaySelectorProps>(
               onClick={(e) => {
                 e.preventDefault();
                 onDayClick(idx);
+                if (hapticsEnabled) triggerHaptic('light');
+                if (soundEnabled) triggerTick();
               }}
             >
               <span className="day-label">{dayName}</span>

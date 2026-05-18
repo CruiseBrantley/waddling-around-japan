@@ -94,7 +94,7 @@ export const getNextEvent = (days: ItineraryDay[], currentTime: Date, timeZone: 
   const today = days[todayIdx];
   
   const upcomingToday = today.activities
-    .filter(act => act.category.toLowerCase() === 'event')
+    .filter(act => act.time)
     .map(act => ({ ...act, minutes: timeToMinutes(act.time) - nowMin }))
     .filter(act => act.minutes > 0)
     .sort((a, b) => a.minutes - b.minutes);
@@ -105,7 +105,7 @@ export const getNextEvent = (days: ItineraryDay[], currentTime: Date, timeZone: 
   } else {
     for (let i = todayIdx + 1; i < days.length; i++) {
       const nextDay = days[i];
-      const nextDayEvents = nextDay.activities.filter(act => act.category.toLowerCase() === 'event');
+      const nextDayEvents = nextDay.activities.filter(act => act.time);
       if (nextDayEvents.length > 0) {
         const firstActivity = nextDayEvents[0];
         const daysBetween = i - todayIdx;

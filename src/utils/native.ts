@@ -16,11 +16,11 @@ export const setHapticsEnabled = (enabled: boolean) => { _hapticsEnabled = enabl
 export const triggerHaptic = (type: 'light' | 'medium' | 'heavy' = 'light') => {
   if (!navigator.vibrate || !_hapticsEnabled) return;
 
-  // Modern Android motors (like OnePlus 13) can be subtle; increased duration for better feedback
+  // Modern Android motors require slightly longer durations to reliably spin up and actuate tactile feedback
   const patterns = {
-    light: [25],         // Sharp, noticeable tap
-    medium: [60],        // Clear confirmation
-    heavy: [120, 40, 120] // Powerful dual-pulse for alerts (slightly increased)
+    light: [45],          // Sharp, noticeable tactile tap
+    medium: [75],         // Clear, satisfying confirmation pulse
+    heavy: [130, 45, 130] // Powerful, highly physical dual-pulse for alerts
   };
 
   navigator.vibrate(patterns[type]);
@@ -44,13 +44,27 @@ const getTickContext = (): AudioContext | null => {
   } catch { return null; }
 };
 
-// Prime the AudioContext on the very first user gesture so swipes work later.
+// Prime the AudioContext on user gestures so swipes work later.
+// Uses a self-healing listener: leaves listeners active if the browser blocks the first touchstart,
+// and only cleans up once the state successfully transitions to 'running'.
 const primeAudio = () => {
   const ctx = getTickContext();
   if (!ctx) return;
 
+  const cleanupListeners = () => {
+    ['touchstart', 'mousedown', 'click', 'touchend'].forEach(type => {
+      document.removeEventListener(type, primeAudio, true);
+    });
+  };
+
   if (ctx.state === 'suspended') {
-    ctx.resume().catch(() => {});
+    ctx.resume()
+      .then(() => {
+        if (ctx.state === 'running') {
+          cleanupListeners();
+        }
+      })
+      .catch(() => {});
   }
 
   // Create and play a silent buffer — this is often more effective than 
@@ -65,14 +79,13 @@ const primeAudio = () => {
     console.warn('Audio priming failed:', e);
   }
   
-  // Clean up all listeners
-  ['touchstart', 'mousedown', 'click', 'touchend'].forEach(type => {
-    document.removeEventListener(type, primeAudio, true);
-  });
+  if (ctx.state === 'running') {
+    cleanupListeners();
+  }
 };
 
 ['touchstart', 'mousedown', 'click', 'touchend'].forEach(type => {
-  document.addEventListener(type, primeAudio, { capture: true, once: true });
+  document.addEventListener(type, primeAudio, { capture: true });
 });
 
 /**

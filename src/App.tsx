@@ -20,7 +20,7 @@ import { useScrollSync } from './hooks/useScrollSync'
 
 // Utils
 import { timeToMinutes } from './utils/time'
-import { setAppBadge, clearAppBadge, triggerHaptic, triggerTick, showLocalNotification, setHapticsEnabled, clearEventNotifications, subscribeToPushNotifications } from './utils/native'
+import { setAppBadge, clearAppBadge, showLocalNotification, setHapticsEnabled, clearEventNotifications, subscribeToPushNotifications } from './utils/native'
 import heroImg from './assets/hero_optimized.jpg'
 import type { ItineraryActivity } from './services/sheets'
 
@@ -280,7 +280,9 @@ function App() {
     dayCount: filteredDays.length,
     onIndexChange: handleIndexChange,
     scrollRef,
-    daySelectorRef
+    daySelectorRef,
+    hapticsEnabled: settings.hapticsEnabled,
+    soundEnabled: settings.soundEnabled
   });
 
   // --- Handlers & Helpers ---
@@ -555,17 +557,10 @@ function App() {
 
   const prevIndexRef = useRef<number>(activeIndex);
 
-  // Tactile Feedback for Day Changes
+  // Synchronize Day Changes Index Ref
   useEffect(() => {
-    // Only pulse if the index actually changed (prevents feedback on first load)
-    if (prevIndexRef.current !== activeIndex) {
-      triggerHaptic('light');
-      if (settings.soundEnabled) {
-        triggerTick();
-      }
-      prevIndexRef.current = activeIndex;
-    }
-  }, [activeIndex, settings.soundEnabled, settings.hapticsEnabled]);
+    prevIndexRef.current = activeIndex;
+  }, [activeIndex]);
 
   // --- Render ---
 
@@ -677,7 +672,7 @@ function App() {
     if (todayIdx !== -1) {
       const today = filteredDays[todayIdx];
       const nowMin = currentTime.getHours() * 60 + currentTime.getMinutes();
-      const remainingCount = today.activities.filter(act => act.category.toLowerCase() === 'event' && timeToMinutes(act.time) > nowMin).length;
+      const remainingCount = today.activities.filter(act => act.time && timeToMinutes(act.time) > nowMin).length;
       
       if (remainingCount > 0) {
         setAppBadge(remainingCount);
@@ -758,7 +753,15 @@ function App() {
 
 
 
-          <DaySelector ref={daySelectorRef} days={filteredDays} searchTerm={searchTerm} activeIndex={activeIndex} onDayClick={handleDayClick} />
+          <DaySelector 
+            ref={daySelectorRef} 
+            days={filteredDays} 
+            searchTerm={searchTerm} 
+            activeIndex={activeIndex} 
+            onDayClick={handleDayClick} 
+            hapticsEnabled={settings.hapticsEnabled}
+            soundEnabled={settings.soundEnabled}
+          />
         </aside>
 
         <div className="itinerary-column">
