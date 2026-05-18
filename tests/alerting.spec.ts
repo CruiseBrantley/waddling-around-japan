@@ -157,32 +157,26 @@ test.describe('Alerting and Notification System', () => {
     await expect(toggle).toHaveClass(/active/, { timeout: 8000 });
   });
 
-  test('should show correct progress on the event countdown pill', async ({ page }) => {
+  test('should show imminent red alert banner above cards starting within 5 minutes', async ({ page }) => {
     // Set time to 2 minutes before event (05:58 for 06:00 event)
     await page.goto('/?date=2026-05-24T05:58:00');
-    await page.waitForSelector('.upcoming-pill');
+    await page.waitForSelector('.activity-card.is-imminent-next');
 
-    const progressVal = await page.locator('.pill-progress-rect').evaluate(el => {
-      const style = window.getComputedStyle(el);
-      return style.strokeDasharray;
-    });
+    const imminentCard = page.locator('.activity-card.is-imminent-next');
+    await expect(imminentCard).toBeVisible();
 
-    console.log('DEBUG: Final Progress Check =', progressVal);
-    expect(progressVal).toContain('40');
+    const alertBanner = imminentCard.locator('.imminent-alert-banner');
+    await expect(alertBanner).toBeVisible();
+    await expect(alertBanner).toContainText('STARTING IN 2 MINS');
   });
 
-  test('should align pulse and border directions', async ({ page }) => {
-    await page.goto('/?date=2026-05-24T05:58:00');
-    await page.waitForSelector('.upcoming-pill');
-
-    const pillSvg = page.locator('.pill-progress-svg');
-    await expect(pillSvg).not.toHaveClass(/ccw/);
+  test('should not show imminent warning on cards starting further out', async ({ page }) => {
+    // Set time to 10 minutes before event (05:50 for 06:00 event)
+    await page.goto('/?date=2026-05-24T05:50:00');
+    await page.waitForSelector('.activity-card');
     
-    const animation = await page.locator('.pill-progress-pulse').evaluate(el => {
-      const styles = window.getComputedStyle(el);
-      return styles.animationName;
-    });
-    expect(animation).toBe('pulse-travel');
+    // There should be no card with is-imminent-next
+    const imminentCard = page.locator('.activity-card.is-imminent-next');
+    await expect(imminentCard).not.toBeVisible();
   });
-
 });

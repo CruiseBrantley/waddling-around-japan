@@ -36,6 +36,8 @@ interface ActivityCardProps {
   activeCardRef: React.RefObject<HTMLDivElement | null>;
   categoryColors: Record<string, { bg: string, fg?: string }>;
   onClick?: () => void;
+  isImminentNext?: boolean;
+  nextEventMinutes?: number;
 }
 
 export const ActivityCard: React.FC<ActivityCardProps> = ({
@@ -47,6 +49,8 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
   activeCardRef,
   categoryColors,
   onClick,
+  isImminentNext,
+  nextEventMinutes,
 }) => {
   const safeCategoryColors = categoryColors || {};
   const catColors = activity.category ? safeCategoryColors[activity.category] : null;
@@ -64,13 +68,19 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
 
   return (
   <div
-    className={`activity-card glass ${isLive ? 'is-live' : ''} ${isHeader ? 'is-header' : ''} ${isGroupActive ? 'is-group-active' : ''} ${activity.requiresReservation ? 'is-reservation' : ''}`}
+    className={`activity-card glass ${isLive ? 'is-live' : ''} ${isHeader ? 'is-header' : ''} ${isGroupActive ? 'is-group-active' : ''} ${activity.requiresReservation ? 'is-reservation' : ''} ${isImminentNext ? 'is-imminent-next' : ''}`}
     ref={isLive ? activeCardRef : undefined}
     onClick={handleCardClick}
     data-title={activity.fullTitle}
     data-id={activity.id}
     style={onClick ? { cursor: 'pointer' } : undefined}
   >
+      {isImminentNext && nextEventMinutes !== undefined && (
+        <div className="imminent-alert-banner">
+          <span className="imminent-alert-dot" />
+          <span>STARTING IN {nextEventMinutes < 1 ? '< 1 MIN' : `${Math.ceil(nextEventMinutes)} MINS`}</span>
+        </div>
+      )}
       <div className="card-header">
         <div className="title-row">
           <h3 className="activity-title">

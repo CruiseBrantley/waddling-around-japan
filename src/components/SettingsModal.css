@@ -405,6 +405,16 @@
   margin-top: 4px;
 }
 
+/* Stack inputs vertically on slim screens to prevent layout squeezing and vertical clipping */
+@media (max-width: 440px) {
+  .settings-dev-grid {
+    grid-template-columns: 1fr;
+  }
+  .settings-dev-actions {
+    grid-column: span 1;
+  }
+}
+
 .settings-dev-button {
   border: none;
   border-radius: 8px;

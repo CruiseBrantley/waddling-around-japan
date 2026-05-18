@@ -458,9 +458,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="settings-section">
               <h3 className="settings-section-title">Developer Options</h3>
               <div className="settings-row">
-                <div className="settings-label-group">
-                  <span className="settings-label">Developer Mode</span>
-                  <span className="settings-hint">Receive test push notifications</span>
+                <div>
+                  <div className="settings-label">Developer Mode</div>
+                  <div className="settings-hint">Receive test push notifications</div>
                 </div>
                 <button 
                   className={`settings-toggle ${settings.devMode ? 'active' : ''}`}

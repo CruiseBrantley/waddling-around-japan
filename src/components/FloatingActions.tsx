@@ -48,9 +48,6 @@ export const FloatingActions: React.FC<FloatingActionsProps> = ({
   }
 
   const isImminent = nextEvent && nextEvent.minutes <= 5 && nextEvent.minutes > 0;
-  // Progress should shrink as we get closer (100% at 5m, 0% at 0m)
-  // Round to nearest integer for consistent rendering and test stability
-  const progress = isImminent ? Math.round((nextEvent.minutes / 5) * 100) : 0;
 
   return (
     <div className="floating-actions">
@@ -63,63 +60,6 @@ export const FloatingActions: React.FC<FloatingActionsProps> = ({
             jumpToNow();
           }}
         >
-          {/* High-Precision Shrinking Countdown */}
-          <svg className="pill-progress-svg" preserveAspectRatio="none" style={{ opacity: isImminent ? 1 : 0 }}>
-            <defs>
-              <mask id="progress-mask">
-                <rect 
-                  x="0" y="0" width="100%" height="100%" 
-                  rx="20" ry="20"
-                  pathLength="100"
-                  fill="none"
-                  stroke="white"
-                  strokeWidth="6"
-                  style={{ 
-                    strokeDasharray: `${progress} 100`,
-                    strokeDashoffset: 0,
-                    vectorEffect: 'non-scaling-stroke'
-                  } as React.CSSProperties}
-                  className="mask-rect"
-                />
-              </mask>
-            </defs>
-            
-            {/* Background Track */}
-            <rect 
-              x="0" y="0" width="100%" height="100%" 
-              rx="20" ry="20"
-              pathLength="100"
-              className="pill-progress-track"
-              style={{ vectorEffect: 'non-scaling-stroke' } as React.CSSProperties}
-            />
-
-            {/* Active Progress */}
-            <rect 
-              x="0" y="0" width="100%" height="100%" 
-              rx="20" ry="20"
-              pathLength="100"
-              className="pill-progress-rect"
-              style={{ 
-                strokeDasharray: `${progress} 100`,
-                strokeDashoffset: 0,
-                vectorEffect: 'non-scaling-stroke'
-              } as React.CSSProperties}
-            />
-
-            {/* Traveling Pulse (Masked) */}
-            <rect 
-              x="0" y="0" width="100%" height="100%" 
-              rx="20" ry="20"
-              pathLength="100"
-              mask="url(#progress-mask)"
-              className="pill-progress-pulse"
-              style={{ 
-                vectorEffect: 'non-scaling-stroke',
-                '--progress-raw': progress 
-              } as React.CSSProperties}
-            />
-          </svg>
-
           <span className="upcoming-label">{nextEvent.isLive ? 'LIVE NOW' : 'NEXT'}: {nextEvent.title}</span>
           <span className="upcoming-time">
             {nextEvent.isLive 

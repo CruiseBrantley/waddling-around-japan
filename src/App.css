@@ -66,13 +66,26 @@
 }
 
 .sidebar-meta {
-  padding: 0 20px 16px;
+  padding: 16px 20px 8px; /* Safe breathing room from hero, compact margin to search bar below */
   display: flex;
   justify-content: space-between;
   align-items: center;
   font-size: 11px;
   color: var(--text-muted);
   opacity: 0.8;
+}
+
+@media (max-width: 799px) {
+  .sidebar-meta {
+    padding-top: calc(env(safe-area-inset-top, 24px) + 12px); /* Safe area padding on mobile to clear camera island */
+    padding-bottom: 4px;
+  }
+}
+
+.sidebar-version {
+  font-weight: 700;
+  opacity: 0.55;
+  letter-spacing: 0.5px;
 }
 
 .sidebar-meta-actions {
@@ -83,8 +96,8 @@
 
 /* Sidebar Utility Buttons (Share, Settings) */
 .settings-toggle-btn, .share-btn-sidebar {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(30, 31, 38, 0.75); /* Match filter-chips frosted dark-grey */
+  border: 1px solid rgba(255, 255, 255, 0.08);
   color: white;
   cursor: pointer;
   border-radius: 10px;
@@ -92,7 +105,8 @@
   align-items: center;
   justify-content: center;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  opacity: 0.85; /* Clearly visible but not overwhelming */
+  opacity: 0.9; /* Slightly higher opacity for clean pop */
+  backdrop-filter: blur(4px); /* Premium frosted glass detail */
 }
 
 .settings-toggle-btn {
@@ -109,8 +123,8 @@
 }
 
 .settings-toggle-btn:hover, .share-btn-sidebar:hover {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.25);
+  background: rgba(30, 31, 38, 0.95);
+  border-color: rgba(255, 255, 255, 0.15);
   opacity: 1;
   transform: translateY(-1px);
 }
@@ -208,7 +222,7 @@
 
 /* Compact Search Row */
 .search-section {
-  padding: 16px 20px;
+  padding: 8px 20px 16px; /* Sits nicely and compactly below the sidebar-meta row */
 }
 
 .search-row {
@@ -291,7 +305,6 @@
   padding-top: 16px;
   margin-bottom: 24px; /* Match activity-card margin-bottom so connector ends flush */
   position: relative;
-  overflow: hidden;
   min-height: 0;
 }
 
@@ -356,7 +369,6 @@
 }
 
 .timeline-session.is-group.is-live {
-  background: rgba(255, 255, 255, 0.02);
   margin-top: 8px;
   margin-bottom: 8px;
 }
@@ -779,9 +791,13 @@
 }
 
 
-/* Only the live header card gets the red border treatment */
-.activity-card.is-group-active.is-live.is-header {
+/* All cards in the active group get the red border treatment */
+.activity-card.is-group-active {
   border-color: var(--primary) !important;
+}
+
+/* The live header card also gets the dark plate background for legibility */
+.activity-card.is-group-active.is-live.is-header {
   background: rgba(28, 29, 36, 0.9) !important;
 }
 
@@ -1324,11 +1340,11 @@
   }
 
   .sidebar .search-section {
-    padding: 20px 16px 12px;
+    padding: 8px 16px 20px;
   }
 
   .sidebar .sidebar-meta {
-    padding: 0 24px 20px;
+    padding: 16px 24px 8px;
     opacity: 0.5;
   }
 
@@ -1796,25 +1812,27 @@
   gap: 6px;
   padding: 6px 14px;
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(30, 31, 38, 0.75); /* Rich, frosted dark-grey glassmorphic background */
+  border: 1px solid rgba(255, 255, 255, 0.08);
   color: var(--text-muted);
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600; /* Slightly bolder for high readability */
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
+  backdrop-filter: blur(4px); /* Premium frosted glass detail */
 }
 
 .filter-chip:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(30, 31, 38, 0.9);
   color: var(--text-main);
+  border-color: rgba(255, 255, 255, 0.15);
 }
 
 .filter-chip.active {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.15);
   color: var(--text-main);
-  border-color: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.25);
 }
 
 .chip-color-dot {
@@ -1959,4 +1977,98 @@
   0% { left: -40%; width: 40%; }
   50% { left: 20%; width: 60%; }
   100% { left: 100%; width: 40%; }
+}
+
+/* Glassmorphic PWA Header with blurred Hero background */
+@media (max-width: 799px) {
+  .sidebar-header {
+    position: relative;
+    overflow: hidden;
+    background: rgba(15, 16, 20, 0.4);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
+    z-index: 10;
+  }
+
+  .sidebar-header::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: var(--hero-url);
+    background-size: cover;
+    background-position: center 35%; /* Centered around the penguins */
+    filter: blur(4px) brightness(0.42); /* Soft blur so penguins are fully recognizable, with proper dimming for high contrast text */
+    transform: scale(1.05); /* Prevents blur edge bleed while keeping image sharp */
+    z-index: -1;
+    opacity: 0.9;
+  }
+}
+
+/* Imminent Starting Activity Alert Banner (Red Effect) */
+.imminent-alert-banner {
+  margin: -16px -16px 16px -16px;
+  padding: 8px 16px;
+  background: rgba(255, 59, 48, 0.04); /* Soft baseline red tint */
+  border-bottom: 1px solid rgba(255, 59, 48, 0.35);
+  border-radius: 18px 18px 0 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ff453a;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  position: relative;
+  overflow: hidden;
+}
+
+.imminent-alert-banner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(255, 59, 48, 0.18) 0%, rgba(255, 69, 58, 0.04) 100%);
+  z-index: 0;
+  pointer-events: none;
+  animation: imminent-pulse-glow-smooth 2.5s infinite alternate ease-in-out;
+}
+
+/* Ensure banner content renders cleanly above the pulsing glow layer */
+.imminent-alert-banner > * {
+  position: relative;
+  z-index: 1;
+}
+
+.imminent-alert-dot {
+  width: 7px;
+  height: 7px;
+  background-color: #ff3b30;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #ff3b30;
+  animation: imminent-dot-pulse-glow 1.5s infinite alternate ease-in-out;
+}
+
+/* Add custom border hover state for imminent card */
+.activity-card.is-imminent-next {
+  border-color: rgba(255, 59, 48, 0.3) !important;
+  box-shadow: 
+    0 10px 30px rgba(0, 0, 0, 0.25),
+    0 0 15px rgba(255, 59, 48, 0.08);
+}
+
+.activity-card.is-imminent-next:hover {
+  border-color: rgba(255, 59, 48, 0.5) !important;
+  box-shadow: 
+    0 12px 35px rgba(0, 0, 0, 0.3),
+    0 0 20px rgba(255, 59, 48, 0.15);
+}
+
+@keyframes imminent-pulse-glow-smooth {
+  0% { opacity: 0.2; }
+  100% { opacity: 1; }
+}
+
+@keyframes imminent-dot-pulse-glow {
+  0% { transform: scale(0.85); opacity: 0.7; box-shadow: 0 0 2px #ff3b30; }
+  100% { transform: scale(1.2); opacity: 1; box-shadow: 0 0 10px #ff3b30; }
 }

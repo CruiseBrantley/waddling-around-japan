@@ -17,9 +17,7 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
   const scrollRef = externalScrollRef || internalScrollRef;
   const daySelectorRef = externalDaySelectorRef || internalDaySelectorRef;
 
-  const activeScrollerRef = useRef<'main' | 'day' | 'programmatic' | null>(null);
-  const scrollEndTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const targetMainScrollRef = useRef<number | null>(null);
+  const activeScrollerRef = useRef<'main' | 'day' | null>(null);
   const isDraggingRef = useRef(false);
 
   const ITEM_WIDTH = 76; // 64px width + 12px gap
@@ -59,32 +57,16 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
       }
     };
 
-
-
     const onMainScroll = () => {
         const isDesktop = window.innerWidth >= 800;
         
-        // PROXIMITY LOCK: If we have a target, don't sync until we are close.
-        if (targetMainScrollRef.current !== null) {
-          const currentPos = isDesktop ? container.scrollTop : container.scrollLeft;
-          const dist = Math.abs(currentPos - targetMainScrollRef.current);
-          if (dist <= 5) {
-            targetMainScrollRef.current = null;
-            activeScrollerRef.current = null;
-            updateContainerHeight(); // Force update when we arrive at the target
-          } else {
-            if (activeScrollerRef.current === 'day' || activeScrollerRef.current === 'programmatic') return;
-          }
-        } else if ((activeScrollerRef.current === 'day' || activeScrollerRef.current === 'programmatic') && !isDesktop) {
-          return;
-        }
+        // If we are actively scrolling the day selector on mobile, don't let scroll listener trigger loop
+        if (activeScrollerRef.current === 'day' && !isDesktop) return;
 
-        // 1. Sync visual height ONLY while dragging to prevent killing momentum/glide on iOS
+        // Sync height dynamically during manual swiping
         if (isDraggingRef.current) {
           updateContainerHeight();
         }
-        
-
 
         const slides = Array.from(container.querySelectorAll('.swipe-slide'));
         let bestIndex = 0;
@@ -92,24 +74,11 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
         
         if (isDesktop) {
           const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
-          
-          if (maxScroll <= 0) {
-            // Container doesn't scroll because all content fits on screen.
-            // Do not override active index with scroll events.
-            return;
-          }
+          if (maxScroll <= 0) return;
 
           const scrollTop = container.scrollTop;
-          
-          // The trigger point dynamically glides from the top to the bottom of the viewport
-          // based on the overall scroll percentage. This perfectly maintains middle-focus 
-          // normally, while naturally handling short items at the top and bottom bounds.
           const scrollPercentage = maxScroll > 0 ? scrollTop / maxScroll : 0;
-          // Desktop: use a more stable trigger point (fixed 20% down the viewport)
-          // Mobile: use the gliding trigger point
-          const triggerPoint = isDesktop 
-            ? scrollTop + 40 
-            : scrollTop + 40 + scrollPercentage * (container.clientHeight - 80); 
+          const triggerPoint = scrollTop + 40 + scrollPercentage * (container.clientHeight - 80); 
           
           slides.forEach((slide, i) => {
             const el = slide as HTMLElement;
@@ -134,29 +103,23 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
 
         if (bestIndex !== activeIndexRef.current) {
           const type = activeScrollerRef.current === 'main' ? 'manual' : 
-                       activeScrollerRef.current === 'day' ? 'daySelector' : 
-                       (activeScrollerRef.current === null ? 'manual' : 'void');
+                       activeScrollerRef.current === 'day' ? 'daySelector' : 'manual';
           
-          if (type === 'void') return; 
-
           activeIndexRef.current = bestIndex;
           setActiveIndex(bestIndex);
           onIndexChange?.(bestIndex, type);
-
-          // Sync container height to new active slide (prevents stranding on short days)
           updateContainerHeight();
         }
     };
 
     const onDayScroll = () => {
-      if (activeScrollerRef.current === 'main' || activeScrollerRef.current === 'programmatic') return;
+      if (activeScrollerRef.current === 'main') return;
       
       requestAnimationFrame(() => {
-        if (activeScrollerRef.current === 'main' || activeScrollerRef.current === 'programmatic') return;
+        if (activeScrollerRef.current === 'main') return;
 
         if (window.innerWidth < 800) {
           const scrollLeft = daySelector.scrollLeft;
-          
           const firstBtn = daySelector.querySelector('.day-btn') as HTMLElement;
           const secondBtn = daySelector.querySelectorAll('.day-btn')[1] as HTMLElement;
           let actualItemWidth = ITEM_WIDTH;
@@ -168,8 +131,16 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
           const bestIndex = Math.max(0, Math.min(dayCount - 1, Math.round(progress)));
           
           if (bestIndex !== activeIndexRef.current) {
-            const targetX = bestIndex * container.clientWidth;
-            targetMainScrollRef.current = targetX;
+            const slides = container.querySelectorAll('.swipe-slide');
+            const targetSlide = slides[bestIndex] as HTMLElement;
+            let targetX = bestIndex * container.clientWidth;
+            if (targetSlide) {
+              const slideRect = targetSlide.getBoundingClientRect();
+              const containerRect = container.getBoundingClientRect();
+              if (containerRect.width > 0 && slideRect.width > 0) {
+                targetX = slideRect.left - containerRect.left + container.scrollLeft;
+              }
+            }
 
             activeIndexRef.current = bestIndex;
             setActiveIndex(bestIndex);
@@ -185,54 +156,38 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
     };
 
     const onInteractionStart = (type: 'main' | 'day') => {
-      // If user starts interacting, ALWAYS break the programmatic lock and clear targets
-      if (scrollEndTimeoutRef.current) clearTimeout(scrollEndTimeoutRef.current);
       activeScrollerRef.current = type;
-      targetMainScrollRef.current = null;
       isDraggingRef.current = true;
     };
 
     const onInteractionEnd = () => {
       isDraggingRef.current = false;
-      if (activeScrollerRef.current === 'programmatic') return;
       
-      // Final sync after CSS snap completes: update height + fix vertical scroll
       const settleAfterSnap = () => {
         activeScrollerRef.current = null;
-        targetMainScrollRef.current = null;
         requestAnimationFrame(() => {
           updateContainerHeight();
 
-          // After height shrinks, correct window.scrollY if user is stranded below content
           const isDesktop = window.innerWidth >= 800;
           if (!isDesktop) {
             const docHeight = document.documentElement.scrollHeight;
             const viewportBottom = window.scrollY + window.innerHeight;
             if (viewportBottom > docHeight + 20) {
               const targetY = Math.max(0, docHeight - window.innerHeight);
-              window.scrollTo({ top: targetY, behavior: 'smooth' });
+              window.scrollTo({ top: targetY, behavior: 'auto' });
             }
           }
         });
       };
 
-      if (scrollEndTimeoutRef.current) clearTimeout(scrollEndTimeoutRef.current);
-      
-      // Use scrollend (fires when CSS snap completes) if available
-      if ('onscrollend' in container) {
-        container.addEventListener('scrollend', settleAfterSnap, { once: true });
-        // Safety fallback in case scrollend doesn't fire
-        scrollEndTimeoutRef.current = setTimeout(settleAfterSnap, 800);
-      } else {
-        // Fallback: wait long enough for CSS snap to complete
-        scrollEndTimeoutRef.current = setTimeout(settleAfterSnap, 600);
-      }
+      // Let CSS snapping complete before doing a final height alignment check
+      setTimeout(settleAfterSnap, 300);
     };
 
-    // Initial height sync (setTimeout to ensure DOM is fully rendered/images loaded)
+    // Initial height sync
     setTimeout(() => {
       requestAnimationFrame(updateContainerHeight);
-    }, 100);
+    }, 50);
 
     container.addEventListener('scroll', onMainScroll, { passive: true });
     container.addEventListener('touchstart', () => onInteractionStart('main'), { passive: true });
@@ -252,24 +207,31 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
     };
   }, [dayCount, onIndexChange, scrollRef, daySelectorRef]); 
 
-  const scrollToDay = useCallback((index: number, isInstant = false) => {
+  const scrollToDay = useCallback((index: number) => {
     if (!scrollRef.current) return;
     
     if (index !== activeIndexRef.current) {
-      console.log(`[ScrollSync] Scrolling to index ${index}${isInstant ? ' (instant)' : ''}`);
+      console.log(`[ScrollSync] Scrolling to index ${index} (instant)`);
     }
     const container = scrollRef.current;
     const daySelector = daySelectorRef.current;
     const isDesktop = window.innerWidth >= 800;
     
-    // Calculate targets correctly for the orientation
-    const targetX = index * container.clientWidth;
+    // Calculate targets correctly using exact floating-point subpixel coordinates via getBoundingClientRect
+    const slides = container.querySelectorAll('.swipe-slide');
+    const targetSlide = slides[index] as HTMLElement;
+    let targetX = index * container.clientWidth;
+    if (targetSlide) {
+      const slideRect = targetSlide.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+      if (containerRect.width > 0 && slideRect.width > 0) {
+        targetX = slideRect.left - containerRect.left + container.scrollLeft;
+      }
+    }
     let targetY = 0;
     
     if (isDesktop) {
       const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
-      const targetSlide = container.querySelectorAll('.swipe-slide')[index] as HTMLElement;
-      // Bound the target to maxScroll so the proximity lock releases correctly when hitting the bottom
       if (targetSlide) targetY = Math.max(0, Math.min(maxScroll, targetSlide.offsetTop - 20));
     }
     
@@ -284,23 +246,18 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
       return;
     }
 
-    // 1. Commit to the target
-    targetMainScrollRef.current = targetValue;
-    activeScrollerRef.current = 'programmatic';
     activeIndexRef.current = index; 
-    
-    // 2. Immediate UI update
     setActiveIndex(index);
     onIndexChange?.(index, 'programmatic');
 
     if (!isDesktop) {
+      // Instant horizontal scroll
       container.scrollTo({
         left: targetX,
-        behavior: isInstant ? 'auto' : 'smooth'
+        behavior: 'auto'
       });
 
-      // Force immediate height sync for programmatic jumps to ensure vertical scrolling room
-      const targetSlide = container.querySelectorAll('.swipe-slide')[index] as HTMLElement;
+      // Force immediate height sync
       if (targetSlide) {
         container.style.height = `${targetSlide.offsetHeight}px`;
       }
@@ -308,27 +265,19 @@ export function useScrollSync({ dayCount, onIndexChange, scrollRef: externalScro
       if (daySelector) {
         daySelector.scrollTo({
           left: index * ITEM_WIDTH,
-          behavior: isInstant ? 'auto' : 'smooth'
+          behavior: 'auto'
         });
       }
     } else {
       const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
-      const targetSlide = container.querySelectorAll('.swipe-slide')[index] as HTMLElement;
       if (targetSlide) {
-        // Use the exact same calculation as targetY so the proximity lock safely disengages
         const scrollTarget = Math.max(0, Math.min(maxScroll, targetSlide.offsetTop - 20)); 
         container.scrollTo({
           top: scrollTarget,
-          behavior: isInstant ? 'auto' : 'smooth'
+          behavior: 'auto'
         });
       }
     }
-
-    if (scrollEndTimeoutRef.current) clearTimeout(scrollEndTimeoutRef.current);
-    scrollEndTimeoutRef.current = setTimeout(() => {
-      activeScrollerRef.current = null;
-      targetMainScrollRef.current = null;
-    }, isInstant ? 100 : 1000);
   }, [onIndexChange]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return {

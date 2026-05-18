@@ -12,6 +12,7 @@ interface ActivityListProps {
   isToday: boolean;
   categoryColors: Record<string, { bg: string, fg?: string }>;
   onCardClick?: () => void;
+  nextEvent?: { id?: string; minutes: number; isLive?: boolean } | null;
 }
 
 export const ActivityList: React.FC<ActivityListProps> = ({ 
@@ -23,7 +24,8 @@ export const ActivityList: React.FC<ActivityListProps> = ({
   timeToMinutes,
   isToday,
   categoryColors,
-  onCardClick
+  onCardClick,
+  nextEvent
 }) => {
   const currentMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();
 
@@ -127,14 +129,6 @@ export const ActivityList: React.FC<ActivityListProps> = ({
               key={`session-${firstAct.id}`} 
               className={`timeline-session ${session.isGroup ? 'is-group' : ''} ${isGroupLive ? 'is-live' : ''}`}
             >
-              {session.isGroup && isGroupLive && (
-                <div 
-                  className="session-progress-bg" 
-                  style={{ height: `${totalProgress}%` }}
-                >
-                  <div className="session-bg-flow"></div>
-                </div>
-              )}
               
               {session.activities.map((activity, aIdx) => {
                 const isFirstInGroup = aIdx === 0;
@@ -142,13 +136,20 @@ export const ActivityList: React.FC<ActivityListProps> = ({
                 const localProgress = isGroupLive ? Math.min(100, Math.max(0, (totalProgress * session.activities.length) - (aIdx * 100))) : 0;
                 const isCurrentlyFilling = isGroupLive && localProgress > 0 && localProgress < 100;
 
+                const safeCategoryColors = categoryColors || {};
+                const catColors = activity.category ? safeCategoryColors[activity.category] : null;
+                const finalBg = catColors?.bg || activity.categoryBackgroundColor;
+
                 return (
                   <div className={`timeline-item ${!isFirstInGroup ? 'untimed-item' : ''}`} key={activity.id}>
                     <div className="timeline-left">
                       {isFirstInGroup ? (
                         <>
                           <span className="activity-time event-time">{activity.time}</span>
-                          <div className={`timeline-dot type-${activity.type} ${isGroupLive ? 'pulse-red' : ''}`}></div>
+                          <div 
+                            className={`timeline-dot type-${activity.type} ${isGroupLive ? 'pulse-red' : ''}`}
+                            style={finalBg ? { backgroundColor: finalBg } : undefined}
+                          ></div>
                         </>
                       ) : (
                         <div className={`timeline-dot-small ${isGroupLive ? 'is-active' : ''}`}></div>
@@ -175,6 +176,14 @@ export const ActivityList: React.FC<ActivityListProps> = ({
                       activeCardRef={isCurrentlyFilling ? activeCardRef : { current: null }} 
                       categoryColors={categoryColors}
                       onClick={onCardClick}
+                      isImminentNext={
+                        nextEvent !== null && 
+                        nextEvent !== undefined && 
+                        nextEvent.id === activity.id && 
+                        nextEvent.minutes <= 5 && 
+                        nextEvent.minutes > 0
+                      }
+                      nextEventMinutes={nextEvent?.minutes}
                     />
                   </div>
                 );

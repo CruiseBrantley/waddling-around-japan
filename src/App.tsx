@@ -6,7 +6,7 @@ import './App.css'
 import { Hero } from './components/Hero'
 import { ShareModal } from './components/ShareModal';
 import { SettingsModal } from './components/SettingsModal';
-import { loadSettings } from './utils/settings';
+import { loadSettings, APP_VERSION } from './utils/settings';
 import type { AppSettings } from './utils/settings';
 import { SearchBar } from './components/SearchBar'
 import { DaySelector } from './components/DaySelector'
@@ -317,7 +317,7 @@ function App() {
   const handleDayClick = useCallback((index: number) => {
     const startY = window.scrollY;
     // 1. Trigger the horizontal/vertical jump immediately
-    scrollToDay(index, true); 
+    scrollToDay(index); 
     
     // Enable haptics for subsequent interactions if not already enabled
     hasInitialJumpFiredRef.current = true;
@@ -378,13 +378,12 @@ function App() {
 
   const performSmartJump = useCallback((index: number, targetActivity?: { title?: string; id?: string } | string | null | undefined, isInitial: boolean = false) => {
     if (index === -1) return;
+    void isInitial; // Ignored since all programmatic scrolls are now instant by definition
     
-    const isAlreadyOnDay = activeIndex === index;
     scrollToDay(index);
 
-    // If same day: jump INSTANTLY. If different day: wait for horizontal slide (500ms)
-    // On initial load, always wait at least 500ms to allow DOM/layout/swiper to fully settle.
-    const verticalDelay = isAlreadyOnDay ? (isInitial ? 500 : 0) : 600;
+    // Instant jump: wait just a small 50ms layout settle tick
+    const verticalDelay = 50;
 
     setTimeout(() => {
       // 1. Try to find the specific target activity if provided
@@ -416,17 +415,11 @@ function App() {
           // Fallback: if title match failed, try to find the best match by comparing full titles
           if (!targetCard && targetTitle) {
             const candidates = activeSlide.querySelectorAll('.activity-card');
-            // First, try to find the exact match by finding the activity that starts with the same prefix
-            // but has additional distinguishing information
             for (const card of candidates) {
               const cardTitle = card.getAttribute('data-title') || '';
-              // Check if one title is a prefix of the other (e.g., "Activity - " is common)
               if (targetTitle.startsWith(cardTitle) || cardTitle.startsWith(targetTitle)) {
-                // If they share the same prefix, prefer the one that is closest in length
-                // (the more specific one should be longer)
                 const targetLen = targetTitle.length;
                 const cardLen = cardTitle.length;
-                // Only use if the difference is significant (at least 5 chars difference)
                 if (Math.abs(targetLen - cardLen) >= 5) {
                   targetCard = card as HTMLElement;
                   break;
@@ -458,11 +451,11 @@ function App() {
         
         scroller?.scrollTo({ 
           top: Math.max(0, targetY), 
-          behavior: 'smooth' 
+          behavior: 'auto' 
         });
       }
     }, verticalDelay);
-  }, [scrollToDay, scrollRef, activeIndex]);
+  }, [scrollToDay, scrollRef]);
 
   // --- Effects ---
 
@@ -736,16 +729,9 @@ function App() {
         <aside className="sidebar">
           <Hero image={heroImg} />
           <div className="sidebar-header">
-            <SearchBar 
-              searchTerm={searchTerm} 
-              setSearchTerm={setSearchTerm} 
-              categories={categoryData.names}
-              categoryColors={categoryData.colors}
-              selectedCategory={selectedCategory}
-              setSelectedCategory={setSelectedCategory}
-            />
             <div className="sidebar-meta">
               <span>Last sync: {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+              <span className="sidebar-version">v{APP_VERSION}</span>
               <div className="sidebar-meta-actions">
                 <button className="share-btn-sidebar glass" onClick={() => setIsShareOpen(true)}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -760,6 +746,14 @@ function App() {
                 </button>
               </div>
             </div>
+            <SearchBar 
+              searchTerm={searchTerm} 
+              setSearchTerm={setSearchTerm} 
+              categories={categoryData.names}
+              categoryColors={categoryData.colors}
+              selectedCategory={selectedCategory}
+              setSelectedCategory={setSelectedCategory}
+            />
           </div>
 
 
@@ -782,6 +776,7 @@ function App() {
                     timeToMinutes={timeToMinutes}
                     isToday={isSameDay(day.date, currentTime)}
                     categoryColors={categoryData.colors}
+                    nextEvent={activeEvents.nextEvent}
                     onCardClick={() => {
                       if (window.innerWidth >= 800) {
                         handleDayClick(index);
