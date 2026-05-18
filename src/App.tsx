@@ -20,7 +20,7 @@ import { useScrollSync } from './hooks/useScrollSync'
 
 // Utils
 import { timeToMinutes } from './utils/time'
-import { setAppBadge, clearAppBadge, showLocalNotification, setHapticsEnabled, clearEventNotifications, subscribeToPushNotifications } from './utils/native'
+import { setAppBadge, clearAppBadge, triggerHaptic, triggerTick, showLocalNotification, setHapticsEnabled, clearEventNotifications, subscribeToPushNotifications } from './utils/native'
 import heroImg from './assets/hero_optimized.jpg'
 import type { ItineraryActivity } from './services/sheets'
 
@@ -72,6 +72,12 @@ function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [isSplashFading, setIsSplashFading] = useState(false);
 
+  // Pull-to-refresh / App update check states
+  const [pullOffset, setPullOffset] = useState(0);
+  const [isRefreshingAll, setIsRefreshingAll] = useState(false);
+  const touchStartRef = useRef(0);
+  const isPullingRef = useRef(false);
+
   // 3. Data Hook
   const {
     itinerary,
@@ -81,6 +87,7 @@ function App() {
     lastUpdated,
     currentTime,
     isTripActive,
+    loadData
   } = useItinerary(settings.debugOffset);
 
   // Splash Screen Fade-out Effect
@@ -124,6 +131,88 @@ function App() {
       void updateServiceWorker(true);
     }
   }, [needRefresh, updateServiceWorker]);
+
+  // Premium Custom Pull-to-Refresh & PWA Update Gesture
+  useEffect(() => {
+    const handleTouchStart = (e: TouchEvent) => {
+      if (refreshing || isRefreshingAll) return;
+
+      const isDesktop = window.innerWidth >= 800;
+      const scrollTop = isDesktop 
+        ? (scrollRef.current?.scrollTop || 0) 
+        : window.scrollY;
+
+      if (scrollTop <= 1) {
+        touchStartRef.current = e.touches[0].clientY;
+        isPullingRef.current = true;
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!isPullingRef.current) return;
+
+      const clientY = e.touches[0].clientY;
+      const deltaY = clientY - touchStartRef.current;
+
+      if (deltaY > 0) {
+        if (e.cancelable) {
+          e.preventDefault();
+        }
+        const offset = Math.min(120, Math.pow(deltaY, 0.85) * 1.5);
+        setPullOffset(offset);
+      } else {
+        isPullingRef.current = false;
+        setPullOffset(0);
+      }
+    };
+
+    const handleTouchEnd = () => {
+      if (!isPullingRef.current) return;
+      isPullingRef.current = false;
+
+      if (pullOffset > 70) {
+        if (settings.hapticsEnabled) triggerHaptic('light');
+        if (settings.soundEnabled) triggerTick();
+
+        setPullOffset(70);
+        setIsRefreshingAll(true);
+        
+        const promises = [
+          loadData(true)
+        ];
+
+        if ('serviceWorker' in navigator) {
+          promises.push(
+            navigator.serviceWorker.getRegistration().then(async r => {
+              if (r) {
+                console.log('Visibility check: Triggering manual SW update check on pulldown...');
+                await r.update();
+              }
+            })
+          );
+        }
+
+        Promise.all(promises).finally(() => {
+          setTimeout(() => {
+            setPullOffset(0);
+            setIsRefreshingAll(false);
+          }, 800);
+        });
+      } else {
+        setPullOffset(0);
+      }
+    };
+
+    window.addEventListener('touchstart', handleTouchStart, { passive: true });
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
+    window.addEventListener('touchend', handleTouchEnd, { passive: true });
+
+    return () => {
+      window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [refreshing, isRefreshingAll, pullOffset, loadData, settings.hapticsEnabled, settings.soundEnabled]);
 
   // Synchronize dynamic device timezone with push notification server in the background
   useEffect(() => {
@@ -472,14 +561,18 @@ function App() {
       prevSearchTerm.current = searchTerm;
       if (searchTerm.trim()) {
         setActiveIndex(0);
-        if (scrollRef.current) {
-          scrollRef.current.scrollLeft = 0;
-          scrollRef.current.scrollTop = 0;
+        const container = document.querySelector('.swipe-container-outer');
+        if (container) {
+          container.scrollLeft = 0;
+          container.scrollTop = 0;
         }
-        if (daySelectorRef.current) daySelectorRef.current.scrollLeft = 0;
+        const daySelector = document.querySelector('.day-selector');
+        if (daySelector) {
+          daySelector.scrollLeft = 0;
+        }
       }
     }
-  }, [searchTerm, setActiveIndex, scrollRef, daySelectorRef]);
+  }, [searchTerm, setActiveIndex]);
 
   // Live Pill Tracking
   const activeEvents = useMemo(() => {
@@ -716,6 +809,33 @@ function App() {
 
   return (
     <div className="app-wrapper" style={{ touchAction: 'manipulation', '--hero-url': `url(${heroImg})` } as React.CSSProperties}>
+      <div 
+        className={`pull-to-refresh-indicator ${isRefreshingAll ? 'refreshing' : ''}`}
+        style={{
+          transform: `translate3d(-50%, ${pullOffset - 60}px, 0)`,
+          opacity: pullOffset > 10 || isRefreshingAll ? 1 : 0,
+          pointerEvents: 'none'
+        }}
+      >
+        <div className="pull-to-refresh-spinner-wrapper">
+          <svg className="pull-to-refresh-svg" viewBox="0 0 36 36">
+            <path
+              className="pull-to-refresh-bg"
+              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+            />
+            <path
+              className="pull-to-refresh-fill"
+              strokeDasharray={`${Math.min(100, (pullOffset / 70) * 100)}, 100`}
+              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+            />
+          </svg>
+          <span className="pull-to-refresh-icon">🔄</span>
+        </div>
+        <span className="pull-to-refresh-text">
+          {isRefreshingAll ? 'Updating itinerary & app...' : pullOffset > 70 ? 'Release to refresh' : 'Pull down to update app'}
+        </span>
+      </div>
+
       <div className={`sync-indicator ${refreshing ? 'visible' : ''}`}>
         <span className="sync-dot"></span> Syncing...
       </div>

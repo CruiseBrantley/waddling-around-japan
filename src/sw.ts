@@ -92,3 +92,10 @@ swSelf.addEventListener('notificationclick', (event: any) => {
     })
   );
 });
+
+// Skip waiting and activate the new service worker immediately when the user requests an update/refresh
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    swSelf.skipWaiting();
+  }
+});

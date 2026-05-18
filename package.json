@@ -1,7 +1,7 @@
 {
   "name": "waddling-around-japan",
   "private": true,
-  "version": "1.4.16",
+  "version": "1.4.19",
   "type": "module",
   "scripts": {
     "dev": "vite",
