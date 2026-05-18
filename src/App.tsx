@@ -69,6 +69,8 @@ function App() {
   const [isLiveCardInView, setIsLiveCardInView] = useState(true);
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
+  const [isSplashFading, setIsSplashFading] = useState(false);
 
   // 3. Data Hook
   const {
@@ -80,6 +82,22 @@ function App() {
     currentTime,
     isTripActive,
   } = useItinerary(settings.debugOffset);
+
+  // Splash Screen Fade-out Effect
+  useEffect(() => {
+    if ((!loading && itinerary) || error) {
+      const frameId = requestAnimationFrame(() => {
+        setIsSplashFading(true);
+      });
+      const timer = setTimeout(() => {
+        setShowSplash(false);
+      }, 600);
+      return () => {
+        cancelAnimationFrame(frameId);
+        clearTimeout(timer);
+      };
+    }
+  }, [loading, itinerary, error]);
 
   const { needRefresh: [needRefresh], updateServiceWorker } = useRegisterSW({
     onRegistered(r) {
@@ -680,14 +698,16 @@ function App() {
 
 
 
-  if (loading) {
+  if (loading && !itinerary) {
     return (
-      <div className="app-wrapper">
-        <BackgroundAura />
-        <div className="main-layout container">
-          <div className="loader-container">
-            <div className="shimmer-card"></div>
-            <div className="shimmer-card" style={{ opacity: 0.6 }}></div>
+      <div className="splash-screen">
+        <div className="splash-backdrop" style={{ backgroundImage: `url(${heroImg})` }}></div>
+        <div className="splash-overlay"></div>
+        <div className="splash-content">
+          <h1 className="splash-title">Waddling Around Japan</h1>
+          <p className="splash-subtitle">Your Premium Travel Guide</p>
+          <div className="splash-loader">
+            <div className="splash-loader-bar"></div>
           </div>
         </div>
       </div>
@@ -813,6 +833,20 @@ function App() {
         categories={categoryData.names}
         categoryColors={categoryData.colors}
       />
+
+      {showSplash && (
+        <div className={`splash-screen ${isSplashFading ? 'fade-out' : ''}`}>
+          <div className="splash-backdrop" style={{ backgroundImage: `url(${heroImg})` }}></div>
+          <div className="splash-overlay"></div>
+          <div className="splash-content">
+            <h1 className="splash-title">Waddling Around Japan</h1>
+            <p className="splash-subtitle">Your Premium Travel Guide</p>
+            <div className="splash-loader">
+              <div className="splash-loader-bar done"></div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
