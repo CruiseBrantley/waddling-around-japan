@@ -51,14 +51,14 @@ describe('Poller Logic Tests', () => {
       // 02:00 UTC is 11:00 AM Tokyo
       const current = new Date('2026-05-24T02:00:00Z');
       const result = getNextEvent(mockDays, current);
-      expect(result).toEqual({ title: 'Lunch', minutes: 180, time: '14:00', category: 'event' });
+      expect(result).toEqual({ title: 'Lunch', minutes: 180, time: '14:00', category: 'event', date: '2026-05-24' });
     });
 
     it('should find the next event tomorrow if today is done', () => {
       // 06:00 UTC is 3:00 PM Tokyo
       const current = new Date('2026-05-24T06:00:00Z');
       const result = getNextEvent(mockDays, current);
-      expect(result).toEqual({ title: 'Train', minutes: 1080, time: '09:00', category: 'event' });
+      expect(result).toEqual({ title: 'Train', minutes: 1080, time: '09:00', category: 'event', date: '2026-05-25' });
     });
 
     it('should return null if it is the last day and all events passed', () => {

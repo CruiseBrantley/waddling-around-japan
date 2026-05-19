@@ -81,7 +81,7 @@ describe('Smart Polling Tests', () => {
       {
         subscription: { endpoint: 'user-a' },
         settings: { notifyMinutesBefore: 10, notifyUrgentMinutesBefore: 1 },
-        lastHeadsUpEvent: 'Breakfast-10:00'
+        lastHeadsUpEvent: '2026-05-24-Breakfast-10:00'
       }
     ];
     fs.writeFileSync(TEST_SUBS_FILE, JSON.stringify(subs));
@@ -102,7 +102,7 @@ describe('Smart Polling Tests', () => {
       {
         subscription: { endpoint: 'user-a' },
         settings: { notifyMinutesBefore: 10, notifyUrgentMinutesBefore: 1 },
-        lastHeadsUpEvent: 'Breakfast-10:00'
+        lastHeadsUpEvent: '2026-05-24-Breakfast-10:00'
       }
     ];
     fs.writeFileSync(TEST_SUBS_FILE, JSON.stringify(subs));
@@ -118,7 +118,7 @@ describe('Smart Polling Tests', () => {
 
     // Verify file updated with lastUrgentEvent
     const updated = JSON.parse(fs.readFileSync(TEST_SUBS_FILE, 'utf8'));
-    expect(updated[0].lastUrgentEvent).toBe('Breakfast-10:00');
+    expect(updated[0].lastUrgentEvent).toBe('2026-05-24-Breakfast-10:00');
   });
 
   it('should support dynamic multi-timezone evaluation per-user', async () => {
@@ -230,7 +230,7 @@ describe('Smart Polling Tests', () => {
 
     // Verify file updated with lastUrgentEvent
     const updated = JSON.parse(fs.readFileSync(TEST_SUBS_FILE, 'utf8'));
-    expect(updated[0].lastUrgentEvent).toBe('Breakfast-10:00');
+    expect(updated[0].lastUrgentEvent).toBe('2026-05-24-Breakfast-10:00');
   });
 
   it('should process multiple overlapping/concurrent events without mutual blockage', async () => {
@@ -281,6 +281,6 @@ describe('Smart Polling Tests', () => {
 
     // Verify state was correctly updated for both events
     const updated = JSON.parse(fs.readFileSync(TEST_SUBS_FILE, 'utf8'));
-    expect(updated[0].lastUrgentEvent).toBe('Morning Meeting-10:02'); // Last urgent event updated
+    expect(updated[0].lastUrgentEvent).toBe('2026-05-24-Morning Meeting-10:02'); // Last urgent event updated
   });
 });

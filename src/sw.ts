@@ -61,7 +61,14 @@ swSelf.addEventListener('push', (event: any) => {
     swSelf.registration.getNotifications({ tag: data.tag }).then((notifications: any[]) => {
       // Force close existing notifications with the same tag to prevent stacking on all platforms
       notifications.forEach((n: any) => n.close());
-      return swSelf.registration.showNotification(data.title, options);
+      return swSelf.registration.showNotification(data.title, options).then(() => {
+        // Automatically sync the home screen app icon badge count to the number of active push notifications in the system tray
+        if ('setAppBadge' in navigator) {
+          return swSelf.registration.getNotifications().then((allActive: any[]) => {
+            return (navigator as any).setAppBadge(allActive.length);
+          });
+        }
+      });
     })
   );
 });
@@ -72,24 +79,40 @@ swSelf.addEventListener('notificationclick', (event: any) => {
   const urlToOpen = new URL(swSelf.location.origin)
   urlToOpen.searchParams.set('from_notification', '1')
 
+  const badgePromise = (() => {
+    if ('setAppBadge' in navigator) {
+      return swSelf.registration.getNotifications().then((allActive: any[]) => {
+        if (allActive.length > 0) {
+          return (navigator as any).setAppBadge(allActive.length);
+        } else {
+          return (navigator as any).clearAppBadge();
+        }
+      });
+    }
+    return Promise.resolve();
+  })();
+
   event.waitUntil(
-    swSelf.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients: any[]) => {
-      // 1. Try to focus an existing window
-      for (const client of windowClients) {
-        if (client.url === urlToOpen.href || client.url === swSelf.location.origin + '/') {
-          if ('focus' in client) {
-            // Send a message to the client to trigger navigation
-            client.postMessage({ type: 'NOTIFICATION_CLICK' });
-            return client.focus();
+    Promise.all([
+      badgePromise,
+      swSelf.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients: any[]) => {
+        // 1. Try to focus an existing window
+        for (const client of windowClients) {
+          if (client.url === urlToOpen.href || client.url === swSelf.location.origin + '/') {
+            if ('focus' in client) {
+              // Send a message to the client to trigger navigation
+              client.postMessage({ type: 'NOTIFICATION_CLICK' });
+              return client.focus();
+            }
           }
         }
-      }
-      
-      // 2. Otherwise open a new window
-      if (swSelf.clients.openWindow) {
-        return swSelf.clients.openWindow(urlToOpen.href);
-      }
-    })
+        
+        // 2. Otherwise open a new window
+        if (swSelf.clients.openWindow) {
+          return swSelf.clients.openWindow(urlToOpen.href);
+        }
+      })
+    ])
   );
 });
 

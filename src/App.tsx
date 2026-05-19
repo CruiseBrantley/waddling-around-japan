@@ -20,7 +20,7 @@ import { useScrollSync } from './hooks/useScrollSync'
 
 // Utils
 import { timeToMinutes } from './utils/time'
-import { setAppBadge, clearAppBadge, triggerHaptic, triggerTick, showLocalNotification, setHapticsEnabled, clearEventNotifications, subscribeToPushNotifications } from './utils/native'
+import { clearAppBadge, triggerHaptic, triggerTick, showLocalNotification, setHapticsEnabled, clearEventNotifications, subscribeToPushNotifications } from './utils/native'
 import heroImg from './assets/hero_optimized.jpg'
 import type { ItineraryActivity } from './services/sheets'
 
@@ -759,23 +759,7 @@ function App() {
   // Automatic Notifications for upcoming activities removed!
   // Notifications are now completely driven by the backend server via Web Push.
 
-  useEffect(() => {
-    // Show remaining activities today as a badge
-    const todayIdx = filteredDays.findIndex(d => isSameDay(d.date, currentTime));
-    if (todayIdx !== -1) {
-      const today = filteredDays[todayIdx];
-      const nowMin = currentTime.getHours() * 60 + currentTime.getMinutes();
-      const remainingCount = today.activities.filter(act => act.time && timeToMinutes(act.time) > nowMin).length;
-      
-      if (remainingCount > 0) {
-        setAppBadge(remainingCount);
-      } else {
-        clearAppBadge();
-      }
-    } else {
-      clearAppBadge();
-    }
-  }, [filteredDays, currentTime, isSameDay]);
+
 
 
 

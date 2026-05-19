@@ -67,6 +67,7 @@ export interface AlertTarget {
   minutes: number;
   time: string;
   category: string;
+  date: string;
 }
 
 // Helper to get minutes from midnight in local/Japan time
@@ -101,7 +102,7 @@ export const getNextEvent = (days: ItineraryDay[], currentTime: Date, timeZone: 
 
   if (upcomingToday.length > 0) {
     const act = upcomingToday[0];
-    return { title: act.title, minutes: act.minutes, time: act.time, category: act.category };
+    return { title: act.title, minutes: act.minutes, time: act.time, category: act.category, date: today.date };
   } else {
     for (let i = todayIdx + 1; i < days.length; i++) {
       const nextDay = days[i];
@@ -110,7 +111,7 @@ export const getNextEvent = (days: ItineraryDay[], currentTime: Date, timeZone: 
         const firstActivity = nextDayEvents[0];
         const daysBetween = i - todayIdx;
         const minutesUntil = (daysBetween * 24 * 60) - nowMin + timeToMinutes(firstActivity.time);
-        return { title: firstActivity.title, minutes: minutesUntil, time: firstActivity.time, category: firstActivity.category };
+        return { title: firstActivity.title, minutes: minutesUntil, time: firstActivity.time, category: firstActivity.category, date: nextDay.date };
       }
     }
   }
@@ -138,7 +139,8 @@ export const getActiveEvents = (days: ItineraryDay[], currentTime: Date, timeZon
       title: act.title,
       minutes: timeToMinutes(act.time) - nowMin,
       time: act.time,
-      category: act.category
+      category: act.category,
+      date: today.date
     }))
     .filter(act => act.minutes >= -5); // Grace period prevents missing start notifications due to polling latency
 
@@ -156,7 +158,8 @@ export const getActiveEvents = (days: ItineraryDay[], currentTime: Date, timeZon
           title: firstActivity.title,
           minutes: minutesUntil,
           time: firstActivity.time,
-          category: firstActivity.category
+          category: firstActivity.category,
+          date: nextDay.date
         });
         break;
       }
@@ -200,8 +203,8 @@ export const pollAndNotify = async (mockTime?: Date) => {
       if (activeEvents.length === 0) continue;
 
       for (const event of activeEvents) {
-        const { title, minutes, time, category } = event;
-        const eventKey = `${title}-${time}`;
+        const { title, minutes, time, category, date } = event;
+        const eventKey = `${date}-${title}-${time}`;
 
         // Skip if category is disabled for this user
         if (sub.settings?.disabledCategories?.includes(category)) {

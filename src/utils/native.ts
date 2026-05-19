@@ -401,6 +401,8 @@ export const clearEventNotifications = async () => {
         }
       });
     }
+    // Automatically clear the home screen app icon badge count
+    clearAppBadge();
   } catch (e) {
     console.warn('Failed to clear notifications:', e);
   }
