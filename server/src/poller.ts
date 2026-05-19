@@ -219,33 +219,57 @@ export const pollAndNotify = async (mockTime?: Date) => {
         if (minutes >= -5 && minutes <= urgentThreshold) {
           // Urgent Window: Only evaluate and send the urgent notification
           if (sub.lastUrgentEvent !== eventKey) {
-            await sendPush(sub, {
-              title: `Starting Now: ${title}`,
-              body: `Time to head out! (${time})`,
-              type: 'urgent',
-              tag: 'itinerary-alert'
-            });
-            sub.lastUrgentEvent = eventKey;
-            updatedAny = true;
+            try {
+              await sendPush(sub, {
+                title: `Starting Now: ${title}`,
+                body: `Time to head out! (${time})`,
+                type: 'urgent',
+                tag: 'itinerary-alert'
+              });
+              sub.lastUrgentEvent = eventKey;
+              updatedAny = true;
+            } catch (err: unknown) {
+              const pushErr = err as { statusCode?: number } & Error;
+              console.error('Failed to send urgent push:', pushErr);
+              if (pushErr.statusCode === 410 || pushErr.statusCode === 404) {
+                console.log(`Marking dead subscription for removal: ${sub.subscription.endpoint}`);
+                sub.isDead = true;
+              }
+            }
           }
         } else if (minutes > urgentThreshold && minutes <= headsUpThreshold) {
           // Heads-up Window: Only evaluate and send the upcoming notification
           if (sub.lastHeadsUpEvent !== eventKey) {
-            await sendPush(sub, {
-              title: `Upcoming: ${title}`,
-              body: `Starting in ${Math.ceil(minutes)} minutes (${time})`,
-              type: 'info',
-              tag: 'itinerary-alert'
-            });
-            sub.lastHeadsUpEvent = eventKey;
-            updatedAny = true;
+            try {
+              await sendPush(sub, {
+                title: `Upcoming: ${title}`,
+                body: `Starting in ${Math.ceil(minutes)} minutes (${time})`,
+                type: 'info',
+                tag: 'itinerary-alert'
+              });
+              sub.lastHeadsUpEvent = eventKey;
+              updatedAny = true;
+            } catch (err: unknown) {
+              const pushErr = err as { statusCode?: number } & Error;
+              console.error('Failed to send heads-up push:', pushErr);
+              if (pushErr.statusCode === 410 || pushErr.statusCode === 404) {
+                console.log(`Marking dead subscription for removal: ${sub.subscription.endpoint}`);
+                sub.isDead = true;
+              }
+            }
           }
         }
       }
     }
 
+    const activeSubs = subscriptions.filter(s => !s.isDead);
+    if (activeSubs.length !== subscriptions.length) {
+      console.log(`Cleaned up ${subscriptions.length - activeSubs.length} dead/expired subscription(s).`);
+      updatedAny = true;
+    }
+
     if (updatedAny) {
-      fs.writeFileSync(subscriptionsFile, JSON.stringify(subscriptions, null, 2), 'utf8');
+      fs.writeFileSync(subscriptionsFile, JSON.stringify(activeSubs, null, 2), 'utf8');
     }
 
   } catch (error) {
@@ -254,15 +278,11 @@ export const pollAndNotify = async (mockTime?: Date) => {
 };
 
 const sendPush = async (subData: SubscriptionData, payloadObj: Record<string, unknown>) => {
-  try {
-    const payload = JSON.stringify(payloadObj);
-    console.log(`Sending Web Push to device: ${String(payloadObj.title)}`);
-    await webPush.sendNotification(subData.subscription, payload, {
-      urgency: 'high',
-      TTL: 3600 // 1 hour Time-to-Live
-    });
-  } catch (e) {
-    console.error('Individual push failed:', e);
-  }
+  const payload = JSON.stringify(payloadObj);
+  console.log(`Sending Web Push to device: ${String(payloadObj.title)}`);
+  await webPush.sendNotification(subData.subscription, payload, {
+    urgency: 'high',
+    TTL: 3600 // 1 hour Time-to-Live
+  });
 };
 

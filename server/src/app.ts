@@ -25,6 +25,7 @@ export interface SubscriptionData {
   lastHeadsUpEvent?: string; // e.g. "Dinner-2024-05-15"
   lastUrgentEvent?: string;
   isDev?: boolean;
+  isDead?: boolean;
 }
 
 // Set up the subscriptions file path (can be overridden for testing)
@@ -66,12 +67,27 @@ app.post('/subscribe', (req, res) => {
   
   // Find index to update or add
   const index = subscriptions.findIndex(s => s.subscription && s.subscription.endpoint === subscription.endpoint);
+  const existing = index !== -1 ? subscriptions[index] : null;
   
   const newData: SubscriptionData = {
     subscription,
     settings: settings || { notifyMinutesBefore: 10, notifyUrgentMinutesBefore: 1, disabledCategories: [] },
-    isDev: req.body.isDev === true
+    isDev: req.body.isDev === true,
+    lastHeadsUpEvent: existing?.lastHeadsUpEvent,
+    lastUrgentEvent: existing?.lastUrgentEvent
   };
+
+  // If this is a developer subscription, reset their duplication logs if the debug offset has changed,
+  // which indicates they shifted or rewound the mock time for notification testing.
+  if (newData.isDev && existing) {
+    const oldOffset = existing.settings?.debugOffset;
+    const newOffset = newData.settings?.debugOffset;
+    if (oldOffset !== newOffset) {
+      console.log(`Resetting dev notification duplication logs for ${subscription.endpoint} because debug time offset changed from ${oldOffset} to ${newOffset}.`);
+      newData.lastHeadsUpEvent = undefined;
+      newData.lastUrgentEvent = undefined;
+    }
+  }
 
   if (index !== -1) {
     subscriptions[index] = newData;
@@ -151,6 +167,22 @@ app.post('/poll', async (req, res) => {
       parsedMockTime = new Date(mockTime);
       if (isNaN(parsedMockTime.getTime())) {
         return res.status(400).json({ error: 'Invalid mockTime format. Must be a valid ISO 8601 absolute date string.' });
+      }
+
+      // Automatically reset duplication logs for all developer subscriptions during manual mock time polls
+      // to make rewinding and retesting notifications completely seamless!
+      const subscriptions = loadSubscriptions();
+      let updated = false;
+      for (const sub of subscriptions) {
+        if (sub.isDev) {
+          sub.lastHeadsUpEvent = undefined;
+          sub.lastUrgentEvent = undefined;
+          updated = true;
+        }
+      }
+      if (updated) {
+        saveSubscriptions(subscriptions);
+        console.log('Reset dev notification duplication logs for manual mock time poll.');
       }
     }
 

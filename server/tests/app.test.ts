@@ -126,4 +126,75 @@ describe('Express Server API Tests', () => {
     expect(response.status).toBe(400);
     expect(response.body.error).toContain('Invalid mockTime format');
   });
+
+  it('should reset duplication logs for developers when debugOffset is updated on /subscribe', async () => {
+    const mockSubscription = { endpoint: 'https://example.com/push/dev-reset-test' };
+    
+    // First subscribe with no offset, but with recorded event keys
+    await request(app)
+      .post('/subscribe')
+      .send({ 
+        subscription: mockSubscription, 
+        settings: { notifyMinutesBefore: 10, notifyUrgentMinutesBefore: 1, debugOffset: 1000 },
+        isDev: true
+      });
+
+    // Manually inject some mock event keys to simulate an already-triggered notification
+    const dataBefore = JSON.parse(fs.readFileSync(TEST_SUBS_FILE, 'utf8'));
+    dataBefore[0].lastHeadsUpEvent = 'Breakfast-10:00';
+    dataBefore[0].lastUrgentEvent = 'Breakfast-10:00';
+    fs.writeFileSync(TEST_SUBS_FILE, JSON.stringify(dataBefore, null, 2), 'utf8');
+
+    // Subscribe again with the SAME debug offset -> should preserve logs
+    await request(app)
+      .post('/subscribe')
+      .send({ 
+        subscription: mockSubscription, 
+        settings: { notifyMinutesBefore: 10, notifyUrgentMinutesBefore: 1, debugOffset: 1000 },
+        isDev: true
+      });
+    
+    const dataPreserved = JSON.parse(fs.readFileSync(TEST_SUBS_FILE, 'utf8'));
+    expect(dataPreserved[0].lastHeadsUpEvent).toBe('Breakfast-10:00');
+    expect(dataPreserved[0].lastUrgentEvent).toBe('Breakfast-10:00');
+
+    // Subscribe again with a DIFFERENT debug offset -> should reset logs
+    await request(app)
+      .post('/subscribe')
+      .send({ 
+        subscription: mockSubscription, 
+        settings: { notifyMinutesBefore: 10, notifyUrgentMinutesBefore: 1, debugOffset: 2000 },
+        isDev: true
+      });
+
+    const dataReset = JSON.parse(fs.readFileSync(TEST_SUBS_FILE, 'utf8'));
+    expect(dataReset[0].lastHeadsUpEvent).toBeUndefined();
+    expect(dataReset[0].lastUrgentEvent).toBeUndefined();
+  });
+
+  it('should automatically reset dev duplication logs on manual mock-time /poll', async () => {
+    // 1. Subscribe as a developer and manually record some event keys
+    await request(app)
+      .post('/subscribe')
+      .send({ 
+        subscription: { endpoint: 'https://example.com/push/dev-poll-reset' },
+        settings: { notifyMinutesBefore: 10, notifyUrgentMinutesBefore: 1 },
+        isDev: true
+      });
+
+    const dataBefore = JSON.parse(fs.readFileSync(TEST_SUBS_FILE, 'utf8'));
+    dataBefore[0].lastHeadsUpEvent = 'Breakfast-10:00';
+    dataBefore[0].lastUrgentEvent = 'Breakfast-10:00';
+    fs.writeFileSync(TEST_SUBS_FILE, JSON.stringify(dataBefore, null, 2), 'utf8');
+
+    // 2. Call /poll with a mockTime
+    await request(app)
+      .post('/poll')
+      .send({ mockTime: '2026-05-24T12:00:00Z' });
+
+    // 3. Verify they were reset
+    const dataAfter = JSON.parse(fs.readFileSync(TEST_SUBS_FILE, 'utf8'));
+    expect(dataAfter[0].lastHeadsUpEvent).toBeUndefined();
+    expect(dataAfter[0].lastUrgentEvent).toBeUndefined();
+  });
 });
