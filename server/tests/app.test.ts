@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import request from 'supertest';
 import { app, setSubscriptionsFile, setAdvisorCacheFile } from '../src/app';
 import fs from 'fs';
@@ -223,13 +224,7 @@ describe('Express Server API Tests', () => {
       expect(response.body.cache).toBeDefined();
     });
 
-    it('GET /advisor should return 404 and null if not cached', async () => {
-      const response = await request(app).get('/advisor?date=2026-05-24&region=Kyoto');
-      expect(response.status).toBe(404);
-      expect(response.body.content).toBeNull();
-    });
-
-    it('POST /advisor should store and allow GET to retrieve cached advisor notes', async () => {
+    it('POST /advisor should store and allow GET to retrieve cached advisor notes inside the bulk cache', async () => {
       // 1. Store
       const postRes = await request(app)
         .post('/advisor')
@@ -241,10 +236,11 @@ describe('Express Server API Tests', () => {
       expect(postRes.status).toBe(201);
       expect(postRes.body.success).toBe(true);
 
-      // 2. Retrieve
-      const getRes = await request(app).get('/advisor?date=2026-05-24&region=Kyoto');
+      // 2. Retrieve via bulk cache GET /advisor
+      const getRes = await request(app).get('/advisor');
       expect(getRes.status).toBe(200);
-      expect(getRes.body.content).toBe('Kyoto is expected to be cloudy. Wear light shoes.');
+      expect(getRes.body.cache['2026-05-24_kyoto']).toBeDefined();
+      expect(getRes.body.cache['2026-05-24_kyoto'].content).toBe('Kyoto is expected to be cloudy. Wear light shoes.');
     });
 
     it('POST /advisor/generate should return cached value if already cached', async () => {

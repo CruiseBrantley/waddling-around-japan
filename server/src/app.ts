@@ -1,18 +1,39 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-require-imports, @typescript-eslint/no-unused-vars */
 import express from 'express';
 import cors from 'cors';
 import webPush from 'web-push';
 import fs from 'fs';
 import path from 'path';
 import { pollAndNotify } from './poller';
-import { asyncGetWeatherData, getWeatherData, parseDateStrToYYYYMMDD } from './weather';
-import { fetchItinerary } from './sheets';
-import { generateAdvisory, setAdvisorCacheFile, loadAdvisorCache, saveAdvisorCache, extractRegionsForDay } from './generator';
+import { asyncGetWeatherData, getWeatherData } from './weather';
+import { generateAdvisory, setAdvisorCacheFile, loadAdvisorCache, saveAdvisorCache } from './generator';
 
 export const app = express();
 
+// Allowed origins: Firebase Hosting, ngrok tunnels, and localhost for dev
+const ALLOWED_ORIGINS = [
+  'https://waddling-around-japan.web.app',
+  'https://waddling-around-japan.firebaseapp.com',
+];
+
 app.use(cors({
-  allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning']
+  origin: (origin, callback) => {
+    // Allow requests with no origin (e.g. mobile apps, server-to-server, curl)
+    if (!origin) return callback(null, true);
+    // Allow any ngrok tunnel or localhost
+    if (origin.endsWith('.ngrok-free.app') || origin.endsWith('.ngrok.io') || origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1')) {
+      return callback(null, true);
+    }
+    if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+    callback(new Error(`CORS: origin '${origin}' not allowed`));
+  },
+  allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  credentials: true,
 }));
+
+// Respond to all OPTIONS preflight requests explicitly via global cors middleware
+
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
@@ -262,136 +283,45 @@ app.get('/regions/bulk', async (req, res): Promise<any> => {
   }
 });
 
-// Endpoint to fetch cached AI Travel Advisor notes (packaged with weather)
+// Endpoint to fetch the full cached AI Travel Advisor cache packaged with weather.
+// No query params = bulk load. Per-day parameterised fetching has been removed;
+// clients must use the bulk endpoint on startup instead.
 app.get('/advisor', async (req, res): Promise<any> => {
-  const { date, region, currentTime } = req.query;
+  const { currentTime } = req.query;
   const cache = loadAdvisorCache();
 
-  if (!date) {
-    console.log('Server: Serving full advisor cache packaged with weather');
-    const systemTime = currentTime ? new Date(currentTime as string) : new Date();
-    const packagedCache: Record<string, { content: string; weather: any }> = {};
+  console.log('Server: Serving full advisor cache packaged with weather');
+  const systemTime = currentTime ? new Date(currentTime as string) : new Date();
+  const packagedCache: Record<string, { content: string; weather: any }> = {};
 
-    for (const key of Object.keys(cache)) {
-      const lastUnderscore = key.lastIndexOf('_');
-      if (lastUnderscore !== -1) {
-        const dateStr = key.substring(0, lastUnderscore);
-        const regionStr = key.substring(lastUnderscore + 1);
-        try {
-          const weather = await asyncGetWeatherData(regionStr, dateStr, systemTime);
-          packagedCache[key] = {
-            content: cache[key],
-            weather
-          };
-        } catch (err) {
-          const simulatedWeather = getWeatherData(regionStr, dateStr, systemTime);
-          packagedCache[key] = {
-            content: cache[key],
-            weather: simulatedWeather
-          };
-        }
-      } else {
-        // Full day advisor key
+  for (const key of Object.keys(cache)) {
+    const lastUnderscore = key.lastIndexOf('_');
+    if (lastUnderscore !== -1) {
+      const dateStr = key.substring(0, lastUnderscore);
+      const regionStr = key.substring(lastUnderscore + 1);
+      try {
+        const weather = await asyncGetWeatherData(regionStr, dateStr, systemTime);
         packagedCache[key] = {
           content: cache[key],
-          weather: null
+          weather
+        };
+      } catch (err) {
+        const simulatedWeather = getWeatherData(regionStr, dateStr, systemTime);
+        packagedCache[key] = {
+          content: cache[key],
+          weather: simulatedWeather
         };
       }
-    }
-
-    return res.status(200).json({ cache: packagedCache });
-  }
-
-  const systemTime = currentTime ? new Date(currentTime as string) : new Date();
-  const cacheKey = date as string;
-  const legacyCacheKey = region ? `${date}_${(region as string).toLowerCase()}` : null;
-
-  try {
-    // 1. Determine regions for this day
-    let regions: string[] = [];
-    if (region) {
-      regions = [region as string];
     } else {
-      try {
-        const itinerary = await fetchItinerary();
-        const targetDateStr = date as string;
-        const targetYYYYMMDD = parseDateStrToYYYYMMDD(targetDateStr);
-        const dayData = itinerary.days.find((d: any) => 
-          d.date === targetDateStr || 
-          (parseDateStrToYYYYMMDD(d.date) === targetYYYYMMDD)
-        );
-        if (dayData) {
-          regions = await extractRegionsForDay(dayData.date, dayData.activities);
-        }
-      } catch (itineraryErr) {
-        console.warn('Server: Failed to fetch itinerary to resolve regions:', itineraryErr);
-      }
+      // Full day advisor key (no region suffix)
+      packagedCache[key] = {
+        content: cache[key],
+        weather: null
+      };
     }
-    if (regions.length === 0) {
-      regions = ["Tokyo"];
-    }
-
-    // 2. Pull the weather for all regions
-    const weatherList = [];
-    for (const reg of regions) {
-      try {
-        const weatherObj = await asyncGetWeatherData(reg, date as string, systemTime);
-        weatherList.push(weatherObj);
-      } catch (err) {
-        const simulatedWeather = getWeatherData(reg, date as string, systemTime);
-        weatherList.push(simulatedWeather);
-      }
-    }
-
-    // For backwards compatibility with single-region clients/tests, send single "weather" field
-    const weather = weatherList[0];
-
-    // 3. Check if we have the advisor note in cache
-    const cachedContent = cache[cacheKey] || (legacyCacheKey ? cache[legacyCacheKey] : null);
-    if (cachedContent) {
-      console.log(`Server: Serving cached advisor for ${cacheKey}`);
-      return res.status(200).json({ content: cachedContent, weather, weatherList, regions });
-    }
-
-    // Bypass dynamic generation in test mode when not cached
-    if (process.env.NODE_ENV === 'test') {
-      console.log(`Server: Test environment cache miss bypass for ${cacheKey}`);
-      return res.status(404).json({ content: null, weather, weatherList, regions });
-    }
-
-    // 4. Cache miss: attempt dynamic on-the-fly generation
-    console.log(`Server: Cache miss for advisor ${cacheKey}. Attempting dynamic generation...`);
-    let activities: any[] = [];
-    try {
-      const itinerary = await fetchItinerary();
-      const targetDateStr = date as string;
-      const targetYYYYMMDD = parseDateStrToYYYYMMDD(targetDateStr);
-
-      const dayData = itinerary.days.find((d: any) => 
-        d.date === targetDateStr || 
-        (parseDateStrToYYYYMMDD(d.date) === targetYYYYMMDD)
-      );
-      if (dayData) {
-        activities = dayData.activities;
-      }
-    } catch (itineraryErr) {
-      console.warn('Server: Failed to fetch itinerary for dynamic advisor generation, using empty activities list:', itineraryErr);
-    }
-
-    try {
-      const result = await generateAdvisory(date as string, regions, weatherList, activities);
-      return res.status(200).json({ content: result.content, weather, weatherList, regions });
-    } catch (genErr: any) {
-      console.error(`Server: Dynamic advisor generation failed: ${genErr.message || genErr}`);
-      return res.status(200).json({ content: null, weather, weatherList, regions });
-    }
-  } catch (err: any) {
-    console.error(`Server: Failed in /advisor endpoint. Error: ${err.message || err}`);
-    // Safe fallback: return simulated weather and null content
-    const fallbackReg = region as string || 'Tokyo';
-    const fallbackWeather = getWeatherData(fallbackReg, date as string, systemTime);
-    return res.status(200).json({ content: null, weather: fallbackWeather, weatherList: [fallbackWeather], regions: [fallbackReg] });
   }
+
+  return res.status(200).json({ cache: packagedCache });
 });
 
 // Endpoint to store cached AI Travel Advisor notes

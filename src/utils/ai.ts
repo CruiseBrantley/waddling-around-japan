@@ -61,30 +61,6 @@ export async function fetchAIAdvisory(request: AIAdvisoryRequest): Promise<strin
 
   const apiUrl = getApiUrl();
 
-  // 2. Fetch from the push server (Centralized cache hit check)
-  try {
-    console.log(`AI: Querying push server cache at ${apiUrl}/advisor for ${date}/${region}`);
-    const getRes = await fetch(`${apiUrl}/advisor?date=${encodeURIComponent(date)}&region=${encodeURIComponent(region)}`, {
-      headers: {
-        'ngrok-skip-browser-warning': 'true'
-      }
-    });
-    if (getRes.ok) {
-      const getData = await getRes.json();
-      if (getData && getData.content) {
-        console.log('AI: Loaded generated advisory from Push Server cache.');
-        try {
-          localStorage.setItem(cacheKey, getData.content);
-        } catch (e) {
-          console.warn('AI: Failed to cache server response locally:', e);
-        }
-        return getData.content;
-      }
-    }
-  } catch (e) {
-    console.warn('AI: Failed to query push server cache:', e);
-  }
-
   // 3. Ask the server to generate (since only the server has access to local Gemma and fallback)
   console.log(`AI: Requesting push server to generate advisory via Gemma/Gemini...`);
   const genRes = await fetch(`${apiUrl}/advisor/generate`, {
