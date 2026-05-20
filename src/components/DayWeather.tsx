@@ -46,7 +46,7 @@ export const DayWeather: React.FC<DayWeatherProps> = ({
   }, [regions, selectedRegion]);
 
   // Load weather and check local cache for AI advisory
-  const [weather, setWeather] = useState<WeatherData | null>(() => {
+  const [weather, setWeather] = useState<WeatherData>(() => {
     // Initial value: fall back immediately to simulated climate so we have instant data!
     return getWeatherData(selectedRegion, date, currentTime);
   });
