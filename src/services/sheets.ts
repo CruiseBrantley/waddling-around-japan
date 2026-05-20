@@ -581,7 +581,8 @@ export async function fetchBulkRegions(): Promise<Record<string, string[]>> {
     const regionsRes = await fetch(`${apiUrl}/regions/bulk`, {
       method: 'GET',
       headers: { 
-        'ngrok-skip-browser-warning': 'true'
+        'ngrok-skip-browser-warning': 'true',
+        'Bypass-Tunnel-Reminder': 'true'
       }
     });
     

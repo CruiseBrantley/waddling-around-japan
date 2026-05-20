@@ -21,7 +21,7 @@ app.use(cors({
     // Dynamically allow any origin to guarantee seamless local network connectivity across all IPs/tunnels
     return callback(null, true);
   },
-  allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning', 'Bypass-Tunnel-Reminder'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   credentials: true,
 }));

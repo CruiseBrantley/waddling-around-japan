@@ -251,7 +251,8 @@ export const subscribeToPushNotifications = async (settings: { notifyMinutesBefo
       }),
       headers: {
         'Content-Type': 'application/json',
-        'ngrok-skip-browser-warning': 'true'
+        'ngrok-skip-browser-warning': 'true',
+        'Bypass-Tunnel-Reminder': 'true'
       }
     });
 
@@ -288,7 +289,8 @@ export const unsubscribeFromPushNotifications = async () => {
           body: JSON.stringify({ endpoint: subscription.endpoint }),
           headers: {
             'Content-Type': 'application/json',
-            'ngrok-skip-browser-warning': 'true'
+            'ngrok-skip-browser-warning': 'true',
+            'Bypass-Tunnel-Reminder': 'true'
           }
         });
         

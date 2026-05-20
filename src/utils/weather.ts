@@ -24,7 +24,8 @@ export async function fetchRegionsForDay(activities: ItineraryActivity[], dateSt
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
-        'ngrok-skip-browser-warning': 'true'
+        'ngrok-skip-browser-warning': 'true',
+        'Bypass-Tunnel-Reminder': 'true'
       },
       body: JSON.stringify({ date: dateStr, activities })
     });
@@ -44,6 +45,8 @@ export async function fetchRegionsForDay(activities: ItineraryActivity[], dateSt
 
 // Generate realistic simulated climate conditions for late May/early June in Japan (FALLBACK)
 export function getWeatherData(region: string, _dateStr: string, _currentTime: Date): WeatherData {
+  void _dateStr;
+  void _currentTime;
   // Return a generic "Out of Range" response for dates too far in the future
   return {
     region,

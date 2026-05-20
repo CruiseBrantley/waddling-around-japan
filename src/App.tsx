@@ -96,7 +96,10 @@ function App() {
     try {
       const apiUrl = getApiUrl();
       const response = await fetch(`${apiUrl}/advisor`, {
-        headers: { 'ngrok-skip-browser-warning': 'true' }
+        headers: {
+          'ngrok-skip-browser-warning': 'true',
+          'Bypass-Tunnel-Reminder': 'true'
+        }
       });
       if (response.ok) {
         const data = await response.json();
