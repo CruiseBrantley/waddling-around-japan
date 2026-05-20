@@ -135,6 +135,7 @@ function App() {
             }
           });
           console.log(`Pre-populated local storage advisor cache with ${Object.keys(data.cache).length} entries`);
+          window.dispatchEvent(new Event('advisor_cache_updated'));
         }
       }
     } catch (err) {

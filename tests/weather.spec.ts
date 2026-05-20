@@ -160,27 +160,32 @@ test.describe('Weather Widget & AI Advisory Integration', () => {
     await page.route('**/advisor*', async route => {
       const urlStr = route.request().url();
       if (!urlStr.includes('?')) {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ cache: {} })
-        });
-      } else {
-        const url = new URL(urlStr);
-        const region = url.searchParams.get('region') || 'Tokyo';
-        const date = url.searchParams.get('date') || '';
-        const currentTimeStr = url.searchParams.get('currentTime');
-        const currentTime = currentTimeStr ? new Date(currentTimeStr) : new Date();
-
-        const weather = getMockWeatherData(region, date, currentTime);
+        const dummyTime = new Date('2026-05-24T12:00:00Z');
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
           body: JSON.stringify({
-            content: null,
-            weather
+            cache: {
+              "Sun, 5/24/26_Osaka": {
+                content: null,
+                weather: getMockWeatherData('Osaka', 'Sun, 5/24/26', dummyTime)
+              },
+              "Sun, 5/24/26": {
+                content: null
+              },
+              "Thu, 5/28/26_Kyoto": {
+                content: null,
+                weather: getMockWeatherData('Kyoto', 'Thu, 5/28/26', dummyTime)
+              },
+              "Tue, 6/2/26_Mount Fuji": {
+                content: null,
+                weather: getMockWeatherData('Mount Fuji', 'Tue, 6/2/26', dummyTime)
+              }
+            }
           })
         });
+      } else {
+        await route.continue();
       }
     });
   });
@@ -260,33 +265,35 @@ test.describe('Weather Widget & AI Advisory Integration', () => {
     await expect(disabledCard).toContainText('Preparing daily tailored outfits');
   });
 
-  test('should silently fetch, display, and cache daily advisor note on a server cache hit', async ({ page }) => {
+  test('should instantly render advisor from bulk cache load on mount', async ({ page }) => {
     let advisorFetchCount = 0;
 
-    // Intercept GET /advisor to return a cache HIT immediately
-    await page.route('**/advisor?*', async route => {
+    // Intercept GET /advisor to return a populated cache map for the bulk request
+    await page.route('**/advisor*', async route => {
       const urlStr = route.request().url();
-      const url = new URL(urlStr);
-      const hasRegion = url.searchParams.has('region');
-
-      if (!hasRegion) {
+      
+      // We only care about the bulk fetch
+      if (!urlStr.includes('?')) {
         advisorFetchCount++;
+        const weather = getMockWeatherData('Osaka', 'Sun, 5/24/26', new Date('2026-05-24T12:00:00Z'));
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            cache: {
+              "Sun, 5/24/26_Osaka": {
+                content: "Shared Group Insight: Another group member generated this note for Osaka. Have fun!",
+                weather
+              },
+              "Sun, 5/24/26": {
+                content: "Shared Group Insight: Another group member generated this note for Osaka. Have fun!"
+              }
+            }
+          })
+        });
+      } else {
+        await route.continue();
       }
-
-      const region = url.searchParams.get('region') || 'Osaka';
-      const date = url.searchParams.get('date') || '';
-      const currentTimeStr = url.searchParams.get('currentTime');
-      const currentTime = currentTimeStr ? new Date(currentTimeStr) : new Date();
-      const weather = getMockWeatherData(region, date, currentTime);
-
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          content: "Shared Group Insight: Another group member generated this note for Osaka. Have fun!",
-          weather
-        })
-      });
     });
 
     await page.goto('/');
@@ -294,7 +301,7 @@ test.describe('Weather Widget & AI Advisory Integration', () => {
     // Expand drawer
     await page.locator('.swipe-slide.active .weather-main-panel').click();
 
-    // Verify the AI Advisory Output is visible immediately on mount (since it was fetched silently)
+    // Verify the AI Advisory Output is visible immediately on mount (since it was fetched in bulk on load)
     const renderedAdvisory = page.locator('.swipe-slide.active .ai-advisory-output');
     await expect(renderedAdvisory).toBeVisible();
     await expect(renderedAdvisory).toContainText('Shared Group Insight');
@@ -302,15 +309,15 @@ test.describe('Weather Widget & AI Advisory Integration', () => {
     expect(advisorFetchCount).toBeGreaterThan(0);
     const firstLoadCount = advisorFetchCount;
 
-    // Reload the page and expand again to confirm it is loaded instantly from client-side localStorage cache
-    await page.reload();
-    await page.locator('.swipe-slide.active .weather-main-panel').click();
-
-    // Verify advisory is still visible
-    await expect(renderedAdvisory).toBeVisible();
-    await expect(renderedAdvisory).toContainText('Shared Group Insight');
-
-    // It should NOT have triggered another network fetch request (so count remains equal to firstLoadCount)
+    // Swipe to another day instead of reloading, to confirm UI interactions don't trigger network requests
+    await page.locator('.swipe-slide.active').dispatchEvent('touchstart', { touches: [{ identifier: 0, clientX: 300, clientY: 300 }] });
+    await page.locator('.swipe-slide.active').dispatchEvent('touchmove', { touches: [{ identifier: 0, clientX: 100, clientY: 300 }] });
+    await page.locator('.swipe-slide.active').dispatchEvent('touchend');
+    
+    // Give it time to snap
+    await page.waitForTimeout(500);
+    
+    // We expect the swipe to NOT have triggered another bulk network fetch
     expect(advisorFetchCount).toBe(firstLoadCount);
   });
 

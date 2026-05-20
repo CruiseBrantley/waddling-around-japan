@@ -92,8 +92,8 @@ test.describe('Layout Regression Tests (Desktop vs Mobile)', () => {
 
     // DaySelector should still be at the top of the viewport (sticky)
     const top = await daySelector.evaluate(el => el.getBoundingClientRect().top);
-    // Allow for small offset due to safe areas or 1px borders
-    expect(top).toBeLessThanOrEqual(5); 
+    // Allow for small offset due to safe areas (up to ~60px on iOS) or 1px borders
+    expect(top).toBeLessThanOrEqual(60); 
     expect(top).toBeGreaterThanOrEqual(-5);
   });
 

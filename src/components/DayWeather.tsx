@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import type { AppSettings } from '../utils/settings';
-import { getWeatherData } from '../utils/weather';
-import { getApiUrl } from '../utils/api';
+import { getWeatherData, type WeatherData } from '../utils/weather';
+
 import './DayWeather.css';
 
 interface DayWeatherProps {
@@ -24,8 +24,7 @@ const LOADING_MESSAGES = [
 export const DayWeather: React.FC<DayWeatherProps> = ({
   date,
   regions = ['Tokyo'],
-  currentTime,
-  isActive
+  currentTime
 }) => {
   const [selectedRegion, setSelectedRegion] = useState<string>('Tokyo');
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
@@ -47,7 +46,7 @@ export const DayWeather: React.FC<DayWeatherProps> = ({
   }, [regions, selectedRegion]);
 
   // Load weather and check local cache for AI advisory
-  const [weather, setWeather] = useState<any>(() => {
+  const [weather, setWeather] = useState<WeatherData | null>(() => {
     // Initial value: fall back immediately to simulated climate so we have instant data!
     return getWeatherData(selectedRegion, date, currentTime);
   });
@@ -56,178 +55,58 @@ export const DayWeather: React.FC<DayWeatherProps> = ({
     return `ai_advisory_${date.replace(/[^a-zA-Z0-9]/g, '_')}`;
   }, [date]);
 
-  // Effect to load and fetch weather (region dependent)
+  // Effect to load weather (region dependent) from local cache
   useEffect(() => {
-    let active = true;
-    const weatherCacheKey = `real_weather_${date.replace(/[^a-zA-Z0-9]/g, '_')}_${selectedRegion.toLowerCase()}`;
+    const loadWeather = () => {
+      const weatherCacheKey = `real_weather_${date.replace(/[^a-zA-Z0-9]/g, '_')}_${selectedRegion.toLowerCase()}`;
 
-    // 1. Synchronously seed from local caches to ensure instant rendering (zero UI flashes)
-    try {
-      const cachedWeather = localStorage.getItem(weatherCacheKey);
-      if (cachedWeather) {
-        const weatherObj = JSON.parse(cachedWeather);
-        const activeHour = currentTime.getHours();
-        if (weatherObj.hourly && weatherObj.hourly[activeHour]) {
-          weatherObj.currentTemp = weatherObj.hourly[activeHour].temp;
+      try {
+        const cachedWeather = localStorage.getItem(weatherCacheKey);
+        if (cachedWeather) {
+          const weatherObj = JSON.parse(cachedWeather);
+          const activeHour = currentTime.getHours();
+          if (weatherObj.hourly && weatherObj.hourly[activeHour]) {
+            weatherObj.currentTemp = weatherObj.hourly[activeHour].temp;
+          }
+          setWeather(weatherObj);
+        } else {
+          setWeather(getWeatherData(selectedRegion, date, currentTime));
         }
-        setWeather(weatherObj);
-      } else {
+      } catch (e) {
+        console.warn('Failed to load cached weather:', e);
         setWeather(getWeatherData(selectedRegion, date, currentTime));
       }
-    } catch (e) {
-      console.warn('Failed to load cached weather:', e);
-      setWeather(getWeatherData(selectedRegion, date, currentTime));
-    }
-
-    // Lazy load: skip background fetching for non-active slides
-    if (!isActive) {
-      return;
-    }
-
-    const apiUrl = getApiUrl();
-    fetch(`${apiUrl}/advisor?region=${encodeURIComponent(selectedRegion)}&date=${encodeURIComponent(date)}&currentTime=${encodeURIComponent(currentTime.toISOString())}`, {
-      headers: { 'ngrok-skip-browser-warning': 'true' }
-    })
-      .then(res => {
-        if (res.ok) return res.json();
-        throw new Error('Failed to fetch weather');
-      })
-      .then(data => {
-        if (!active) return;
-
-        requestAnimationFrame(() => {
-          if (!active) return;
-
-          // Update weather if successfully returned
-          if (data && data.weather) {
-            setWeather(data.weather);
-            try {
-              localStorage.setItem(weatherCacheKey, JSON.stringify(data.weather));
-            } catch (e) {
-              console.warn('Failed to save weather response in localStorage:', e);
-            }
-          }
-        });
-      })
-      .catch(err => {
-        console.warn('Failed to fetch weather, relying on simulated/cached fallbacks:', err);
-        if (!active) return;
-
-        requestAnimationFrame(() => {
-          if (!active) return;
-          
-          try {
-            const cachedWeather = localStorage.getItem(weatherCacheKey);
-            if (cachedWeather) {
-              const weatherObj = JSON.parse(cachedWeather);
-              const activeHour = currentTime.getHours();
-              if (weatherObj.hourly && weatherObj.hourly[activeHour]) {
-                weatherObj.currentTemp = weatherObj.hourly[activeHour].temp;
-              }
-              setWeather(weatherObj);
-            } else {
-              setWeather(getWeatherData(selectedRegion, date, currentTime));
-            }
-          } catch (e) {
-            setWeather(getWeatherData(selectedRegion, date, currentTime));
-          }
-        });
-      });
-
-    return () => {
-      active = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedRegion, date, isActive]);
 
-  // Effect to load and fetch unified AI Travel Advisor note (independent of selectedRegion)
+    loadWeather();
+    window.addEventListener('advisor_cache_updated', loadWeather);
+    return () => window.removeEventListener('advisor_cache_updated', loadWeather);
+     
+  }, [selectedRegion, date, currentTime]);
+
+  // Effect to load unified AI Travel Advisor note from local cache
   useEffect(() => {
-    let active = true;
-
-    // 1. Synchronously seed from local caches to ensure instant rendering (zero UI flashes)
-    try {
-      const cachedAdvisor = localStorage.getItem(cacheKey);
-      if (cachedAdvisor) {
-        setAiAdvisory(cachedAdvisor);
-        setAiLoading(false);
-      } else {
+    const loadAdvisor = () => {
+      try {
+        const cachedAdvisor = localStorage.getItem(cacheKey);
+        if (cachedAdvisor) {
+          setAiAdvisory(cachedAdvisor);
+          setAiLoading(false);
+        } else {
+          setAiAdvisory(null);
+          setAiLoading(false);
+        }
+      } catch (e) {
+        console.warn('Failed to load cached advisor:', e);
         setAiAdvisory(null);
-        setAiLoading(true);
-      }
-    } catch (e) {
-      console.warn('Failed to load cached advisor:', e);
-      setAiAdvisory(null);
-      setAiLoading(true);
-    }
-
-    // Lazy load: skip background fetching for non-active slides
-    if (!isActive) {
-      return;
-    }
-
-    // Skip dynamic generation query if the advisory is already cached locally to save heavy server generation costs
-    try {
-      if (localStorage.getItem(cacheKey)) {
         setAiLoading(false);
-        return;
       }
-    } catch (e) {
-      // Ignore local storage read errors
-    }
-
-    const apiUrl = getApiUrl();
-    fetch(`${apiUrl}/advisor?date=${encodeURIComponent(date)}&currentTime=${encodeURIComponent(currentTime.toISOString())}`, {
-      headers: { 'ngrok-skip-browser-warning': 'true' }
-    })
-      .then(res => {
-        if (res.ok) return res.json();
-        throw new Error('Failed to fetch advisor');
-      })
-      .then(data => {
-        if (!active) return;
-
-        requestAnimationFrame(() => {
-          if (!active) return;
-
-          // Update AI advisory
-          if (data && data.content) {
-            setAiAdvisory(data.content);
-            try {
-              localStorage.setItem(cacheKey, data.content);
-            } catch (e) {
-              console.warn('Failed to cache server advisory response locally:', e);
-            }
-          } else {
-            setAiAdvisory(null);
-          }
-          setAiLoading(false);
-        });
-      })
-      .catch(err => {
-        console.warn('Failed to fetch advisor, relying on cached fallbacks:', err);
-        if (!active) return;
-
-        requestAnimationFrame(() => {
-          if (!active) return;
-          try {
-            const cachedAdvisor = localStorage.getItem(cacheKey);
-            if (cachedAdvisor) {
-              setAiAdvisory(cachedAdvisor);
-            } else {
-              setAiAdvisory(null);
-            }
-          } catch (e) {
-            setAiAdvisory(null);
-          }
-          setAiLoading(false);
-        });
-      });
-
-    return () => {
-      active = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [date, cacheKey, isActive]);
+
+    loadAdvisor();
+    window.addEventListener('advisor_cache_updated', loadAdvisor);
+    return () => window.removeEventListener('advisor_cache_updated', loadAdvisor);
+  }, [date, cacheKey]);
 
   // Auto-scroll current hour into view in the hourly forecast slider
   useEffect(() => {
