@@ -10,20 +10,84 @@ import { generateAdvisory, setAdvisorCacheFile, loadAdvisorCache, saveAdvisorCac
 
 export const app = express();
 
-// Allowed origins: Firebase Hosting, ngrok tunnels, and localhost for dev
+// Allowed origins: Firebase Hosting, ngrok tunnels, localtunnel, and localhost for dev
 const ALLOWED_ORIGINS = [
   'https://waddling-around-japan.web.app',
   'https://waddling-around-japan.firebaseapp.com',
+  'https://waddling-around-japan.github.io',
+  'https://waddling-around-japan-pi.loca.lt',
+  'https://waddling-cruise-pi.loca.lt',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
 ];
+
+// CORS helper: validate origin against allowed list or localhost/ip patterns
+function isOriginAllowed(origin: string | undefined): boolean {
+  if (!origin) return true; // Allow requests without origin (curl, postman, etc.)
+  
+  // Always allow localhost/127.0.0.1 for local development
+  if (
+    origin.startsWith('http://localhost:') ||
+    origin.startsWith('http://127.0.0.1:') ||
+    origin.startsWith('http://[::1]:')
+  ) {
+    return true;
+  }
+  
+  // Allow any explicit allowed origin from our list
+  if (ALLOWED_ORIGINS.includes(origin)) {
+    return true;
+  }
+  
+  // Allow any ngrok/Cloudflare tunnel/loca.lt origin (common dev pattern)
+  if (origin.includes('.ngrok') || origin.includes('.loca.lt') || origin.includes('.trycloudflare.com')) {
+    return true;
+  }
+  
+  // Allow any local IP (192.168.x.x, 10.x.x.x, 172.x.x.x)
+  const url = new URL(origin);
+  const hostname = url.hostname;
+  if (
+    hostname.startsWith('192.168.') ||
+    hostname.startsWith('10.') ||
+    hostname.startsWith('172.')
+  ) {
+    return true;
+  }
+  
+  return false;
+}
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Dynamically allow any origin to guarantee seamless local network connectivity across all IPs/tunnels
-    return callback(null, true);
+    if (isOriginAllowed(origin)) {
+      callback(null, true);
+    } else {
+      console.warn(`CORS blocked origin: ${origin}`);
+      callback(null, false);
+    }
   },
-  allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning', 'Bypass-Tunnel-Reminder'],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'ngrok-skip-browser-warning',
+    'Bypass-Tunnel-Reminder',
+    'Cache-Control',
+    'Pragma',
+  ],
+  exposedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'ngrok-skip-browser-warning',
+    'Bypass-Tunnel-Reminder',
+    'X-Request-Id',
+  ],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   credentials: true,
+  maxAge: 600, // Cache preflight results for 10 minutes
+  optionsSuccessStatus: 204,
 }));
 
 // Respond to all OPTIONS preflight requests explicitly via global cors middleware

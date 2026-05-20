@@ -384,5 +384,63 @@ describe('Express Server API Tests', () => {
       expect(thirdCallUrl).toContain('mock-gemini-key');
     });
   });
+
+  describe('CORS Configuration Tests', () => {
+    it('should allow requests from allowed origins and return correct CORS headers', async () => {
+      const response = await request(app)
+        .get('/weather')
+        .query({ region: 'Tokyo', date: '2026-05-24' })
+        .set('Origin', 'http://localhost:5173');
+
+      expect(response.status).toBe(200);
+      expect(response.headers['access-control-allow-origin']).toBe('http://localhost:5173');
+      expect(response.headers['access-control-allow-credentials']).toBe('true');
+    });
+
+    it('should allow requests from localtunnel origins dynamically', async () => {
+      const response = await request(app)
+        .get('/weather')
+        .query({ region: 'Tokyo', date: '2026-05-24' })
+        .set('Origin', 'https://waddling-around-japan-pi.loca.lt');
+
+      expect(response.status).toBe(200);
+      expect(response.headers['access-control-allow-origin']).toBe('https://waddling-around-japan-pi.loca.lt');
+    });
+
+    it('should handle preflight OPTIONS requests for allowed origins', async () => {
+      const response = await request(app)
+        .options('/weather')
+        .set('Origin', 'http://localhost:5173')
+        .set('Access-Control-Request-Method', 'GET')
+        .set('Access-Control-Request-Headers', 'content-type');
+
+      expect(response.status).toBe(204);
+      expect(response.headers['access-control-allow-origin']).toBe('http://localhost:5173');
+      expect(response.headers['access-control-allow-methods']).toContain('GET');
+    });
+
+    it('should NOT return Access-Control-Allow-Origin header for disallowed origins and NOT throw 500 error', async () => {
+      const response = await request(app)
+        .get('/weather')
+        .query({ region: 'Tokyo', date: '2026-05-24' })
+        .set('Origin', 'https://evil-untrusted-domain.com');
+
+      // The server should not throw a 500. It should still execute the request or reject it gracefully.
+      // With cors middleware, if callback(null, false) is called, it completes the request without the CORS header.
+      expect(response.status).toBe(200);
+      expect(response.headers['access-control-allow-origin']).toBeUndefined();
+    });
+
+    it('should NOT return Access-Control-Allow-Origin header for preflight OPTIONS requests of disallowed origins', async () => {
+      const response = await request(app)
+        .options('/weather')
+        .set('Origin', 'https://evil-untrusted-domain.com')
+        .set('Access-Control-Request-Method', 'GET');
+
+      // For rejected preflights, CORS middleware usually responds with 204/200 but omits the Access-Control-Allow-Origin header
+      expect([200, 204]).toContain(response.status);
+      expect(response.headers['access-control-allow-origin']).toBeUndefined();
+    });
+  });
 });
 
