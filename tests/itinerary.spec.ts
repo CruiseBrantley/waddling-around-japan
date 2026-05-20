@@ -1,12 +1,224 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Itinerary App Core Features', () => {
+// Dynamically construct a robust, self-contained 21-day Google Sheets mock itinerary.
+// This matches the format transformed by transformFullSheetData in src/services/sheets.ts.
+const buildMockItineraryRows = () => {
+  const headers = [
+    { formattedValue: 'Date' },
+    { formattedValue: 'Time' },
+    { formattedValue: 'Activity' },
+    { formattedValue: 'Location' },
+    { formattedValue: 'Category' },
+    { formattedValue: 'Notes' }
+  ];
   
-  test('should load the itinerary and show the hero image', async ({ page }) => {
+  const rows = [{ values: headers }];
+  
+  // Starting on May 24, 2026 (Sunday)
+  const currentDay = new Date(2026, 4, 24); // May is month 4
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  
+  for (let d = 1; d <= 21; d++) {
+    const dayName = dayNames[currentDay.getDay()];
+    const m = currentDay.getMonth() + 1;
+    const dayVal = currentDay.getDate();
+    const yShort = currentDay.getFullYear().toString().slice(-2);
+    const dateStr = `${dayName}, ${m}/${dayVal}/${yShort}`;
+    
+    // Add multiple activities for each day to ensure every test case has sufficient elements
+    rows.push({
+      values: [
+        { formattedValue: dateStr },
+        { formattedValue: '09:00' },
+        { formattedValue: `Day ${d} Morning Activity` },
+        { formattedValue: 'Tokyo' },
+        { formattedValue: 'Sightseeing' },
+        { formattedValue: `Notes for Day ${d} Morning` }
+      ]
+    });
+    
+    rows.push({
+      values: [
+        { formattedValue: dateStr },
+        { formattedValue: '10:00' },
+        { formattedValue: `Day ${d} Midday Activity` },
+        { formattedValue: 'Tokyo' },
+        { formattedValue: 'Sightseeing' },
+        { formattedValue: `Notes for Day ${d} Midday` }
+      ]
+    });
+
+    rows.push({
+      values: [
+        { formattedValue: dateStr },
+        { formattedValue: '11:00' },
+        { formattedValue: `Day ${d} Lunch Activity` },
+        { formattedValue: 'Tokyo' },
+        { formattedValue: 'Food' },
+        { formattedValue: `Notes for Day ${d} Lunch` }
+      ]
+    });
+
+    rows.push({
+      values: [
+        { formattedValue: dateStr },
+        { formattedValue: '14:00' },
+        { formattedValue: `Day ${d} Afternoon Activity` },
+        { formattedValue: 'Tokyo' },
+        { formattedValue: 'Sightseeing' },
+        { formattedValue: `Notes for Day ${d} Afternoon` }
+      ]
+    });
+
+    rows.push({
+      values: [
+        { formattedValue: dateStr },
+        { formattedValue: '18:00' },
+        { formattedValue: `Day ${d} Dinner Activity` },
+        { formattedValue: 'Tokyo' },
+        { formattedValue: 'Food' },
+        { formattedValue: `Notes for Day ${d} Dinner` }
+      ]
+    });
+    
+    // Increment date
+    currentDay.setDate(currentDay.getDate() + 1);
+  }
+  
+  return {
+    sheets: [{
+      data: [{
+        rowData: rows
+      }]
+    }]
+  };
+};
+
+const mockItineraryData = buildMockItineraryRows();
+
+test.describe('Itinerary App Core Features', () => {
+
+  test.beforeEach(async ({ page }) => {
+    // Intercept Google Sheets API calls and fulfill with deterministic mock data
+    await page.route('**/spreadsheets/**', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mockItineraryData)
+      });
+    });
+
+    // Intercept bulk regions endpoint
+    await page.route('**/regions/bulk', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ regionsMap: {} })
+      });
+    });
+
+    // Intercept weather endpoint to prevent real network hits
+    await page.route('**/weather?*', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          region: 'Tokyo',
+          tempMin: 65,
+          tempMax: 78,
+          condition: 'Sunny',
+          emoji: '☀️',
+          precipProb: 10,
+          humidity: 60,
+          windSpeed: 5,
+          advisory: 'Enjoy your day in Tokyo!',
+          currentTemp: 72,
+          hourly: Array.from({ length: 24 }, (_, h) => ({ hour: h, temp: 70, emoji: '☀️' }))
+        })
+      });
+    });
+
+    // Intercept AI travel advisor endpoint
+    await page.route('**/advisor*', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          content: 'Tokyo weather is perfect today.',
+          weather: {
+            region: 'Tokyo',
+            tempMin: 65,
+            tempMax: 78,
+            condition: 'Sunny',
+            emoji: '☀️',
+            precipProb: 10,
+            humidity: 60,
+            windSpeed: 5,
+            advisory: 'Enjoy your day in Tokyo!',
+            currentTemp: 72,
+            hourly: Array.from({ length: 24 }, (_, h) => ({ hour: h, temp: 70, emoji: '☀️' }))
+          }
+        })
+      });
+    });
+
+    // Mock client-side environment (timezone, standalone, settings)
+    await page.addInitScript(() => {
+      // Clear localStorage once per test run
+      if (!sessionStorage.getItem('test_initialized')) {
+        localStorage.clear();
+        sessionStorage.setItem('test_initialized', 'true');
+      }
+
+      // Force Asia/Tokyo timezone
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (Intl.DateTimeFormat as any).prototype.resolvedOptions = () => ({
+        timeZone: 'Asia/Tokyo'
+      });
+
+      // Mock standalone/PWA mode
+      Object.defineProperty(window.navigator, 'standalone', { value: true });
+      (window as Window & { IS_TESTING: boolean }).IS_TESTING = true;
+
+      // Seed default settings only if not already present
+      if (!localStorage.getItem('app_settings')) {
+        const defaultSettings = {
+          soundEnabled: true,
+          hapticsEnabled: true,
+          notificationsEnabled: false,
+          notifyHeadsUpEnabled: true,
+          notifyHeadsUpChime: true,
+          notifyHeadsUpVibrate: true,
+          notifyUrgentEnabled: true,
+          notifyUrgentChime: true,
+          notifyUrgentVibrate: true,
+          notifyMinutesBefore: 10,
+          notifyUrgentMinutesBefore: 1,
+          debugTime: null,
+          debugDate: null,
+          debugOffset: null,
+          devMode: false,
+          disabledCategories: [],
+          aiProvider: 'gemma',
+          geminiApiKey: '',
+          geminiModel: 'gemini-2.5-flash',
+          ollamaUrl: 'http://sirian.ddns.net:11434',
+          ollamaModel: 'gemma4:26b'
+        };
+        localStorage.setItem('app_settings', JSON.stringify(defaultSettings));
+      }
+    });
+  });
+  
+  test('should load the itinerary and show the hero image', async ({ page, isMobile }) => {
     await page.goto('/');
     await expect(page).toHaveTitle(/Japan Itinerary/);
     const hero = page.locator('.hero-container');
-    await expect(hero).toBeVisible();
+    if (isMobile) {
+      await expect(hero).toBeHidden();
+    } else {
+      await expect(hero).toBeVisible();
+    }
   });
 
   test('should jump to a specific date via URL parameter (Day 1)', async ({ page }) => {
@@ -230,6 +442,7 @@ test.describe('Itinerary App Core Features', () => {
   test('STRICT: should only trigger a single programmatic scroll per click', async ({ page }) => {
     await page.goto('/?date=2026-05-24T12:00:00');
     await page.waitForSelector('.day-btn');
+    await page.waitForTimeout(1000); // Allow hydration to complete
     
     const logs: string[] = [];
     page.on('console', msg => {
@@ -238,9 +451,9 @@ test.describe('Itinerary App Core Features', () => {
       }
     });
 
-    // 1. Click Day 8 (index 7)
+    // 1. Dispatch a real DOM click event to avoid touch-emulation coordinate bugs on mobile
     const day8Btn = page.locator('.day-btn').nth(7);
-    await day8Btn.click();
+    await day8Btn.dispatchEvent('click');
     await page.waitForTimeout(2000);
 
     // Verify exactly one log for index 7 and NO logs for index 0

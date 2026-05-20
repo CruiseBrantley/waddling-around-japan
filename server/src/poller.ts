@@ -3,6 +3,8 @@ import webPush from 'web-push';
 import fs from 'fs';
 import path from 'path';
 import { SubscriptionData } from './app';
+import { generateAdvisory, loadAdvisorCache, extractBulkRegions } from './generator';
+import { getWeatherData, asyncGetWeatherData } from './weather';
 
 // Helper to convert "HH:MM" to minutes from midnight (handles both 24h and 12h AM/PM formats)
 export const timeToMinutes = (timeStr: string): number => {
@@ -284,5 +286,52 @@ const sendPush = async (subData: SubscriptionData, payloadObj: Record<string, un
     urgency: 'high',
     TTL: 3600 // 1 hour Time-to-Live
   });
+};
+
+/**
+ * Scan all days and regions in the itinerary and automatically pre-cache missing advisor notes.
+ */
+export const generateMissingAdvisories = async () => {
+  try {
+    const itinerary = await fetchItinerary();
+    if (!itinerary || !itinerary.days || itinerary.days.length === 0) {
+      console.log('Generator Worker: No itinerary found to pre-cache.');
+      return;
+    }
+
+    console.log('Generator Worker: Scanning itinerary days to pre-cache advisor notes...');
+    const cache = loadAdvisorCache();
+    const systemTime = new Date();
+
+    // Use our new single-prompt bulk region extractor!
+    const regionsMap = await extractBulkRegions(itinerary.days);
+
+    for (const day of itinerary.days) {
+      const date = day.date;
+      const regions = regionsMap[date] || ["Tokyo"];
+
+      const cacheKey = `${date}`;
+      if (!cache[cacheKey]) {
+        console.log(`Generator Worker: Cache miss for ${cacheKey}. Triggering background generation...`);
+        
+        // Compute weather metrics simulated for this day across all regions
+        const weatherList = [];
+        for (const region of regions) {
+          const weather = await asyncGetWeatherData(region, date, systemTime);
+          weatherList.push(weather);
+        }
+
+        try {
+          await generateAdvisory(date, regions, weatherList, day.activities);
+          console.log(`Generator Worker: Proactively pre-cached ${cacheKey}`);
+        } catch (err: any) {
+          console.error(`Generator Worker: Failed to pre-cache ${cacheKey}. Error: ${err.message || err}`);
+        }
+      }
+    }
+    console.log('Generator Worker: Finished pre-cache scan.');
+  } catch (err: any) {
+    console.error('Generator Worker: Pre-cache scan failed. Error:', err);
+  }
 };
 

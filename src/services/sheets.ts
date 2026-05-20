@@ -1,3 +1,5 @@
+import { getApiUrl } from '../utils/api';
+
 export interface ItineraryActivity {
   id: string;
   date: string;
@@ -28,6 +30,7 @@ export interface ItineraryDay {
   day: number;
   date: string;
   activities: ItineraryActivity[];
+  regions?: string[];
 }
 
 export interface Itinerary {
@@ -120,6 +123,11 @@ export async function fetchItinerary(): Promise<Itinerary> {
 
     const itinerary = transformFullSheetData(sheetData);
     
+    // Default regions to Tokyo immediately to avoid blocking UI
+    itinerary.days.forEach(day => {
+      day.regions = ['Tokyo'];
+    });
+
     // Save to local storage for offline use
     localStorage.setItem(CACHE_KEY, JSON.stringify(itinerary));
     
@@ -564,6 +572,25 @@ function renderRichTextToHtml(
   return html;
 }
 
-
-
-
+/**
+ * Non-blocking background fetch for LLM region extraction
+ */
+export async function fetchBulkRegions(): Promise<Record<string, string[]>> {
+  try {
+    const apiUrl = getApiUrl();
+    const regionsRes = await fetch(`${apiUrl}/regions/bulk`, {
+      method: 'GET',
+      headers: { 
+        'ngrok-skip-browser-warning': 'true'
+      }
+    });
+    
+    if (regionsRes.ok) {
+      const { regionsMap } = await regionsRes.json();
+      return regionsMap || {};
+    }
+  } catch (e) {
+    console.warn('Failed to bulk fetch dynamic regions:', e);
+  }
+  return {};
+}

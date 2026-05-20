@@ -19,6 +19,7 @@ import { useItinerary } from './hooks/useItinerary'
 import { useScrollSync } from './hooks/useScrollSync'
 
 // Utils
+import { getApiUrl } from './utils/api';
 import { timeToMinutes } from './utils/time'
 import { clearAppBadge, triggerHaptic, triggerTick, showLocalNotification, setHapticsEnabled, clearEventNotifications, subscribeToPushNotifications } from './utils/native'
 import heroImg from './assets/hero_optimized.jpg'
@@ -89,6 +90,62 @@ function App() {
     isTripActive,
     loadData
   } = useItinerary(settings.debugOffset);
+
+  // Helper to pre-populate and synchronize the daily AI Advisor local storage cache in full
+  const syncAdvisorCache = useCallback(async () => {
+    try {
+      const apiUrl = getApiUrl();
+      const response = await fetch(`${apiUrl}/advisor`, {
+        headers: { 'ngrok-skip-browser-warning': 'true' }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.cache) {
+          Object.keys(data.cache).forEach(serverKey => {
+            const entry = data.cache[serverKey];
+            const content = entry && typeof entry === 'object' ? entry.content : entry;
+            const weather = entry && typeof entry === 'object' ? entry.weather : null;
+            const lastUnderscore = serverKey.lastIndexOf('_');
+            if (lastUnderscore !== -1) {
+              const date = serverKey.substring(0, lastUnderscore);
+              const region = serverKey.substring(lastUnderscore + 1);
+              const clientCacheKey = `ai_advisory_${date.replace(/[^a-zA-Z0-9]/g, '_')}_${region.toLowerCase()}`;
+              const weatherCacheKey = `real_weather_${date.replace(/[^a-zA-Z0-9]/g, '_')}_${region.toLowerCase()}`;
+              try {
+                if (content) {
+                  localStorage.setItem(clientCacheKey, content);
+                }
+                if (weather) {
+                  localStorage.setItem(weatherCacheKey, JSON.stringify(weather));
+                }
+              } catch (e) {
+                console.warn('Failed to pre-populate advisor item locally:', e);
+              }
+            } else {
+              // Full day advisor key
+              const date = serverKey;
+              const clientCacheKey = `ai_advisory_${date.replace(/[^a-zA-Z0-9]/g, '_')}`;
+              try {
+                if (content) {
+                  localStorage.setItem(clientCacheKey, content);
+                }
+              } catch (e) {
+                console.warn('Failed to pre-populate unified advisor item locally:', e);
+              }
+            }
+          });
+          console.log(`Pre-populated local storage advisor cache with ${Object.keys(data.cache).length} entries`);
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to pre-populate local advisor cache from server:', err);
+    }
+  }, []);
+
+  // Pre-populate advisor cache once on boot
+  useEffect(() => {
+    void syncAdvisorCache();
+  }, [syncAdvisorCache]);
 
   // Splash Screen Fade-out Effect
   useEffect(() => {
@@ -178,7 +235,8 @@ function App() {
         setIsRefreshingAll(true);
         
         const promises = [
-          loadData(true)
+          loadData(true),
+          syncAdvisorCache()
         ];
 
         if ('serviceWorker' in navigator) {
@@ -212,7 +270,7 @@ function App() {
       window.removeEventListener('touchmove', handleTouchMove);
       window.removeEventListener('touchend', handleTouchEnd);
     };
-  }, [refreshing, isRefreshingAll, pullOffset, loadData, settings.hapticsEnabled, settings.soundEnabled]);
+  }, [refreshing, isRefreshingAll, pullOffset, loadData, settings.hapticsEnabled, settings.soundEnabled, syncAdvisorCache]);
 
   // Synchronize dynamic device timezone with push notification server in the background
   useEffect(() => {
@@ -878,6 +936,7 @@ function App() {
                     date={day.date}
                     activities={day.activities}
                     allActivities={itinerary?.days.find(d => d.date === day.date)?.activities || day.activities}
+                    regions={day.regions}
                     currentTime={currentTime}
                     activeCardRef={activeCardRef}
                     timeToMinutes={timeToMinutes}
@@ -889,6 +948,8 @@ function App() {
                         handleDayClick(index);
                       }
                     }}
+                    settings={settings}
+                    isActive={index === activeIndex}
                   />
                 </div>
               ))

@@ -25,6 +25,16 @@ export interface AppSettings {
   devMode: boolean;
   /** List of category names that should NOT trigger notifications */
   disabledCategories: string[];
+  /** AI Provider for travel insights: "none" | "gemini" | "gemma" */
+  aiProvider: 'none' | 'gemini' | 'gemma';
+  /** Gemini API Key */
+  geminiApiKey: string;
+  /** Gemini Model Name */
+  geminiModel: string;
+  /** Ollama Endpoint URL */
+  ollamaUrl: string;
+  /** Ollama Model Name */
+  ollamaModel: string;
 }
 
 export const SETTINGS_DEFAULTS: AppSettings = {
@@ -44,12 +54,26 @@ export const SETTINGS_DEFAULTS: AppSettings = {
   debugOffset: null,
   devMode: false,
   disabledCategories: [],
+  aiProvider: 'gemma',
+  geminiApiKey: '',
+  geminiModel: 'gemini-2.5-flash',
+  ollamaUrl: 'http://sirian.ddns.net:11434',
+  ollamaModel: 'gemma4:26b',
 };
 
 export function loadSettings(): AppSettings {
   try {
     const raw = localStorage.getItem('app_settings');
-    if (raw) return { ...SETTINGS_DEFAULTS, ...JSON.parse(raw) };
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return { 
+        ...SETTINGS_DEFAULTS, 
+        ...parsed,
+        aiProvider: 'gemma',
+        ollamaUrl: parsed.ollamaUrl && parsed.ollamaUrl !== 'http://localhost:11434' ? parsed.ollamaUrl : 'http://sirian.ddns.net:11434',
+        ollamaModel: parsed.ollamaModel && parsed.ollamaModel.startsWith('gemma4') ? parsed.ollamaModel : 'gemma4:26b'
+      };
+    }
   } catch { /* use defaults */ }
   return { ...SETTINGS_DEFAULTS };
 }

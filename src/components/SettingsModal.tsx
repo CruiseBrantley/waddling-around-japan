@@ -37,6 +37,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     return typeof Notification !== 'undefined' ? Notification.permission : 'default';
   });
 
+
+
   // Re-sync permission state when modal opens
   useEffect(() => {
     if (isOpen && supportsNotifications()) {
@@ -368,6 +370,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               )}
             </>
           ) : null}
+
+
 
           {/* Developer Tools */}
           <div className="settings-divider" />

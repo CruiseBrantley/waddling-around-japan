@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { fetchItinerary, type Itinerary } from '../services/sheets';
+import { fetchItinerary, fetchBulkRegions, type Itinerary } from '../services/sheets';
 
 export function useItinerary(debugOffset: number | null = null) {
   const [itinerary, setItinerary] = useState<Itinerary | null>(null);
@@ -82,6 +82,22 @@ export function useItinerary(debugOffset: number | null = null) {
       const data = await fetchItinerary();
       setItinerary(data);
       setLastUpdated(new Date());
+
+      // Trigger background region extraction non-blockingly
+      fetchBulkRegions().then(regionsMap => {
+        if (Object.keys(regionsMap).length > 0) {
+          setItinerary(prev => {
+            if (!prev) return prev;
+            const updated = { ...prev, days: [...prev.days] };
+            updated.days.forEach((day, index) => {
+              if (regionsMap[day.date]) {
+                updated.days[index] = { ...day, regions: regionsMap[day.date] };
+              }
+            });
+            return updated;
+          });
+        }
+      });
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to load itinerary');
     } finally {

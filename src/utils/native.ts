@@ -8,6 +8,8 @@
  * Note: navigator.vibrate is supported on Android/Chrome.
  * iOS does not support navigator.vibrate, but this remains for cross-platform.
  */
+import { getApiUrl } from './api';
+
 let _hapticsEnabled = true;
 
 export const setHapticsEnabled = (enabled: boolean) => { _hapticsEnabled = enabled; };
@@ -233,7 +235,7 @@ export const subscribeToPushNotifications = async (settings: { notifyMinutesBefo
     console.log('Push subscription successful. Sending to backend...');
 
     // Send the subscription to our backend server
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+    const apiUrl = getApiUrl();
     const response = await fetch(`${apiUrl}/subscribe`, {
       method: 'POST',
       body: JSON.stringify({ 
@@ -279,7 +281,7 @@ export const unsubscribeFromPushNotifications = async () => {
       console.log('Unsubscribing device from push...');
       
       // 1. Try to tell backend to delete, but don't let a network failure block local cleanup
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+      const apiUrl = getApiUrl();
       try {
         const response = await fetch(`${apiUrl}/unsubscribe`, {
           method: 'POST',

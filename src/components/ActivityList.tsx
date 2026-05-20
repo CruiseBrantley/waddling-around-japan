@@ -1,11 +1,14 @@
 import React from 'react';
 import type { ItineraryActivity } from '../services/sheets';
 import { ActivityCard } from './ActivityCard';
+import { DayWeather } from './DayWeather';
+import type { AppSettings } from '../utils/settings';
 
 interface ActivityListProps {
   date: string;
   activities: ItineraryActivity[];
   allActivities: ItineraryActivity[];
+  regions?: string[];
   currentTime: Date;
   activeCardRef: React.RefObject<HTMLDivElement | null>;
   timeToMinutes: (timeStr: string) => number;
@@ -13,19 +16,24 @@ interface ActivityListProps {
   categoryColors: Record<string, { bg: string, fg?: string }>;
   onCardClick?: () => void;
   nextEvent?: { id?: string; minutes: number; isLive?: boolean } | null;
+  settings: AppSettings;
+  isActive?: boolean;
 }
 
 export const ActivityList: React.FC<ActivityListProps> = ({ 
   date, 
   activities,
   allActivities,
+  regions,
   currentTime, 
   activeCardRef,
   timeToMinutes,
   isToday,
   categoryColors,
   onCardClick,
-  nextEvent
+  nextEvent,
+  settings,
+  isActive
 }) => {
   const currentMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();
 
@@ -112,6 +120,14 @@ export const ActivityList: React.FC<ActivityListProps> = ({
           }).length} activities
         </span>
       </div>
+
+      <DayWeather 
+        date={date} 
+        regions={regions}
+        currentTime={currentTime} 
+        settings={settings} 
+        isActive={isActive}
+      />
 
       <div className="timeline">
         {sessions.map((session, sIdx) => {
