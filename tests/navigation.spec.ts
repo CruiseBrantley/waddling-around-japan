@@ -63,8 +63,6 @@ test.describe('Navigation Jumps', () => {
       };
       localStorage.setItem('itinerary_cache', JSON.stringify(mockItinerary));
     });
-
-    await page.goto('/');
   });
 
   test('should center the live activity correctly on a long day', async ({ page }) => {
