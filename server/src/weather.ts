@@ -168,19 +168,6 @@ export function parseDateStrToYYYYMMDD(dateStr: string): string | null {
 
 // Helper to parse day from date string robustly (e.g. "Sun, 5/24/26" -> Day 1 of trip)
 
-// Computes dynamic temperature based on high/low bounds and the current hour (diurnal curve)
-export function getDiurnalTemperature(low: number, high: number, hour: number): number {
-  let factor = 0;
-  if (hour >= 5 && hour < 15) {
-    // 10 hour rise from 5:00 AM to 3:00 PM
-    factor = Math.sin(((hour - 5) / 10) * (Math.PI / 2)) ** 2;
-  } else {
-    // 14 hour fall from 3:00 PM to 5:00 AM next day
-    const normalizedHour = hour < 5 ? hour + 24 : hour;
-    factor = Math.cos(((normalizedHour - 15) / 14) * (Math.PI / 2)) ** 2;
-  }
-  return Math.round(low + (high - low) * factor);
-}
 
 export function getWeatherData(region: string, dateStr: string, currentTime: Date): WeatherData {
   // Return a generic "Out of Range" response for dates too far in the future
@@ -332,9 +319,15 @@ export async function asyncGetWeatherData(region: string, dateStr: string, curre
   const windSpeed = Math.round(windSpeedSum / 24);
   const precipProb = Math.round(precipProbMax);
 
-  // Calculate current hourly temp
-  const hour = currentTime.getHours();
-  const currentTemp = hourly[hour]?.temp ?? getDiurnalTemperature(tempMin, tempMax, hour);
+  // Calculate current hourly temp in the region's local timezone (Asia/Tokyo)
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Tokyo',
+    hour: 'numeric',
+    hour12: false
+  }).formatToParts(currentTime);
+  const hourStr = parts.find(p => p.type === 'hour')?.value;
+  const hour = hourStr ? parseInt(hourStr, 10) % 24 : currentTime.getHours();
+  const currentTemp = hourly[hour]?.temp ?? tempMin;
 
   return {
     region,

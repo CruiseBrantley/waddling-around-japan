@@ -3,13 +3,139 @@ import { test, expect } from '@playwright/test';
 test.describe.configure({ mode: 'serial' });
 test.use({ viewport: { width: 390, height: 844 }, isMobile: true });
 
+// Dynamically construct raw Sheets rows to prevent local storage race conditions
+const buildMockItineraryRows = () => {
+  const headers = [
+    { formattedValue: 'Date' },
+    { formattedValue: 'Time' },
+    { formattedValue: 'Activity' },
+    { formattedValue: 'Location' },
+    { formattedValue: 'Category' },
+    { formattedValue: 'Notes' }
+  ];
+  
+  const rows = [{ values: headers }];
+  
+  // Day 1 (May 24, 2026): 50 activities for centering testing
+  for (let i = 0; i < 50; i++) {
+    const hour = 8 + Math.floor(i / 2);
+    const min = (i % 2) * 30;
+    rows.push({
+      values: [
+        { formattedValue: 'Sun, 5/24/26' },
+        { formattedValue: `${String(hour).padStart(2, '0')}:${String(min).padStart(2, '0')}` },
+        { formattedValue: `Activity ${i}` },
+        { formattedValue: 'Location' },
+        { formattedValue: 'Sightseeing' },
+        { formattedValue: 'Notes' }
+      ]
+    });
+  }
+
+  // Day 2 (May 25, 2026): 1 activity
+  rows.push({
+    values: [
+      { formattedValue: 'Mon, 5/25/26' },
+      { formattedValue: '09:00' },
+      { formattedValue: 'Day 2 Activity' },
+      { formattedValue: 'Loc' },
+      { formattedValue: 'Food' },
+      { formattedValue: 'N' }
+    ]
+  });
+
+  return {
+    sheets: [{
+      data: [{
+        rowData: rows
+      }]
+    }]
+  };
+};
+
+const mockItineraryData = buildMockItineraryRows();
+
 test.describe('Navigation Jumps', () => {
   test.beforeEach(async ({ page }) => {
     // Forward browser console logs to CLI output
     page.on('console', msg => console.log(`[Browser Console] ${msg.type()}: ${msg.text()}`));
 
-    // Mock PWA environment
+    // Intercept Google Sheets API calls and fulfill with status 200
+    await page.route('**/spreadsheets/**', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mockItineraryData)
+      });
+    });
+
+    // Intercept regions bulk endpoint to avoid hitting local Express server
+    await page.route('**/regions/bulk', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ regionsMap: {} })
+      });
+    });
+
+    // Intercept weather endpoint to prevent real network hits
+    await page.route('**/weather?*', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          region: 'Tokyo',
+          tempMin: 65,
+          tempMax: 78,
+          condition: 'Sunny',
+          emoji: '☀️',
+          precipProb: 10,
+          humidity: 60,
+          windSpeed: 5,
+          advisory: 'Enjoy your day in Tokyo!',
+          currentTemp: 72,
+          hourly: Array.from({ length: 24 }, (_, h) => ({ hour: h, temp: 70, emoji: '☀️' }))
+        })
+      });
+    });
+
+    // Intercept AI travel advisor endpoint to prevent real network hits
+    await page.route('**/advisor*', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          content: 'Tokyo weather is perfect today.',
+          weather: {
+            region: 'Tokyo',
+            tempMin: 65,
+            tempMax: 78,
+            condition: 'Sunny',
+            emoji: '☀️',
+            precipProb: 10,
+            humidity: 60,
+            windSpeed: 5,
+            advisory: 'Enjoy your day in Tokyo!',
+            currentTemp: 72,
+            hourly: Array.from({ length: 24 }, (_, h) => ({ hour: h, temp: 70, emoji: '☀️' }))
+          }
+        })
+      });
+    });
+
+    // Mock PWA environment & browser features
     await page.addInitScript(() => {
+      if (!sessionStorage.getItem('test_initialized')) {
+        localStorage.clear();
+        sessionStorage.setItem('test_initialized', 'true');
+      }
+
+      // Force Asia/Tokyo timezone
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (Intl.DateTimeFormat as any).prototype.resolvedOptions = () => ({
+        timeZone: 'Asia/Tokyo'
+      });
+
       Object.defineProperty(window.navigator, 'standalone', { value: true });
       (window as Window & { IS_TESTING: boolean }).IS_TESTING = true;
       
@@ -23,45 +149,6 @@ test.describe('Navigation Jumps', () => {
         :root { --safe-area-top: 0px !important; --safe-area-bottom: 0px !important; }
       `;
       document.head.appendChild(style);
-      
-      // Intercept fetch calls to prevent real network hits and force local cache fallback
-      const originalFetch = window.fetch;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      window.fetch = async (...args: any[]) => {
-        const [url] = args;
-        const urlStr = typeof url === 'string' ? url : (url as unknown as Request).url;
-        if (urlStr.includes('sheets.googleapis.com')) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return { ok: false, status: 404, statusText: 'Mocked Sheets Error for Test Isolation' } as any;
-        }
-        return originalFetch(...args);
-      };
-
-      // Mock many activities for Day 1
-      const activities = [];
-      for (let i = 0; i < 50; i++) {
-        const hour = 8 + Math.floor(i / 2);
-        const min = (i % 2) * 30;
-        activities.push({
-          id: `act-${i}`,
-          time: `${String(hour).padStart(2, '0')}:${String(min).padStart(2, '0')}`,
-          title: `Activity ${i}`,
-          category: 'sightseeing',
-          location: 'Location',
-          notes: 'Notes'
-        });
-      }
-
-      const mockItinerary = {
-        title: "Test Itinerary",
-        days: [
-          { day: 1, date: "2026-05-24", activities },
-          { day: 2, date: "2026-05-25", activities: [
-            { id: "day2-1", time: "09:00", title: "Day 2 Activity", category: "food", location: "Loc", notes: "N" }
-          ]}
-        ]
-      };
-      localStorage.setItem('itinerary_cache', JSON.stringify(mockItinerary));
     });
   });
 

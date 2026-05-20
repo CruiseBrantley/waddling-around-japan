@@ -41,19 +41,6 @@ export async function fetchRegionsForDay(activities: ItineraryActivity[], dateSt
   
   return ['Tokyo']; // Fallback if the network or LLM fails
 }
-// Computes dynamic temperature based on high/low bounds and the current hour (diurnal curve)
-export function getDiurnalTemperature(low: number, high: number, hour: number): number {
-  let factor = 0;
-  if (hour >= 5 && hour < 15) {
-    // 10 hour rise from 5:00 AM to 3:00 PM
-    factor = Math.sin(((hour - 5) / 10) * (Math.PI / 2)) ** 2;
-  } else {
-    // 14 hour fall from 3:00 PM to 5:00 AM next day
-    const normalizedHour = hour < 5 ? hour + 24 : hour;
-    factor = Math.cos(((normalizedHour - 15) / 14) * (Math.PI / 2)) ** 2;
-  }
-  return Math.round(low + (high - low) * factor);
-}
 
 // Generate realistic simulated climate conditions for late May/early June in Japan (FALLBACK)
 export function getWeatherData(region: string, _dateStr: string, _currentTime: Date): WeatherData {
