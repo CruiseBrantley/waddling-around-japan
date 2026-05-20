@@ -18,14 +18,8 @@ const ALLOWED_ORIGINS = [
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (e.g. mobile apps, server-to-server, curl)
-    if (!origin) return callback(null, true);
-    // Allow any ngrok tunnel or localhost
-    if (origin.endsWith('.ngrok-free.app') || origin.endsWith('.ngrok.io') || origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1')) {
-      return callback(null, true);
-    }
-    if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
-    callback(new Error(`CORS: origin '${origin}' not allowed`));
+    // Dynamically allow any origin to guarantee seamless local network connectivity across all IPs/tunnels
+    return callback(null, true);
   },
   allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
