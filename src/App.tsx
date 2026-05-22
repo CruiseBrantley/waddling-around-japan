@@ -140,9 +140,22 @@ function App() {
     }
   }, []);
 
-  // Pre-populate advisor cache once on boot
+  // Pre-populate advisor cache on boot and whenever the user wakes or focuses the app
   useEffect(() => {
     void syncAdvisorCache();
+
+    const handleFocus = () => {
+      console.log('App focused or visibility changed. Syncing AI advisor and weather cache...');
+      void syncAdvisorCache();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleFocus);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleFocus);
+    };
   }, [syncAdvisorCache]);
 
   // Splash Screen Fade-out Effect
