@@ -55,3 +55,5 @@ fetch_sheet.cjs
 fetch_test.js
 test_date.js
 sticky_log_debug.txt
+public/api-config.json
+

@@ -1,4 +1,3 @@
-import { ItineraryActivity } from './sheets';
 import fs from 'fs';
 import path from 'path';
 
@@ -13,7 +12,7 @@ export interface WeatherData {
   windSpeed: number;
   advisory: string;
   currentTemp: number;
-  hourly: { hour: number; temp: number; emoji: string }[];
+  hourly: { hour: number; temp: number; emoji: string; precipProb?: number; condition?: string }[];
 }
 
 interface LatLon {
@@ -27,7 +26,7 @@ function loadGeocodingCache(): Record<string, LatLon> {
   if (fs.existsSync(GEOCODING_CACHE_FILE)) {
     try {
       return JSON.parse(fs.readFileSync(GEOCODING_CACHE_FILE, 'utf8'));
-    } catch (e) {
+    } catch {
       return {};
     }
   }
@@ -169,6 +168,7 @@ export function parseDateStrToYYYYMMDD(dateStr: string): string | null {
 // Helper to parse day from date string robustly (e.g. "Sun, 5/24/26" -> Day 1 of trip)
 
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function getWeatherData(region: string, dateStr: string, currentTime: Date): WeatherData {
   // Return a generic "Out of Range" response for dates too far in the future
   return {
@@ -188,16 +188,20 @@ export function getWeatherData(region: string, dateStr: string, currentTime: Dat
 
 interface WeatherCacheEntry {
   fetchedAt: number;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   forecastData: any;
 }
 
 const WEATHER_CACHE_FILE = path.join(__dirname, '..', 'weather_cache.json');
 
 function loadWeatherCache(): Record<string, WeatherCacheEntry> {
+  if (process.env.JEST_WORKER_ID) {
+    return {};
+  }
   if (fs.existsSync(WEATHER_CACHE_FILE)) {
     try {
       return JSON.parse(fs.readFileSync(WEATHER_CACHE_FILE, 'utf8'));
-    } catch (e) {
+    } catch {
       return {};
     }
   }
@@ -205,6 +209,9 @@ function loadWeatherCache(): Record<string, WeatherCacheEntry> {
 }
 
 function saveWeatherCache(cache: Record<string, WeatherCacheEntry>) {
+  if (process.env.JEST_WORKER_ID) {
+    return;
+  }
   try {
     fs.writeFileSync(WEATHER_CACHE_FILE, JSON.stringify(cache, null, 2), 'utf8');
   } catch (e) {
@@ -250,8 +257,9 @@ export async function asyncGetWeatherData(region: string, dateStr: string, curre
       };
       saveWeatherCache(cache);
       forecastData = data;
-    } catch (e: any) {
-      console.warn(`Server Weather Service: Failed to fetch live weather for ${region}. Error: ${e.message || e}. Attempting expired cache fallback.`);
+    } catch (e: unknown) {
+      const err = e as Error;
+      console.warn(`Server Weather Service: Failed to fetch live weather for ${region}. Error: ${err.message || err}. Attempting expired cache fallback.`);
       forecastData = cache[cacheKey]?.forecastData || null;
     }
   }
@@ -275,7 +283,7 @@ export async function asyncGetWeatherData(region: string, dateStr: string, curre
   const mapped = mapWMOToCondition(dailyCode);
   const condition = mapped.condition;
   const emoji = mapped.emoji;
-  let advisory = mapped.advisory;
+  const advisory = mapped.advisory;
 
   // Find hourly index matching targetDateT00:00 to targetDateT23:00
   const hourlyTimes = forecastData.hourly.time as string[];
@@ -286,7 +294,7 @@ export async function asyncGetWeatherData(region: string, dateStr: string, curre
     return fallback;
   }
 
-  const hourly: { hour: number; temp: number; emoji: string }[] = [];
+  const hourly: { hour: number; temp: number; emoji: string; precipProb?: number; condition?: string }[] = [];
   let humiditySum = 0;
   let windSpeedSum = 0;
   let precipProbMax = 0;
@@ -295,8 +303,11 @@ export async function asyncGetWeatherData(region: string, dateStr: string, curre
     const idx = startIndex + h;
     const temp = Math.round(forecastData.hourly.temperature_2m[idx]);
     const hourlyCode = forecastData.hourly.weather_code[idx];
+    const hourlyPrecipProb = Math.round(forecastData.hourly.precipitation_probability[idx] || 0);
+    const mappedCondition = mapWMOToCondition(hourlyCode);
+    const hourlyCondition = mappedCondition.condition;
     
-    let hourlyEmoji = mapWMOToCondition(hourlyCode).emoji;
+    let hourlyEmoji = mappedCondition.emoji;
     // Keep standard nighttime emojis matching diurnal code if clear/sunny
     if (h < 5 || h >= 19) {
       if (hourlyEmoji === '☀️') {
@@ -307,7 +318,9 @@ export async function asyncGetWeatherData(region: string, dateStr: string, curre
     hourly.push({
       hour: h,
       temp,
-      emoji: hourlyEmoji
+      emoji: hourlyEmoji,
+      precipProb: hourlyPrecipProb,
+      condition: hourlyCondition
     });
 
     humiditySum += forecastData.hourly.relative_humidity_2m[idx] || 0;
