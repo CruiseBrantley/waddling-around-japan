@@ -324,6 +324,9 @@ export const ActivityList: React.FC<ActivityListProps> = ({
                     const cached = localStorage.getItem(weatherCacheKey);
                     if (cached) {
                       const weatherData = JSON.parse(cached);
+                      if (weatherData.condition === 'Unknown') {
+                        return undefined;
+                      }
                       const startMin = timeToMinutes(activity.time || '');
                       const hour = parseTimeToHour(activity.time || '');
                       

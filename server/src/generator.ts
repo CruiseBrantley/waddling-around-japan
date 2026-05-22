@@ -351,14 +351,20 @@ export function buildAdvisoryPrompt(date: string, regions: string[], weatherList
       let weatherSuffix = '';
       if (weather) {
         const hour = parseTimeToHour(timeStr);
-        if (hour !== null && weather.hourly && weather.hourly.length > hour) {
+        if (weather.condition === 'Unknown') {
+          weatherSuffix = ' (Weather: No Data / Forecast Unavailable)';
+        } else if (hour !== null && weather.hourly && weather.hourly.length > hour) {
           const hourlyForecast = weather.hourly[hour];
           const temp = hourlyForecast.temp;
           const condition = hourlyForecast.condition || weather.condition;
           const emoji = hourlyForecast.emoji || weather.emoji;
           const precip = hourlyForecast.precipProb !== undefined ? hourlyForecast.precipProb : weather.precipProb;
           
-          weatherSuffix = ` (Weather at ${timeStr}: ${temp}°F, ${condition} ${emoji}, precip prob ${precip}%)`;
+          if (condition === 'Unknown') {
+            weatherSuffix = ' (Weather: No Data / Forecast Unavailable)';
+          } else {
+            weatherSuffix = ` (Weather at ${timeStr}: ${temp}°F, ${condition} ${emoji}, precip prob ${precip}%)`;
+          }
         } else {
           weatherSuffix = ` (Weather for the day: High ${weather.tempMax}°F, Low ${weather.tempMin}°F, ${weather.condition} ${weather.emoji}, precip prob ${weather.precipProb}%)`;
         }
@@ -369,6 +375,10 @@ export function buildAdvisoryPrompt(date: string, regions: string[], weatherList
     .join('\n');
 
   const weatherStr = weatherList.map((w, idx) => {
+    if (w.condition === 'Unknown') {
+      return `Region: ${regions[idx]}
+- Forecast: No Data / Unavailable (Date too far in future or out of range)`;
+    }
     return `Region: ${regions[idx]}
 - Current Temperature: ${w.currentTemp}°F
 - Expected High: ${w.tempMax}°F

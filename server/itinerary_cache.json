@@ -233,7 +233,7 @@
           "titleHtml": "<span style=\"font-weight: bold\">Withdraw Cash</span> from FamilyMart",
           "fullTitle": "Withdraw Cash from FamilyMart",
           "location": "",
-          "notes": "~$150 (23,000 yen) each time",
+          "notes": "~$150 (23,000 yen) each time.\n- Avoid increments of 10,000 yen to avoid large notes.\n- If ATM asks about conversion, select \"NO\" or \"VISA CONVERT\".",
           "category": "Other",
           "categoryBackgroundColor": "rgb(24, 24, 24)",
           "categoryForegroundColor": "rgb(255, 255, 255)",
