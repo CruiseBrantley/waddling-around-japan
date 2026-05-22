@@ -34,14 +34,14 @@ const findBestRegionForActivity = (activity: any, regions: string[], previousReg
   let resolvedAddressText = '';
 
   if (activity && typeof activity === 'object') {
-    locationText = (activity.location || '').toLowerCase();
-    titleText = (activity.title || '').toLowerCase();
-    notesText = (activity.notes || '').toLowerCase();
-    linkText = ((activity.locationLink || '') + ' ' + (activity.link || '')).toLowerCase();
-    resolvedNameText = (activity.resolvedName || '').toLowerCase();
-    resolvedAddressText = (activity.resolvedAddress || '').toLowerCase();
+    locationText = (activity.location || '').toLowerCase().replace(/kyoto\s*katsugyu/g, '');
+    titleText = (activity.title || '').toLowerCase().replace(/kyoto\s*katsugyu/g, '');
+    notesText = (activity.notes || '').toLowerCase().replace(/kyoto\s*katsugyu/g, '');
+    linkText = ((activity.locationLink || '') + ' ' + (activity.link || '')).toLowerCase().replace(/kyoto\s*katsugyu/g, '');
+    resolvedNameText = (activity.resolvedName || '').toLowerCase().replace(/kyoto\s*katsugyu/g, '');
+    resolvedAddressText = (activity.resolvedAddress || '').toLowerCase().replace(/kyoto\s*katsugyu/g, '');
   } else if (typeof activity === 'string') {
-    locationText = activity.toLowerCase();
+    locationText = activity.toLowerCase().replace(/kyoto\s*katsugyu/g, '');
   }
 
   // 1. Direct substring check on location and resolved fields first

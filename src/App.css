@@ -302,7 +302,7 @@
   flex-direction: column;
   align-items: center;
   width: 48px;
-  padding-top: 16px;
+  padding-top: 0;
   margin-bottom: 24px; /* Match activity-card margin-bottom so connector ends flush */
   position: relative;
   min-height: 0;
@@ -319,6 +319,51 @@
   color: var(--text-muted);
   text-align: center;
   margin-bottom: 6px;
+}
+
+.timeline-weather-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin-bottom: 4px;
+  width: 48px;
+  box-sizing: border-box;
+  font-weight: 700;
+  cursor: default;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.timeline-weather-badge:hover {
+  transform: scale(1.08);
+}
+
+.timeline-weather-badge .weather-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  line-height: 1;
+}
+
+.timeline-weather-badge .weather-emoji {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.timeline-weather-badge .weather-temp {
+  font-size: 10px;
+  color: var(--text-main);
+  letter-spacing: -0.2px;
+  font-weight: 700;
+}
+
+.timeline-weather-badge .weather-precip {
+  font-size: 9px;
+  color: #32d7ff; /* rain sky blue */
+  font-weight: 800;
+  letter-spacing: -0.2px;
+  line-height: 1;
 }
 
 .timeline-dot {
@@ -1863,6 +1908,39 @@
   flex-direction: column;
   gap: 4px;
   width: 100%;
+}
+
+.weather-card-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 2px 8px;
+  border-radius: 4px;
+  width: fit-content;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  transition: background 0.2s ease, transform 0.2s ease;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.weather-card-pill:hover {
+  background: rgba(255, 255, 255, 0.12);
+  transform: scale(1.03);
+}
+
+.weather-pill-emoji {
+  font-size: 11px;
+}
+
+.weather-pill-temp {
+  font-family: 'Inter', sans-serif;
+  letter-spacing: 0.5px;
 }
 
 .reservation-badge {

@@ -3,9 +3,34 @@ import { test, expect } from '@playwright/test';
 // Define a robust, self-contained mock weather generator for deterministic E2E testing.
 // This decouples the tests from the production simulated fallback which has been removed.
 function getMockWeatherData(region: string, dateStr: string, currentTime: Date) {
-  const isOsaka = region.toLowerCase() === 'osaka';
-  const tempMin = isOsaka ? 63 : 60;
-  const tempMax = isOsaka ? 81 : 78;
+  const r = region.toLowerCase();
+  const isOsaka = r === 'osaka';
+  const isChicago = r === 'chicago';
+  const isBentonville = r === 'bentonville';
+  
+  let tempMin = 60;
+  let tempMax = 78;
+  let condition = 'Sunny';
+  let emoji = '☀️';
+  let precipProb = 0;
+
+  if (isOsaka) {
+    tempMin = 63;
+    tempMax = 81;
+  } else if (isChicago) {
+    tempMin = 50;
+    tempMax = 65;
+    condition = 'Rainy';
+    emoji = '🌧️';
+    precipProb = 30;
+  } else if (isBentonville) {
+    tempMin = 68;
+    tempMax = 85;
+    condition = 'Cloudy';
+    emoji = '☁️';
+    precipProb = 10;
+  }
+
   const hour = currentTime.getHours();
   
   // Computes dynamic temperature based on high/low bounds and the current hour (diurnal curve)
@@ -29,7 +54,9 @@ function getMockWeatherData(region: string, dateStr: string, currentTime: Date) 
     return {
       hour: h,
       temp: Math.round(tempMin + (tempMax - tempMin) * f),
-      emoji: '☀️'
+      emoji: emoji,
+      precipProb: precipProb,
+      condition: condition
     };
   });
 
@@ -37,9 +64,9 @@ function getMockWeatherData(region: string, dateStr: string, currentTime: Date) 
     region,
     tempMin,
     tempMax,
-    condition: 'Sunny',
-    emoji: '☀️',
-    precipProb: 0,
+    condition,
+    emoji,
+    precipProb,
     humidity: 50,
     windSpeed: 5,
     advisory: 'Perfect weather for exploring!',
@@ -359,5 +386,123 @@ test.describe('Weather Widget & AI Advisory Integration', () => {
     // 6. Assert that the scrollLeft position remains stable and did not snap back
     scrollLeft = await slider.evaluate((el) => el.scrollLeft);
     expect(Math.abs(scrollLeft - targetScroll)).toBeLessThan(10);
+  });
+
+  test('should map transit activities (ORD and XNA) to correct weather regions', async ({ page }) => {
+    // Intercept Google Sheets API calls and fulfill with deterministic mock transit data
+    await page.route('**/spreadsheets/**', async route => {
+      const mockTransitSheetsData = {
+        sheets: [{
+          data: [{
+            rowData: [
+              { values: [
+                { formattedValue: 'Date' },
+                { formattedValue: 'Time' },
+                { formattedValue: 'Activity' },
+                { formattedValue: 'Location' },
+                { formattedValue: 'Category' },
+                { formattedValue: 'Notes' }
+              ] },
+              { values: [
+                { formattedValue: 'Sun, 5/24/26' },
+                { formattedValue: '09:00' },
+                { formattedValue: 'Depart from ORD' },
+                { formattedValue: 'ORD' },
+                { formattedValue: 'Transport' },
+                { formattedValue: 'Chicago O\'Hare' }
+              ] },
+              { values: [
+                { formattedValue: 'Sun, 5/24/26' },
+                { formattedValue: '14:00' },
+                { formattedValue: 'Transit through XNA' },
+                { formattedValue: 'XNA' },
+                { formattedValue: 'Transport' },
+                { formattedValue: 'Bentonville/Centerton' }
+              ] }
+            ]
+          }]
+        }]
+      };
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mockTransitSheetsData)
+      });
+    });
+
+    // Override regions/bulk mock specifically for this test to have Centerton as primary
+    await page.route('**/regions/bulk', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          regionsMap: {
+            "Sun, 5/24/26": ["Centerton"]
+          }
+        })
+      });
+    });
+
+    // Intercept advisor endpoint specifically for this test to populate weather caches for the transit regions
+    await page.route('**/advisor*', async route => {
+      const dummyTime = new Date('2026-05-24T12:00:00Z');
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          cache: {
+            "Sun, 5/24/26_Centerton": {
+              content: null,
+              weather: getMockWeatherData('Centerton', 'Sun, 5/24/26', dummyTime)
+            },
+            "Sun, 5/24/26_Chicago": {
+              content: null,
+              weather: getMockWeatherData('Chicago', 'Sun, 5/24/26', dummyTime)
+            },
+            "Sun, 5/24/26_Bentonville": {
+              content: null,
+              weather: getMockWeatherData('Bentonville', 'Sun, 5/24/26', dummyTime)
+            },
+            "Sun, 5/24/26": {
+              content: null
+            }
+          }
+        })
+      });
+    });
+
+    // Override the itinerary cache with a transit day (Day 1) to cover both instant load and sheet fetch cases
+    await page.addInitScript(() => {
+      const mockTransitItinerary = {
+        title: "Japan Trip E2E Weather Test - Transit",
+        days: [
+          {
+            day: 1,
+            date: "Sun, 5/24/26",
+            activities: [
+              { id: "act1", date: "Sun, 5/24/26", time: "09:00", title: "Depart from ORD", type: "transport", notes: "Chicago O'Hare", location: "ORD", category: "Transport" },
+              { id: "act2", date: "Sun, 5/24/26", time: "14:00", title: "Transit through XNA", type: "transport", notes: "Bentonville/Centerton", location: "XNA", category: "Transport" }
+            ]
+          }
+        ]
+      };
+      localStorage.setItem('itinerary_cache', JSON.stringify(mockTransitItinerary));
+    });
+
+    await page.goto('/');
+
+    // Wait for the timeline page to load and ensure weather badges are rendered
+    await page.waitForSelector('.timeline-weather-badge');
+
+    const badges = page.locator('.timeline-weather-badge');
+    await expect(badges).toHaveCount(2);
+
+    // First activity: "Depart from ORD" -> should display Chicago weather (Rainy 🌧️)
+    const firstBadge = badges.nth(0);
+    await expect(firstBadge.locator('.weather-emoji')).toContainText('🌧️');
+    
+    // Second activity: "Transit through XNA" -> should display Bentonville weather (Cloudy ☁️)
+    const secondBadge = badges.nth(1);
+    await expect(secondBadge.locator('.weather-emoji')).toContainText('☁️');
   });
 });

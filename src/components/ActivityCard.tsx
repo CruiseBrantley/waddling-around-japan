@@ -97,9 +97,11 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
             )}
             {showOngoingBadge && isLive && <span className="live-badge">● ONGOING</span>}
           </h3>
-          {activity.requiresReservation && (
-            <span className="reservation-badge">🎟️ RESERVATION REQUIRED</span>
-          )}
+          <div className="card-badges" style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+            {activity.requiresReservation && (
+              <span className="reservation-badge">🎟️ RESERVATION REQUIRED</span>
+            )}
+          </div>
         </div>
         {activity.category && (
           <span 

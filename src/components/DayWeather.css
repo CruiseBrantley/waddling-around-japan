@@ -270,6 +270,16 @@
   font-weight: 600;
 }
 
+.hourly-precip {
+  font-size: 10px;
+  font-weight: 600;
+  color: #32d7ff;
+  font-family: 'Inter', sans-serif;
+  margin-top: 2px;
+  text-align: center;
+  white-space: nowrap;
+}
+
 /* Highlight Active Current Hour in Slider */
 .hourly-item.active-hour {
   background: rgba(183, 141, 235, 0.15);
@@ -677,3 +687,32 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Premium Weather Unavailable State card */
+.weather-unavailable-premium-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 20px 16px;
+  margin: 12px 18px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.015);
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  text-align: center;
+}
+
+.weather-unavailable-icon {
+  font-size: 24px;
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.15));
+}
+
+.weather-unavailable-text {
+  font-size: 12.5px;
+  line-height: 1.5;
+  opacity: 0.75;
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  color: rgba(255, 255, 255, 0.85);
+}
+

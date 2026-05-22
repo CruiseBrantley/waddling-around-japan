@@ -50,7 +50,10 @@ test.describe('Alerting and Notification System', () => {
                     effectiveFormat: { backgroundColor: { red: 0.65, green: 0.11, blue: 0.0 } } 
                   }, 
                   { formattedValue: 'Tokyo' }, 
-                  { formattedValue: 'Dining' }
+                  { 
+                    formattedValue: 'Dining',
+                    effectiveFormat: { backgroundColor: { red: 0.1, green: 0.8, blue: 0.2 } }
+                  }
                 ] }
               ]
             }]

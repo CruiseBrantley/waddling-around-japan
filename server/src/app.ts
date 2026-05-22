@@ -15,6 +15,7 @@ const ALLOWED_ORIGINS = [
   'https://waddling-around-japan.web.app',
   'https://waddling-around-japan.firebaseapp.com',
   'https://waddling-around-japan.github.io',
+  'https://sirian.ddns.net',
   'https://waddling-around-japan-pi.loca.lt',
   'https://waddling-cruise-pi.loca.lt',
   'http://localhost:5173',
@@ -352,6 +353,17 @@ app.get('/advisor', async (req, res): Promise<any> => {
   const systemTime = currentTime ? new Date(currentTime as string) : new Date();
   const packagedCache: Record<string, { content: string; weather: any }> = {};
 
+  // Load regions cache dynamically to map full-day keys to their active regions
+  const regionsCachePath = path.join(__dirname, '..', 'regions_cache.json');
+  let regionsCache: Record<string, string[]> = {};
+  if (fs.existsSync(regionsCachePath)) {
+    try {
+      regionsCache = JSON.parse(fs.readFileSync(regionsCachePath, 'utf8'));
+    } catch (e) {
+      console.error('Server: Failed to parse regions_cache.json', e);
+    }
+  }
+
   for (const key of Object.keys(cache)) {
     const lastUnderscore = key.lastIndexOf('_');
     if (lastUnderscore !== -1) {
@@ -376,6 +388,28 @@ app.get('/advisor', async (req, res): Promise<any> => {
         content: cache[key],
         weather: null
       };
+
+      // Generate and inject synthetic region-suffixed keys with live weather
+      const dateStr = key;
+      const regionsForDay = regionsCache[dateStr] || [];
+      for (const reg of regionsForDay) {
+        const legacyKey = `${dateStr}_${reg.toLowerCase()}`;
+        if (!packagedCache[legacyKey]) {
+          try {
+            const weather = await asyncGetWeatherData(reg, dateStr, systemTime);
+            packagedCache[legacyKey] = {
+              content: cache[key],
+              weather
+            };
+          } catch (err) {
+            const fallbackWeather = getWeatherData(reg, dateStr, systemTime);
+            packagedCache[legacyKey] = {
+              content: cache[key],
+              weather: fallbackWeather
+            };
+          }
+        }
+      }
     }
   }
 
@@ -440,6 +474,57 @@ app.post('/advisor/generate', async (req, res): Promise<any> => {
     console.error('API Advisor generation failed:', err);
     return res.status(500).json({
       error: `Failed to generate advisory note: ${err.message || err}`
+    });
+  }
+});
+
+// Endpoint to force regenerate all LLM advisor notes and refresh weather data
+// Clears all caches, then triggers a full pre-cache scan which will re-fetch everything
+app.post('/regenerate', async (req, res): Promise<any> => {
+  try {
+    console.log('Server: Regenerate endpoint called. Clearing all caches...');
+    
+    // Clear advisor cache
+    const advisorCachePath = path.join(__dirname, '..', 'advisor_cache.json');
+    if (fs.existsSync(advisorCachePath)) {
+      fs.writeFileSync(advisorCachePath, JSON.stringify({}), 'utf8');
+      console.log('Server: Cleared advisor cache');
+    }
+    
+    // Clear regions cache
+    const regionsCachePath = path.join(__dirname, '..', 'regions_cache.json');
+    if (fs.existsSync(regionsCachePath)) {
+      fs.writeFileSync(regionsCachePath, JSON.stringify({}), 'utf8');
+      console.log('Server: Cleared regions cache');
+    }
+    
+    // Clear geocoding cache
+    const geoCachePath = path.join(__dirname, '..', 'geocoding_cache.json');
+    if (fs.existsSync(geoCachePath)) {
+      fs.writeFileSync(geoCachePath, JSON.stringify({}), 'utf8');
+      console.log('Server: Cleared geocoding cache');
+    }
+    
+    // Clear weather cache
+    const weatherCachePath = path.join(__dirname, '..', 'weather_cache.json');
+    if (fs.existsSync(weatherCachePath)) {
+      fs.writeFileSync(weatherCachePath, JSON.stringify({}), 'utf8');
+      console.log('Server: Cleared weather cache');
+    }
+    
+    // Trigger fresh pre-cache scan (region extraction + weather + advisor generation)
+    const { generateMissingAdvisories } = require('./poller');
+    await generateMissingAdvisories();
+    
+    console.log('Server: Regeneration complete');
+    return res.status(200).json({ 
+      success: true, 
+      message: 'All caches cleared and regeneration triggered' 
+    });
+  } catch (err: any) {
+    console.error('Server: Regeneration failed:', err);
+    return res.status(500).json({
+      error: `Regeneration failed: ${err.message || err}`
     });
   }
 });

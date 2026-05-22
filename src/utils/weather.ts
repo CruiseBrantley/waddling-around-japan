@@ -11,7 +11,7 @@ export interface WeatherData {
   windSpeed: number;
   advisory: string;
   currentTemp: number;
-  hourly: { hour: number; temp: number; emoji: string }[];
+  hourly: { hour: number; temp: number; emoji: string; precipProb?: number; condition?: string }[];
 }
 
 import { getApiUrl } from './api';
@@ -43,11 +43,9 @@ export async function fetchRegionsForDay(activities: ItineraryActivity[], dateSt
   return ['Tokyo']; // Fallback if the network or LLM fails
 }
 
-// Generate realistic simulated climate conditions for late May/early June in Japan (FALLBACK)
+// Return clean Unknown forecast representing unavailable weather
+/* eslint-disable-next-line @typescript-eslint/no-unused-vars */
 export function getWeatherData(region: string, _dateStr: string, _currentTime: Date): WeatherData {
-  void _dateStr;
-  void _currentTime;
-  // Return a generic "Out of Range" response for dates too far in the future
   return {
     region,
     tempMin: 0,
@@ -57,8 +55,9 @@ export function getWeatherData(region: string, _dateStr: string, _currentTime: D
     precipProb: 0,
     humidity: 0,
     windSpeed: 0,
-    advisory: 'Forecast unavailable: Date is too far out. Check back closer to your trip!',
+    advisory: 'Forecast unavailable: Date is too far out. Live 16-day forecast will populate automatically closer to your trip!',
     currentTemp: 0,
     hourly: []
   };
 }
+

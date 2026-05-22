@@ -1,27 +1,7 @@
 {
-  "osaka": {
-    "latitude": 34.69379,
-    "longitude": 135.50107
-  },
-  "kyoto": {
-    "latitude": 35.02107,
-    "longitude": 135.75385
-  },
-  "kobe": {
-    "latitude": 34.6913,
-    "longitude": 135.183
-  },
   "tokyo": {
     "latitude": 35.6895,
     "longitude": 139.69171
-  },
-  "kamakura": {
-    "latitude": 35.31085,
-    "longitude": 139.54698
-  },
-  "mount fuji": {
-    "latitude": 42.62502,
-    "longitude": -88.4501
   },
   "centerton": {
     "latitude": 36.3598,
@@ -35,9 +15,25 @@
     "latitude": 41.85003,
     "longitude": -87.65005
   },
-  "yamanashi": {
-    "latitude": 35.67152,
-    "longitude": 138.69827
+  "osaka": {
+    "latitude": 34.69379,
+    "longitude": 135.50107
+  },
+  "kyoto": {
+    "latitude": 35.02107,
+    "longitude": 135.75385
+  },
+  "kobe": {
+    "latitude": 34.6913,
+    "longitude": 135.183
+  },
+  "kamakura": {
+    "latitude": 35.31085,
+    "longitude": 139.54698
+  },
+  "mount fuji": {
+    "latitude": 42.62502,
+    "longitude": -88.4501
   },
   "san francisco": {
     "latitude": 37.77493,

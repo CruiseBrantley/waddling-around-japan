@@ -1,4 +1,9 @@
 {
+  "Sun, 5/24/26": [
+    "Centerton",
+    "Bentonville",
+    "Chicago"
+  ],
   "Mon, 5/25/26": [
     "Tokyo",
     "Osaka"
@@ -17,24 +22,6 @@
     "Kobe",
     "Osaka"
   ],
-  "Mon, 6/1/26": [
-    "Tokyo"
-  ],
-  "Wed, 6/3/26": [
-    "Tokyo"
-  ],
-  "Fri, 6/5/26": [
-    "Kamakura",
-    "Tokyo"
-  ],
-  "Mon, 6/8/26": [
-    "Tokyo"
-  ],
-  "Sun, 5/24/26": [
-    "Centerton",
-    "Bentonville",
-    "Chicago"
-  ],
   "Sat, 5/30/26": [
     "Osaka",
     "Tokyo"
@@ -42,10 +29,20 @@
   "Sun, 5/31/26": [
     "Tokyo"
   ],
+  "Mon, 6/1/26": [
+    "Tokyo"
+  ],
   "Tue, 6/2/26": [
     "Tokyo"
   ],
+  "Wed, 6/3/26": [
+    "Tokyo"
+  ],
   "Thu, 6/4/26": [
+    "Tokyo"
+  ],
+  "Fri, 6/5/26": [
+    "Kamakura",
     "Tokyo"
   ],
   "Sat, 6/6/26": [
@@ -53,13 +50,17 @@
   ],
   "Sun, 6/7/26": [
     "Mount Fuji",
-    "Yamanashi"
+    "Tokyo"
+  ],
+  "Mon, 6/8/26": [
+    "Tokyo"
   ],
   "Tue, 6/9/26": [
     "Tokyo",
     "San Francisco"
   ],
   "Wed, 6/10/26": [
+    "Chicago",
     "Bentonville"
   ]
 }

@@ -1,6 +1,7 @@
 import type { ItineraryActivity } from '../services/sheets';
 import type { WeatherData } from './weather';
 import { getApiUrl } from './api';
+import { parseTimeToHour } from './time';
 
 export interface AIAdvisoryRequest {
   date: string;
@@ -19,7 +20,28 @@ export function buildAdvisoryPrompt(request: AIAdvisoryRequest): string {
   const { date, region, weather, activities } = request;
   
   const scheduleStr = activities
-    .map(act => `- [${act.time || 'All Day'}] ${act.title} (${act.location || 'N/A'}) - Category: ${act.category}. Notes: ${act.notes}`)
+    .map(act => {
+      const timeStr = act.time || 'All Day';
+      const location = act.location || 'N/A';
+      
+      let weatherSuffix = '';
+      if (weather) {
+        const hour = parseTimeToHour(timeStr);
+        if (hour !== null && weather.hourly && weather.hourly.length > hour) {
+          const hourlyForecast = weather.hourly[hour];
+          const temp = hourlyForecast.temp;
+          const condition = hourlyForecast.condition || weather.condition;
+          const emoji = hourlyForecast.emoji || weather.emoji;
+          const precip = hourlyForecast.precipProb !== undefined ? hourlyForecast.precipProb : weather.precipProb;
+          
+          weatherSuffix = ` (Weather at ${timeStr}: ${temp}°F, ${condition} ${emoji}, precip prob ${precip}%)`;
+        } else {
+          weatherSuffix = ` (Weather for the day: High ${weather.tempMax}°F, Low ${weather.tempMin}°F, ${weather.condition} ${weather.emoji}, precip prob ${weather.precipProb}%)`;
+        }
+      }
+      
+      return `- [${timeStr}] ${act.title} (${location})${weatherSuffix} - Category: ${act.category}. Notes: ${act.notes}`;
+    })
     .join('\n');
 
   return `Today is ${date}. We are exploring the ${region} region in Japan.
@@ -30,7 +52,7 @@ Here is the weather forecast for ${region} today:
 - General Condition: ${weather.condition} ${weather.emoji}
 - Precipitation Probability: ${weather.precipProb}%
 - Humidity: ${weather.humidity}%
-- Wind Speed: ${weather.windSpeed} km/h
+- Wind Speed: ${Math.round(weather.windSpeed * 0.621371)} mph
 
 Our planned itinerary for today is:
 ${scheduleStr}

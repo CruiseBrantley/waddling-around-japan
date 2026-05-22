@@ -1,6 +1,92 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { fetchItinerary, fetchBulkRegions, type Itinerary } from '../services/sheets';
 
+const REGION_KEYWORD_MAP: Record<string, string[]> = {
+  'chicago': ['ord', 'mdw', "o'hare", 'midway', 'chicago'],
+  'bentonville': ['xna', 'bentonville'],
+  'centerton': ['centerton'],
+  'tokyo': ['hnd', 'nrt', 'haneda', 'narita', 'tokyo'],
+  'osaka': ['kix', 'itm', 'kansai', 'itami', 'osaka'],
+  'kyoto': ['kyoto'],
+  'kobe': ['ukb', 'kobe'],
+  'sapporo': ['cts', 'chitose', 'sapporo'],
+  'hakodate': ['hkd', 'hakodate'],
+  'fukuoka': ['fuk', 'fukuoka'],
+  'nagoya': ['ngo', 'nagoya'],
+  'hiroshima': ['hij', 'hiroshima']
+};
+
+const REGION_NAME_MAP: Record<string, string> = {
+  'chicago': 'Chicago',
+  'bentonville': 'Bentonville',
+  'centerton': 'Centerton',
+  'tokyo': 'Tokyo',
+  'osaka': 'Osaka',
+  'kyoto': 'Kyoto',
+  'kobe': 'Kobe',
+  'sapporo': 'Sapporo',
+  'hakodate': 'Hakodate',
+  'fukuoka': 'Fukuoka',
+  'nagoya': 'Nagoya',
+  'hiroshima': 'Hiroshima'
+};
+
+/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+function addImplicitRegions(regions: string[], activities: any[]): string[] {
+  const updatedRegions = [...regions];
+  if (!activities || activities.length === 0) return updatedRegions;
+
+  for (const act of activities) {
+    const title = (act.title || '').toLowerCase().replace(/kyoto\s*katsugyu/g, '');
+    const location = (act.location || '').toLowerCase().replace(/kyoto\s*katsugyu/g, '');
+    const notes = (act.notes || '').toLowerCase().replace(/kyoto\s*katsugyu/g, '');
+    const resolvedName = (act.resolvedName || '').toLowerCase().replace(/kyoto\s*katsugyu/g, '');
+    const resolvedAddress = (act.resolvedAddress || '').toLowerCase().replace(/kyoto\s*katsugyu/g, '');
+
+    for (const [key, aliases] of Object.entries(REGION_KEYWORD_MAP)) {
+      const regionName = REGION_NAME_MAP[key] || (key.charAt(0).toUpperCase() + key.slice(1));
+      
+      if (updatedRegions.some(r => r.toLowerCase() === key)) {
+        continue;
+      }
+
+      for (const alias of aliases) {
+        let matched = false;
+        if (alias.length <= 3) {
+          const regex = new RegExp(`\\b${alias}\\b`, 'i');
+          if (
+            regex.test(title) ||
+            regex.test(location) ||
+            regex.test(notes) ||
+            regex.test(resolvedName) ||
+            regex.test(resolvedAddress)
+          ) {
+            matched = true;
+          }
+        } else {
+          if (
+            title.includes(alias) ||
+            location.includes(alias) ||
+            notes.includes(alias) ||
+            resolvedName.includes(alias) ||
+            resolvedAddress.includes(alias)
+          ) {
+            matched = true;
+          }
+        }
+
+        if (matched) {
+          updatedRegions.push(regionName);
+          break;
+        }
+      }
+    }
+  }
+
+  return updatedRegions;
+}
+
+
 export function useItinerary(debugOffset: number | null = null) {
   const [itinerary, setItinerary] = useState<Itinerary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -80,6 +166,10 @@ export function useItinerary(debugOffset: number | null = null) {
     if (isRefresh) setRefreshing(true);
     try {
       const data = await fetchItinerary();
+      // Instantly enrich regions with implicit ones for immediate/offline correctness
+      data.days.forEach(day => {
+        day.regions = addImplicitRegions(day.regions || ['Tokyo'], day.activities);
+      });
       setItinerary(data);
       setLastUpdated(new Date());
 
@@ -90,9 +180,11 @@ export function useItinerary(debugOffset: number | null = null) {
             if (!prev) return prev;
             const updated = { ...prev, days: [...prev.days] };
             updated.days.forEach((day, index) => {
-              if (regionsMap[day.date]) {
-                updated.days[index] = { ...day, regions: regionsMap[day.date] };
-              }
+              const serverRegions = regionsMap[day.date] || ['Tokyo'];
+              updated.days[index] = { 
+                ...day, 
+                regions: addImplicitRegions(serverRegions, day.activities) 
+              };
             });
             return updated;
           });

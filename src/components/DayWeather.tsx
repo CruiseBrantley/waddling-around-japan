@@ -250,7 +250,7 @@ export const DayWeather: React.FC<DayWeatherProps> = ({
               {weather.condition !== 'Unknown' && (
                 <>
                   <span className="weather-range-divider">•</span>
-                  <span className="weather-hi-low">H: {weather.tempMax}°  L: {weather.tempMin}°</span>
+                  <span className="weather-hi-low">L: {weather.tempMin}°  H: {weather.tempMax}°</span>
                 </>
               )}
             </div>
@@ -268,45 +268,59 @@ export const DayWeather: React.FC<DayWeatherProps> = ({
         <div className="weather-drawer-content fade-in-up">
           <div className="weather-section-divider" />
 
-          {/* 24-Hour Slider */}
-          <div className="weather-hourly-section">
-            <h4 className="weather-subtitle">Hourly Trend</h4>
-            <div className="weather-hourly-slider" ref={hourlyScrollRef}>
-              {weather.hourly.map((hData: { hour: number; temp: number; emoji: string }) => {
-                const isActive = hData.hour === activeHour;
-                return (
-                  <div
-                    key={hData.hour}
-                    className={`hourly-item ${isActive ? 'active-hour' : ''}`}
-                    ref={isActive ? currentHourRef : null}
-                  >
-                    <span className="hourly-time">{hData.hour === 0 ? '12a' : hData.hour === 12 ? '12p' : hData.hour > 12 ? `${hData.hour - 12}p` : `${hData.hour}a`}</span>
-                    <span className="hourly-emoji">{hData.emoji}</span>
-                    <span className="hourly-temp">{hData.temp}°</span>
-                  </div>
-                );
-              })}
+          {weather.condition === 'Unknown' ? (
+            <div className="weather-unavailable-premium-card">
+              <span className="weather-unavailable-icon">📅</span>
+              <p className="weather-unavailable-text">
+                Detailed forecast data is not available yet. Live 16-day forecasts are fetched automatically as your travel date approaches!
+              </p>
             </div>
-          </div>
+          ) : (
+            <>
+              {/* 24-Hour Slider */}
+              <div className="weather-hourly-section">
+                <h4 className="weather-subtitle">Hourly Trend</h4>
+                <div className="weather-hourly-slider" ref={hourlyScrollRef}>
+                  {weather.hourly.map((hData: { hour: number; temp: number; emoji: string; precipProb?: number }) => {
+                    const isActive = hData.hour === activeHour;
+                    return (
+                      <div
+                        key={hData.hour}
+                        className={`hourly-item ${isActive ? 'active-hour' : ''}`}
+                        ref={isActive ? currentHourRef : null}
+                      >
+                        <span className="hourly-time">{hData.hour === 0 ? '12a' : hData.hour === 12 ? '12p' : hData.hour > 12 ? `${hData.hour - 12}p` : `${hData.hour}a`}</span>
+                        <span className="hourly-emoji">{hData.emoji}</span>
+                        <span className="hourly-temp">{hData.temp}°</span>
+                        {hData.precipProb !== undefined && hData.precipProb > 0 && (
+                          <span className="hourly-precip">💧 {hData.precipProb}%</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
 
-          {/* Key Metrics Grid */}
-          <div className="weather-metrics-grid">
-            <div className="metric-box">
-              <span className="metric-icon">☔</span>
-              <span className="metric-value">{weather.precipProb}%</span>
-              <span className="metric-label">Precipitation</span>
-            </div>
-            <div className="metric-box">
-              <span className="metric-icon">💧</span>
-              <span className="metric-value">{weather.humidity}%</span>
-              <span className="metric-label">Humidity</span>
-            </div>
-            <div className="metric-box">
-              <span className="metric-icon">💨</span>
-              <span className="metric-value">{weather.windSpeed} km/h</span>
-              <span className="metric-label">Wind Speed</span>
-            </div>
-          </div>
+              {/* Key Metrics Grid */}
+              <div className="weather-metrics-grid">
+                <div className="metric-box">
+                  <span className="metric-icon">☔</span>
+                  <span className="metric-value">{weather.precipProb}%</span>
+                  <span className="metric-label">Precipitation</span>
+                </div>
+                <div className="metric-box">
+                  <span className="metric-icon">💧</span>
+                  <span className="metric-value">{weather.humidity}%</span>
+                  <span className="metric-label">Humidity</span>
+                </div>
+                <div className="metric-box">
+                  <span className="metric-icon">💨</span>
+                  <span className="metric-value">{Math.round(weather.windSpeed * 0.621371)} mph</span>
+                  <span className="metric-label">Wind Speed</span>
+                </div>
+              </div>
+            </>
+          )}
 
           <div className="weather-section-divider" />
 

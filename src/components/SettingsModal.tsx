@@ -27,10 +27,12 @@ interface SettingsModalProps {
   currentTime: Date;
   categories: string[];
   categoryColors: Record<string, { bg: string, fg?: string }>;
+  onSyncAll?: () => void;
+  onRegenerate?: () => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ 
-  isOpen, onClose, settings, onSettingsChange, currentTime, categories, categoryColors 
+  isOpen, onClose, settings, onSettingsChange, currentTime, categories, categoryColors, onSyncAll, onRegenerate 
 }) => {
   const [permissionState, setPermissionState] = useState<NotificationPermission | 'unsupported'>(() => {
     if (!supportsNotifications()) return 'unsupported';
@@ -458,6 +460,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <code className="debug-rule-code">[Start] to [min(Next Start, Start + 150m)]</code>
               </div>
             </div>
+
+            {/* Regenerate AI & Weather Button */}
+            {onRegenerate && (
+              <div className="settings-dev-card">
+                <button 
+                  className="settings-dev-button primary regenerate-btn"
+                  onClick={() => {
+                    if (settings.hapticsEnabled) triggerHaptic('light');
+                    onRegenerate();
+                  }}
+                  title="Clear all LLM caches and re-generate advisor notes + weather data"
+                >
+                  🤖 Regenerate AI & Weather
+                </button>
+                <div className="settings-hint" style={{ marginTop: '8px', textAlign: 'center' }}>
+                  Clears all server caches and re-generates LLM advisor notes and weather forecasts. May take a minute.
+                </div>
+              </div>
+            )}
             
             <div className="settings-section">
               <h3 className="settings-section-title">Developer Options</h3>
@@ -476,6 +497,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
             </div>
           </div>
+
+          {/* Sync All Data Button */}
+          {onSyncAll && (
+            <>
+              <div className="settings-divider" />
+              <button 
+                className="settings-sync-btn"
+                onClick={() => {
+                  if (settings.hapticsEnabled) triggerHaptic('light');
+                  onSyncAll();
+                }}
+              >
+                <span className="settings-icon">🔄</span>
+                <div>
+                  <div className="settings-label">Sync All Data</div>
+                  <div className="settings-hint">Fetch latest itinerary, weather, advisor & app updates</div>
+                </div>
+              </button>
+            </>
+          )}
 
           <div className="settings-footer">
             <p className="version-info">Version {APP_VERSION}</p>

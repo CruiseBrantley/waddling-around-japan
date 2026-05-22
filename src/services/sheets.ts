@@ -163,6 +163,19 @@ function isSignificantColor(bg: RGBColor | null | undefined): boolean {
 }
 
 /**
+ * Helper to check if a color is the reservation color (Maroon/Dark Red: ~0.65, 0.11, 0.0)
+ */
+function isReservationColor(bg: RGBColor | null | undefined): boolean {
+  if (!bg) return false;
+  return (
+    Math.abs((bg.red || 0) - 0.65) < 0.1 && 
+    Math.abs((bg.green || 0) - 0.11) < 0.1 && 
+    (bg.blue || 0) < 0.1
+  );
+}
+
+
+/**
  * Transform Full Spreadsheet API response into structured itinerary
  */
 function transformFullSheetData(rowData: SheetRow[]): Itinerary {
@@ -293,13 +306,9 @@ function transformFullSheetData(rowData: SheetRow[]): Itinerary {
     const formattedLink = String(cellWithLink?.formattedValue || "").trim();
     const cleanLink = hyperLink || extractUrl(formattedLink);
 
-    // Target specific reservation color (Maroon/Dark Red: ~0.65, 0.11, 0.0)
-    // Always check activity cell or any cell in row
-    const isReservation = finalBg && (
-      Math.abs((finalBg.red || 0) - 0.65) < 0.1 && 
-      Math.abs((finalBg.green || 0) - 0.11) < 0.1 && 
-      (finalBg.blue || 0) < 0.1
-    );
+    // Target specific reservation color (Maroon/Dark Red: ~0.65, 0.11, 0.0) on the activity cell specifically
+    const activityBg = colIndex.activity !== -1 ? cells[colIndex.activity]?.effectiveFormat?.backgroundColor : null;
+    const isReservation = isReservationColor(activityBg);
 
     // Extract Location & its precise link if available (hyperlink or Maps chip)
     const locationCell = colIndex.location !== -1 ? cells[colIndex.location] : null;
