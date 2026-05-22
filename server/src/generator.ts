@@ -153,11 +153,11 @@ export function addImplicitRegions(regions: string[], activities: any[]): string
   if (!activities || activities.length === 0) return updatedRegions;
 
   for (const act of activities) {
-    const title = (act.title || '').toLowerCase().replace(/kyoto\s*katsugyu/g, '');
-    const location = (act.location || '').toLowerCase().replace(/kyoto\s*katsugyu/g, '');
-    const notes = (act.notes || '').toLowerCase().replace(/kyoto\s*katsugyu/g, '');
-    const resolvedName = (act.resolvedName || '').toLowerCase().replace(/kyoto\s*katsugyu/g, '');
-    const resolvedAddress = (act.resolvedAddress || '').toLowerCase().replace(/kyoto\s*katsugyu/g, '');
+    const title = (act.title || '').toLowerCase().replace(/kyoto\s*katsugyu|gyukatsu\s+kyoto/g, '');
+    const location = (act.location || '').toLowerCase().replace(/kyoto\s*katsugyu|gyukatsu\s+kyoto/g, '');
+    const notes = (act.notes || '').toLowerCase().replace(/kyoto\s*katsugyu|gyukatsu\s+kyoto/g, '');
+    const resolvedName = (act.resolvedName || '').toLowerCase().replace(/kyoto\s*katsugyu|gyukatsu\s+kyoto/g, '');
+    const resolvedAddress = (act.resolvedAddress || '').toLowerCase().replace(/kyoto\s*katsugyu|gyukatsu\s+kyoto/g, '');
 
     for (const [key, aliases] of Object.entries(REGION_KEYWORD_MAP)) {
       const regionName = REGION_NAME_MAP[key] || (key.charAt(0).toUpperCase() + key.slice(1));
@@ -217,14 +217,14 @@ export function findBestRegionForActivity(activity: any, regions: string[], prev
   let resolvedAddressText = '';
 
   if (activity && typeof activity === 'object') {
-    locationText = (activity.location || '').toLowerCase().replace(/kyoto\s*katsugyu/g, '');
-    titleText = (activity.title || '').toLowerCase().replace(/kyoto\s*katsugyu/g, '');
-    notesText = (activity.notes || '').toLowerCase().replace(/kyoto\s*katsugyu/g, '');
-    linkText = ((activity.locationLink || '') + ' ' + (activity.link || '')).toLowerCase().replace(/kyoto\s*katsugyu/g, '');
-    resolvedNameText = (activity.resolvedName || '').toLowerCase().replace(/kyoto\s*katsugyu/g, '');
-    resolvedAddressText = (activity.resolvedAddress || '').toLowerCase().replace(/kyoto\s*katsugyu/g, '');
+    locationText = (activity.location || '').toLowerCase().replace(/kyoto\s*katsugyu|gyukatsu\s+kyoto/g, '');
+    titleText = (activity.title || '').toLowerCase().replace(/kyoto\s*katsugyu|gyukatsu\s+kyoto/g, '');
+    notesText = (activity.notes || '').toLowerCase().replace(/kyoto\s*katsugyu|gyukatsu\s+kyoto/g, '');
+    linkText = ((activity.locationLink || '') + ' ' + (activity.link || '')).toLowerCase().replace(/kyoto\s*katsugyu|gyukatsu\s+kyoto/g, '');
+    resolvedNameText = (activity.resolvedName || '').toLowerCase().replace(/kyoto\s*katsugyu|gyukatsu\s+kyoto/g, '');
+    resolvedAddressText = (activity.resolvedAddress || '').toLowerCase().replace(/kyoto\s*katsugyu|gyukatsu\s+kyoto/g, '');
   } else if (typeof activity === 'string') {
-    locationText = activity.toLowerCase().replace(/kyoto\s*katsugyu/g, '');
+    locationText = activity.toLowerCase().replace(/kyoto\s*katsugyu|gyukatsu\s+kyoto/g, '');
   }
 
   // 1. Direct substring check on location and resolved fields first

@@ -37,11 +37,11 @@ function addImplicitRegions(regions: string[], activities: any[]): string[] {
   if (!activities || activities.length === 0) return updatedRegions;
 
   for (const act of activities) {
-    const title = (act.title || '').toLowerCase().replace(/kyoto\s*katsugyu/g, '');
-    const location = (act.location || '').toLowerCase().replace(/kyoto\s*katsugyu/g, '');
-    const notes = (act.notes || '').toLowerCase().replace(/kyoto\s*katsugyu/g, '');
-    const resolvedName = (act.resolvedName || '').toLowerCase().replace(/kyoto\s*katsugyu/g, '');
-    const resolvedAddress = (act.resolvedAddress || '').toLowerCase().replace(/kyoto\s*katsugyu/g, '');
+    const title = (act.title || '').toLowerCase().replace(/kyoto\s*katsugyu|gyukatsu\s+kyoto/g, '');
+    const location = (act.location || '').toLowerCase().replace(/kyoto\s*katsugyu|gyukatsu\s+kyoto/g, '');
+    const notes = (act.notes || '').toLowerCase().replace(/kyoto\s*katsugyu|gyukatsu\s+kyoto/g, '');
+    const resolvedName = (act.resolvedName || '').toLowerCase().replace(/kyoto\s*katsugyu|gyukatsu\s+kyoto/g, '');
+    const resolvedAddress = (act.resolvedAddress || '').toLowerCase().replace(/kyoto\s*katsugyu|gyukatsu\s+kyoto/g, '');
 
     for (const [key, aliases] of Object.entries(REGION_KEYWORD_MAP)) {
       const regionName = REGION_NAME_MAP[key] || (key.charAt(0).toUpperCase() + key.slice(1));
