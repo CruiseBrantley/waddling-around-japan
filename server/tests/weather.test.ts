@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports, @typescript-eslint/no-explicit-any */
 import { asyncGetWeatherData, parseDateStrToYYYYMMDD } from '../src/weather';
 import fs from 'fs';
 
@@ -102,4 +103,162 @@ describe('Server Weather Service Tests', () => {
       expect(weather.hourly[15].temp).toBe(75);
     });
   });
+
+  describe('addImplicitRegions', () => {
+    const { addImplicitRegions } = require('../src/generator');
+
+    it('should map ORD keyword in transit activity to Chicago region', () => {
+      const regions = ['Centerton'];
+      const activities = [
+        { title: 'Depart from ORD', location: 'O\'Hare International Airport', notes: '' },
+        { title: 'Arrive at XNA', location: 'Northwest Arkansas National Airport', notes: '' }
+      ];
+      const result = addImplicitRegions(regions, activities);
+      expect(result).toContain('Chicago');
+      expect(result).toContain('Bentonville');
+      expect(result).toContain('Centerton');
+    });
+
+    it('should map XNA keyword to Bentonville region', () => {
+      const regions = ['Centerton'];
+      const activities = [
+        { title: 'Flight to XNA', location: 'Airport', notes: '' }
+      ];
+      const result = addImplicitRegions(regions, activities);
+      expect(result).toContain('Bentonville');
+      expect(result).toContain('Centerton');
+    });
+
+    it('should protect short codes with word boundaries to prevent false positives', () => {
+      const regions = ['Kyoto'];
+      // "KIX" should match, but a title with "KIXA" or "AKIX" should not match
+      const activitiesWithKIXA = [
+        { title: 'Visiting KIXA park', location: 'Kyoto', notes: '' }
+      ];
+      const activitiesWithKIX = [
+        { title: 'Landed at KIX', location: 'Airport', notes: '' }
+      ];
+      
+      const resultNoMatch = addImplicitRegions(regions, activitiesWithKIXA);
+      expect(resultNoMatch).not.toContain('Osaka');
+
+      const resultMatch = addImplicitRegions(regions, activitiesWithKIX);
+      expect(resultMatch).toContain('Osaka');
+    });
+  });
+
+  describe('findBestRegionForActivity', () => {
+    const { findBestRegionForActivity } = require('../src/generator');
+
+    it('should match region name from location string', () => {
+      const regions = ['Chicago', 'Tokyo'];
+      const act = { location: 'Hotel in Chicago', title: '', notes: '' };
+      expect(findBestRegionForActivity(act, regions)).toBe('Chicago');
+    });
+
+    it('should match region alias from location string', () => {
+      const regions = ['Chicago', 'Tokyo'];
+      const act = { location: 'Arrived at ORD airport', title: '', notes: '' };
+      expect(findBestRegionForActivity(act, regions)).toBe('Chicago');
+    });
+
+    it('should fallback to title, notes, and maps/links if location is empty or does not match', () => {
+      const regions = ['Chicago', 'Tokyo'];
+      
+      // Match from title
+      const actTitle = { location: 'Hotel', title: 'Fly from Chicago', notes: '' };
+      expect(findBestRegionForActivity(actTitle, regions)).toBe('Chicago');
+
+      // Match from notes
+      const actNotes = { location: '', title: 'Hotel', notes: 'Meeting in Chicago' };
+      expect(findBestRegionForActivity(actNotes, regions)).toBe('Chicago');
+
+      // Match from locationLink (map)
+      const actLink = { 
+        location: '', 
+        title: 'Meeting', 
+        notes: '', 
+        locationLink: 'https://google.com/maps/place/Chicago' 
+      };
+      expect(findBestRegionForActivity(actLink, regions)).toBe('Chicago');
+    });
+
+    it('should fallback to regions[0] if no match can be found', () => {
+      const regions = ['Tokyo', 'Chicago'];
+      const act = { location: 'Vague Place', title: 'Vague Title', notes: 'Vague Notes' };
+      expect(findBestRegionForActivity(act, regions)).toBe('Tokyo');
+    });
+
+    it('should prioritize resolved Google Maps name and address in findBestRegionForActivity', () => {
+      const regions = ['Kobe', 'Tokyo'];
+      const act = {
+        location: '',
+        title: 'Dinner',
+        notes: 'Delicious meal',
+        resolvedName: 'Steak Land Kobe',
+        resolvedAddress: 'Chuo Ward, Kobe, Japan'
+      };
+      expect(findBestRegionForActivity(act, regions)).toBe('Kobe');
+    });
+
+    it('should fallback to previousRegion if provided, in valid regions, and no other match is found', () => {
+      const regions = ['Chicago', 'Tokyo'];
+      const act = { location: 'Vague Place', title: 'Snack @?', notes: '' };
+      expect(findBestRegionForActivity(act, regions, 'Chicago')).toBe('Chicago');
+    });
+
+    it('should prefer explicit matches even if a previousRegion is provided', () => {
+      const regions = ['Chicago', 'Tokyo'];
+      const act = { location: 'Hotel in Tokyo', title: '', notes: '' };
+      expect(findBestRegionForActivity(act, regions, 'Chicago')).toBe('Tokyo');
+    });
+
+    it('should fallback to regions[0] if previousRegion is provided but not in valid regions list', () => {
+      const regions = ['Tokyo', 'Chicago'];
+      const act = { location: 'Vague Place', title: '', notes: '' };
+      expect(findBestRegionForActivity(act, regions, 'Kobe')).toBe('Tokyo');
+    });
+  });
+
+  describe('Google Maps Link Resolution and Cache', () => {
+    const { resolveGoogleMapsUrl } = require('../src/sheets');
+
+    it('should parse place name from redirect URL', async () => {
+      const cache = {};
+      const originalFetch = global.fetch;
+      
+      global.fetch = jest.fn().mockImplementation(() =>
+        Promise.resolve({
+          url: 'https://www.google.com/maps/place/Kobe+Station/@34.6793,135.1783,17z',
+          text: () => Promise.resolve('<html><title>Kobe Station · Chuo Ward, Kobe, Japan - Google Maps</title></html>')
+        })
+      ) as any;
+
+      const res = await resolveGoogleMapsUrl('https://maps.app.goo.gl/kobeTestUrl', cache);
+      expect(res.resolvedName).toBe('Kobe Station');
+      expect(res.resolvedAddress).toBe('Chuo Ward, Kobe, Japan');
+      
+      global.fetch = originalFetch;
+    });
+
+    it('should read from cache on subsequent calls without making fetch calls', async () => {
+      const cache = {
+        'https://maps.app.goo.gl/cacheTestUrl': {
+          expandedUrl: 'https://www.google.com/maps/place/Osaka+Castle',
+          resolvedName: 'Osaka Castle',
+          resolvedAddress: 'Osaka, Japan'
+        }
+      };
+      const originalFetch = global.fetch;
+      const mockFetchFn = jest.fn();
+      global.fetch = mockFetchFn as any;
+
+      const res = await resolveGoogleMapsUrl('https://maps.app.goo.gl/cacheTestUrl', cache);
+      expect(res.resolvedName).toBe('Osaka Castle');
+      expect(mockFetchFn).not.toHaveBeenCalled();
+
+      global.fetch = originalFetch;
+    });
+  });
 });
+
