@@ -327,7 +327,7 @@ function App() {
 
     // 4. Vertical alignment when dragging DaySelector (same as clicking a day)
     const isDesktop = window.innerWidth >= 800;
-    if (!isDesktop && type === 'daySelector') {
+    if (!isDesktop && (type === 'daySelector' || type === 'manual')) {
       setTimeout(() => {
         const container = scrollRef.current;
         if (!container) return;

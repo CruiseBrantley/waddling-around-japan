@@ -73,10 +73,10 @@ export function useScrollSync({
         // If we are actively scrolling the day selector on mobile, don't let scroll listener trigger loop
         if (activeScrollerRef.current === 'day' && !isDesktop) return;
 
-        // Sync height dynamically during manual swiping
-        if (isDraggingRef.current) {
-          updateContainerHeight();
-        }
+        // Prevent layout thrashing: Do NOT dynamically sync height on every single scroll frame 
+        // during active drag swiping. Doing so triggers forced synchronous layout reflows, 
+        // which clashes with WebKit's scrolling thread and causes horizontal snapping to overshoot and bounce.
+        // Height will instead sync cleanly when the active index changes or when the snap settles.
 
         const slides = Array.from(container.querySelectorAll('.swipe-slide'));
         let bestIndex = 0;
