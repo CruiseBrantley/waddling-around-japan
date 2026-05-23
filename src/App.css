@@ -1013,6 +1013,8 @@
   align-items: flex-start;
   overflow-x: auto;
   overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: none;
   scroll-snap-type: x mandatory;
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -1035,7 +1037,7 @@
   min-width: 0; /* Important for flex children width containment */
   max-width: 100%;
   overflow-x: hidden;
-  scroll-snap-align: start;
+  scroll-snap-align: center;
   scroll-snap-stop: always;
   height: auto;
   visibility: visible;
