@@ -219,6 +219,33 @@ function saveWeatherCache(cache: Record<string, WeatherCacheEntry>) {
   }
 }
 
+const HISTORICAL_WEATHER_CACHE_FILE = path.join(__dirname, '..', 'historical_weather_cache.json');
+
+function loadHistoricalWeatherCache(): Record<string, WeatherData> {
+  if (process.env.JEST_WORKER_ID) {
+    return {};
+  }
+  if (fs.existsSync(HISTORICAL_WEATHER_CACHE_FILE)) {
+    try {
+      return JSON.parse(fs.readFileSync(HISTORICAL_WEATHER_CACHE_FILE, 'utf8'));
+    } catch {
+      return {};
+    }
+  }
+  return {};
+}
+
+function saveHistoricalWeatherCache(cache: Record<string, WeatherData>) {
+  if (process.env.JEST_WORKER_ID) {
+    return;
+  }
+  try {
+    fs.writeFileSync(HISTORICAL_WEATHER_CACHE_FILE, JSON.stringify(cache, null, 2), 'utf8');
+  } catch (e) {
+    console.error('Server Weather Cache: Failed to save historical weather cache', e);
+  }
+}
+
 export async function asyncGetWeatherData(region: string, dateStr: string, currentTime: Date): Promise<WeatherData> {
   const fallback = getWeatherData(region, dateStr, currentTime);
   
@@ -233,6 +260,9 @@ export async function asyncGetWeatherData(region: string, dateStr: string, curre
     console.log(`Server Weather Service: No coordinates or target date found for ${region} on ${dateStr}. Using generic out-of-range response.`);
     return fallback;
   }
+
+  const historicalKey = `${targetDate}_${region.toLowerCase()}`;
+  const historicalCache = loadHistoricalWeatherCache();
 
   const cache = loadWeatherCache();
   const cacheKey = region.toLowerCase();
@@ -266,6 +296,10 @@ export async function asyncGetWeatherData(region: string, dateStr: string, curre
 
   if (!forecastData || !forecastData.daily || !forecastData.hourly) {
     console.log(`Server Weather Service: No live forecast data available for ${region}. Using generic out-of-range response.`);
+    if (historicalCache[historicalKey]) {
+      console.log(`Server Weather Service: Serving from historical weather cache for ${historicalKey}`);
+      return historicalCache[historicalKey];
+    }
     return fallback;
   }
 
@@ -273,6 +307,10 @@ export async function asyncGetWeatherData(region: string, dateStr: string, curre
   const dailyIndex = forecastData.daily.time.indexOf(targetDate);
   if (dailyIndex === -1) {
     console.log(`Server Weather Service: Date ${targetDate} is out of the 16-day forecast range for ${region}. Using generic out-of-range response.`);
+    if (historicalCache[historicalKey]) {
+      console.log(`Server Weather Service: Serving from historical weather cache for ${historicalKey}`);
+      return historicalCache[historicalKey];
+    }
     return fallback;
   }
 
@@ -291,6 +329,10 @@ export async function asyncGetWeatherData(region: string, dateStr: string, curre
 
   if (startIndex === -1) {
     console.log(`Server Weather Service: Hourly times for ${targetDate} not found. Using generic out-of-range response.`);
+    if (historicalCache[historicalKey]) {
+      console.log(`Server Weather Service: Serving from historical weather cache for ${historicalKey}`);
+      return historicalCache[historicalKey];
+    }
     return fallback;
   }
 
@@ -342,7 +384,7 @@ export async function asyncGetWeatherData(region: string, dateStr: string, curre
   const hour = hourStr ? parseInt(hourStr, 10) % 24 : currentTime.getHours();
   const currentTemp = hourly[hour]?.temp ?? tempMin;
 
-  return {
+  const weatherResult: WeatherData = {
     region,
     tempMin,
     tempMax,
@@ -355,5 +397,12 @@ export async function asyncGetWeatherData(region: string, dateStr: string, curre
     currentTemp,
     hourly
   };
+
+  if (condition !== 'Unknown') {
+    historicalCache[historicalKey] = weatherResult;
+    saveHistoricalWeatherCache(historicalCache);
+  }
+
+  return weatherResult;
 }
 
