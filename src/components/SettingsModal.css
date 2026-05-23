@@ -17,7 +17,7 @@
 .settings-modal {
   width: 100%;
   max-width: 380px;
-  max-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 40px);
+  max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 40px);
   background: #14151a;
   border-radius: 32px;
   color: white;
@@ -125,6 +125,8 @@
   transition: background 0.3s ease;
   flex-shrink: 0;
   padding: 0;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .settings-toggle.active {
@@ -228,6 +230,8 @@
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .settings-chip:hover {
@@ -545,3 +549,64 @@
     transform: translateY(0); 
   }
 }
+
+/* Premium styled close button for modal */
+.close-modal {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  -webkit-appearance: none;
+  appearance: none;
+  outline: none;
+}
+
+.close-modal:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+}
+
+.close-modal:active {
+  transform: scale(0.92);
+}
+
+/* Premium styled Sync All Data button */
+.settings-sync-btn {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 16px 20px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  color: white;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin: 16px 0;
+  -webkit-appearance: none;
+  appearance: none;
+  outline: none;
+}
+
+.settings-sync-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.settings-sync-btn:active {
+  transform: scale(0.98);
+  background: rgba(255, 255, 255, 0.06);
+}
+
