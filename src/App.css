@@ -1041,7 +1041,7 @@
   scroll-snap-stop: always;
   height: auto;
   visibility: visible;
-  padding-bottom: 80vh; /* Add runway for centering (universal) */
+  padding-bottom: 40vh; /* Add runway for centering (universal) */
 }
 
 .floating-now-btn {
@@ -1584,7 +1584,7 @@
     width: 100%;
     max-width: 800px;
     margin: 0 auto;
-    padding-bottom: 80vh; /* Maintain runway on desktop */
+    padding-bottom: 40vh; /* Maintain runway on desktop */
     opacity: 0.3;
     transition: opacity 0.5s ease;
     scroll-snap-align: none;
