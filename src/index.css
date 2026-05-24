@@ -29,19 +29,6 @@
   --safe-area-bottom: env(safe-area-inset-bottom);
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    --bg-main: #F8F9FA;
-    --bg-card: #FFFFFF;
-    --bg-glass: rgba(255, 255, 255, 0.92);
-    --text-main: #2D3436;
-    --text-heading: #1A1A1A;
-    --text-muted: #636E72;
-    --border: rgba(0, 0, 0, 0.08);
-    --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.05);
-    --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.12);
-  }
-}
 
 * {
   box-sizing: border-box;
@@ -240,14 +227,6 @@ h1, h2, h3, h4 {
 .type-shopping { background: rgba(194, 24, 91, 0.2); color: #F06292; }
 .type-other { background: rgba(255, 255, 255, 0.05); color: #ADB5BD; }
 
-@media (prefers-color-scheme: light) {
-  .type-sightseeing { background: #E3F2FD; color: #1976D2; }
-  .type-food { background: #FFF3E0; color: #F57C00; }
-  .type-transport { background: #F3E5F5; color: #7B1FA2; }
-  .type-accommodation { background: #E8F5E9; color: #388E3C; }
-  .type-shopping { background: #FCE4EC; color: #C2185B; }
-  .type-other { background: #F5F5F5; color: #616161; }
-}
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
