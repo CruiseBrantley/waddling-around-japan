@@ -273,7 +273,7 @@ export async function asyncGetWeatherData(region: string, dateStr: string, curre
   if (!forecastData) {
     try {
       console.log(`Server Weather Service: Fetching live weather forecast for ${region} (${coords.latitude}, ${coords.longitude})`);
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.latitude}&longitude=${coords.longitude}&hourly=temperature_2m,relative_humidity_2m,precipitation_probability,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,weather_code&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch&timezone=Asia%2FTokyo&forecast_days=16`;
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.latitude}&longitude=${coords.longitude}&hourly=temperature_2m,relative_humidity_2m,precipitation_probability,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,weather_code&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch&timezone=auto&forecast_days=16`;
       
       const response = await fetch(url);
       if (!response.ok) {
@@ -374,9 +374,10 @@ export async function asyncGetWeatherData(region: string, dateStr: string, curre
   const windSpeed = Math.round(windSpeedSum / 24);
   const precipProb = Math.round(precipProbMax);
 
-  // Calculate current hourly temp in the region's local timezone (Asia/Tokyo)
+  // Calculate current hourly temp in the region's dynamically resolved local timezone
+  const localTimezone = forecastData.timezone || 'Asia/Tokyo';
   const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'Asia/Tokyo',
+    timeZone: localTimezone,
     hour: 'numeric',
     hour12: false
   }).formatToParts(currentTime);
